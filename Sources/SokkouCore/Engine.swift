@@ -27,6 +27,8 @@ public protocol Engine: AnyObject {
 public protocol Learning: AnyObject {
     func preferred(for reading: String) -> String?
     func record(reading: String, word: String)
+    /// `X` で消した語を覚えていれば忘れる
+    func forget(reading: String, word: String)
 }
 
 /// 覚えた候補をメモリだけに持つ。テストとプライベートモードで使う
@@ -38,4 +40,8 @@ public final class MemoryLearning: Learning {
     public func preferred(for reading: String) -> String? { words[reading] }
 
     public func record(reading: String, word: String) { words[reading] = word }
+
+    public func forget(reading: String, word: String) {
+        if words[reading] == word { words[reading] = nil }
+    }
 }

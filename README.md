@@ -10,6 +10,8 @@ SKK の手触りで、打てばそのまま変換される、自分用の macOS 
 - 自分で区切りたいときは `;` で ▽ を始める。送り仮名も `;` か大文字で区切る
 - 変換中は Emacs のキーで操作する。何も打っていないときの Ctrl キーはアプリに渡す
 - 選んだ候補だけを控えめに覚える。入力メニューから切れる
+- SKK のように、候補の最後の「登録…」から単語を登録でき、`X` で候補を消せる。ユーザー辞書は SKK 形式で、`~/.skk-jisyo` や macSKK の辞書を取り込める
+- SKK 辞書（SKK-JISYO.L など）を追加の候補元にできる。ほかに abbrev（`/`）、数値変換、Tab での読みの補完
 - 軽さを優先し、既定は azooKey の辞書だけで変換する（Zenzai は使わない）
 
 キーの全体は [docs/keys.md](docs/keys.md)。
@@ -31,6 +33,12 @@ curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash
 ```
 
 main に入るたびに CI が dmg を組み立ててリリースに置く。
+
+## 辞書
+
+- **ユーザー辞書**: `~/Library/Application Support/sokkou/skk-jisyo.utf8`（SKK 形式、UTF-8）。候補の「登録…」で登録した語が入る。`X` で消した語は隣の `ignored.tsv` に残り、変換エンジンの候補からも外れる
+- **取り込み**: 入力メニューの「SKK のユーザー辞書を取り込む…」で `~/.skk-jisyo` や macSKK の `skk-jisyo.utf8` を選ぶと、無い語だけを足す（UTF-8 と EUC-JP を読む）
+- **SKK 辞書**: 入力メニューの「SKK-JISYO.L を入れる」で [skk-dev/dict](https://github.com/skk-dev/dict) から取ってくる。「SKK 辞書を追加…」でほかの辞書（人名、地名など）も足せる。辞書は `~/Library/Application Support/sokkou/Dictionaries/` に置かれ、中のファイルはすべて読む。SKK 辞書の語は ▽ の候補と文節選択の候補の後ろに出る
 
 ## ターミナルで使う
 
