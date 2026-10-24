@@ -26,7 +26,21 @@ Apple シリコンの macOS 14 以降で動く。
 curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash
 ```
 
-main に入るたびに CI が dmg を組み立ててリリースに置く。新しい版も同じ手順で入れ替わる。
+main に入るたびに CI が dmg を組み立ててリリースに置く。
+
+## 新しい版を試す
+
+入れ替えると動いている版を止めて新しい版をすぐ起動するので、ログインし直すのは初めて入れたときだけでよい。
+
+- **入力メニューから**: 「最新版に更新」で最新のリリースに、「PR の版を入れる…」で番号を入れた PR のビルドに入れ替わる。終わると通知が出る（失敗したら `~/Library/Logs/sokkou-update.log` を見る）。メニューにはいま動いているビルド（`v0.1.7 · abc1234`、`PR #4 · abc1234` など）が出る
+- **ターミナルから**:
+
+  ```sh
+  curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash               # 最新のリリース
+  curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash -s -- --pr 4  # PR #4 のビルド
+  ```
+
+PR のビルドは、CI が push のたびに `pr-<番号>` のプレリリースとして置き直し、PR を閉じると消す（fork からの PR は置かない）。PR の版は普段使いの版と同じ sokkou を上書きするので、試し終わったら「最新版に更新」で戻す。
 
 ## 手元で組み立てる
 

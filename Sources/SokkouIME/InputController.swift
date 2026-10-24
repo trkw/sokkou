@@ -274,7 +274,24 @@ final class SokkouInputController: IMKInputController {
         let learning = NSMenuItem(title: "選んだ候補を覚える", action: #selector(toggleLearning(_:)), keyEquivalent: "")
         learning.state = Settings.learns ? .on : .off
         menu.addItem(learning)
+        menu.addItem(.separator())
+        // どのビルドが動いているかを、試すたびに確かめられるように出す
+        let build = NSMenuItem(title: Updater.build, action: nil, keyEquivalent: "")
+        build.isEnabled = false
+        menu.addItem(build)
+        if Updater.isAvailable {
+            menu.addItem(NSMenuItem(title: "最新版に更新", action: #selector(installLatest(_:)), keyEquivalent: ""))
+            menu.addItem(NSMenuItem(title: "PR の版を入れる…", action: #selector(installPR(_:)), keyEquivalent: ""))
+        }
         return menu
+    }
+
+    @objc nonisolated func installLatest(_ sender: Any?) {
+        onMain { Updater.install() }
+    }
+
+    @objc nonisolated func installPR(_ sender: Any?) {
+        onMain { Updater.askAndInstallPR() }
     }
 
     @objc nonisolated func toggleLearning(_ sender: Any?) {

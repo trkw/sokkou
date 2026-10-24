@@ -49,6 +49,9 @@ case "--status":
     exit(printStatus())
 case "--check":
     exit(check())
+case "--version":
+    print(Updater.build)
+    exit(0)
 case "--install":
     exit(Installer.run(interactive: false))
 case "--snapshot":

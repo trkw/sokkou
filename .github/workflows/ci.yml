@@ -37,7 +37,11 @@ jobs:
           persist-credentials: false
           show-progress: false
 
+      # PR のビルドは pr-<番号> のプレリリースに置き、install.sh --pr <番号> と入力メニューから入れられるようにする
       - name: Build .app
+        env:
+          SOKKOU_BUILD_LABEL: ${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || 'main' }}
+          SOKKOU_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: SOKKOU_BUILD_CHANNEL=stable scripts/build-app.sh
 
       - name: Check .app
@@ -49,6 +53,14 @@ jobs:
 
       - name: Install from .app
         run: dist/sokkou.app/Contents/MacOS/sokkou --install
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name == 'pull_request'
+        with:
+          name: sokkou-macos-arm64
+          path: dist/sokkou-macos-arm64.dmg
+          if-no-files-found: error
+          retention-days: 1
 
       # 候補の窓とモードの札の見た目を画像に書き出す
       - name: Snapshot UI
@@ -89,3 +101,32 @@ jobs:
           git add -A
           git commit -q -m "UI snapshots for ${SHA}"
           git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ui-snapshots
+
+  # PR の dmg を pr-<番号> のプレリリースに置く。push のたびに置き直し、PR を閉じたら pr-build-cleanup.yml が消す
+  pr-build:
+    needs: app
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      TAG: pr-${{ github.event.pull_request.number }}
+      NUMBER: ${{ github.event.pull_request.number }}
+      SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sokkou-macos-arm64
+          path: dist
+
+      - name: Publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release delete "${TAG}" --repo "${GITHUB_REPOSITORY}" --cleanup-tag --yes 2>/dev/null || true
+          gh release create "${TAG}" --repo "${GITHUB_REPOSITORY}" --prerelease --latest=false --target "${SHA}" \
+            --title "PR #${NUMBER} のビルド" \
+            --notes "PR #${NUMBER} の ${SHA:0:7} を組み立てたもの。入れるには入力メニューの「PR の版を入れる…」か、install.sh --pr ${NUMBER}" \
+            dist/sokkou-macos-arm64.dmg

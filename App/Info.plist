@@ -16,6 +16,8 @@
 	<string>__VERSION__</string>
 	<key>CFBundleVersion</key>
 	<string>__VERSION__</string>
+	<key>SokkouBuild</key>
+	<string>__BUILD__</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSBackgroundOnly</key>

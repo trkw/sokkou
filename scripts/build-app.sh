@@ -18,6 +18,9 @@ case "${SOKKOU_BUILD_CHANNEL:-}" in
 esac
 version=${SOKKOU_VERSION:-0.0.0}
 root=$(cd "$(dirname "$0")/.." && pwd)
+# 入力メニューに出す、どのビルドかの印。CI はリリースの版か PR の番号と、元にしたコミットを渡す
+commit=${SOKKOU_COMMIT:-$(git -C "$root" rev-parse HEAD 2>/dev/null || echo unknown)}
+build_label="${SOKKOU_BUILD_LABEL:-手元} · ${commit:0:7}"
 app="$root/dist/$name.app"
 
 # native のビルドの仕組みはリソースを .app の Contents/Resources から探さないので、swiftbuild に固定する。
@@ -43,13 +46,15 @@ install_name_tool -add_rpath @executable_path/../Frameworks "$app/Contents/MacOS
 for bundle in "$bin"/*.bundle; do
     cp -R "$bundle" "$app/Contents/Resources/"
 done
-sed -e "s/__BUNDLE_ID__/$bundle_id/g" -e "s/__VERSION__/$version/g" -e "s/__NAME__/$name/g" "$root/App/Info.plist" > "$app/Contents/Info.plist"
+sed -e "s/__BUNDLE_ID__/$bundle_id/g" -e "s/__VERSION__/$version/g" -e "s/__NAME__/$name/g" -e "s|__BUILD__|$build_label|g" "$root/App/Info.plist" > "$app/Contents/Info.plist"
 plutil -lint "$app/Contents/Info.plist"
 for lproj in en.lproj ja.lproj; do
     mkdir -p "$app/Contents/Resources/$lproj"
     sed -e "s/__NAME__/$name/g" "$root/App/$lproj/InfoPlist.strings" > "$app/Contents/Resources/$lproj/InfoPlist.strings"
     plutil -lint "$app/Contents/Resources/$lproj/InfoPlist.strings"
 done
+# 入力メニューの「最新版に更新」が動かす
+cp "$root/install.sh" "$app/Contents/Resources/update.sh"
 swift "$root/scripts/make-icons.swift" "$app/Contents/Resources"
 
 echo "== ad-hoc 署名"
