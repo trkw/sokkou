@@ -86,7 +86,7 @@ watch_release() {
     tag=$(jq -r .tag_name <<<"$release")
     url=$(jq -r .html_url <<<"$release")
     published=$(jq -r '.published_at[:10]' <<<"$release")
-    notes=$(jq -r '.body // ""' <<<"$release" | head -c 6000)
+    notes=$(jq -r '(.body // "")[:6000]' <<<"$release")
     notify "$name" "$tag" "[$tag]($url) が $published に出ました。
 
 $notes"
