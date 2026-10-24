@@ -55,4 +55,18 @@ private enum Shared {
         let spans = try Shared.engine.get().live("she", leading: .start)
         #expect(spans.map(\.text).joined() == "she")
     }
+
+    /// ローマ字で読める短い綴りが英語の語表にあっても、日本語の途中で英語にしない
+    @Test(arguments: ["madahitotuninattenaine", "sounanda", "usodesyo", "ikuyo", "orehaikanai"])
+    func shortRomajiWordsStayJapanese(input: String) throws {
+        let spans = try Shared.engine.get().live(input, leading: .start)
+        #expect(spans.allSatisfy { $0.kind == .japanese }, "\(spans)")
+    }
+
+    /// よく使う英語の語は、日本語の中でも英語のまま
+    @Test(arguments: [("kyouhagithubdekensaku", "github"), ("yahoodesirabeta", "yahoo"), ("darkmodenisita", "mode")])
+    func commonEnglishWordsStayEnglish(input: String, word: String) throws {
+        let spans = try Shared.engine.get().live(input, leading: .start)
+        #expect(spans.contains { $0.kind == .english && $0.text.contains(word) }, "\(spans)")
+    }
 }
