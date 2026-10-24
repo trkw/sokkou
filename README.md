@@ -5,8 +5,8 @@ SKK の手触りで、打てばそのまま変換される、自分用の macOS 
 - 普段は Shift を押さずにローマ字を打つだけで、日本語と英語を判定して自動で変換する（meltype、tugime の流れ）
 - ローマ字は訓令式もヘボン式も読む（zi shi chi tsu fu sha cha jya zya）。綴りの表は `Sources/SokkouEngine/Resources/romaji.tsv`
 - モードは Ctrl で切り替える。`C-j` ひらがな、`C-q` 半角カナ、`C-l` 英数、`C-L` 全角英数（macSKK の流れ）
-- モードはアプリごとに覚える。ターミナル（Terminal、iTerm、WezTerm、Ghostty、kitty、Alacritty、Warp）は英数から始まる。アプリを移ると今のモードを札で見せる
-- 入力ソースは「sokkou」の 1 つだけ。英数も sokkou の中のモードなので、ほかの入力ソースに切り替えなくてよい。パスワード欄では macOS が ABC などの英字の入力ソースに自動で替える
+- 入力ソースは「sokkou (英数)」と「sokkou (日本語)」の 2 つ。`C-l` `C-j` でも Ctrl-Space（macOS の入力ソースの切り替え）でも行き来でき、macOS の札とメニューバーのアイコンで今どちらか分かる。カタカナ・半角カナ・全角英数は日本語の中のモードで、切り替えると sokkou の札が出る
+- モードはアプリごとに覚える。ターミナル（Terminal、iTerm、WezTerm、Ghostty、kitty、Alacritty、Warp）は英数から始まる
 - 自分で区切りたいときは `;` で ▽ を始める。送り仮名も `;` か大文字で区切る
 - 変換中は Emacs のキーで操作する。何も打っていないときの Ctrl キーはアプリに渡す
 - 選んだ候補だけを控えめに覚える。入力メニューから切れる
@@ -21,8 +21,8 @@ Apple シリコンの macOS 14 以降で動く。
 1. [最新のリリース](https://github.com/trkw/sokkou/releases/latest) から `sokkou-macos-arm64.dmg` を取ってきて開く
 2. 中の sokkou を右クリックして「開く」を選ぶ。sokkou が自分を `~/Library/Input Methods` に入れて登録する
    （Apple の公証を受けていないので、初回は「開発元を確認できない」と出る。システム設定 → プライバシーとセキュリティ の「このまま開く」で開ける）
-3. 初めて入れたときはログインし直してから、システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 → sokkou を追加する
-   （前の版の「sokkou (英数)」「sokkou (日本語)」が残っていたら、両方を「−」で外してから sokkou を追加し直す）
+3. 初めて入れたときはログインし直してから、システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 → 「sokkou (日本語)」と「sokkou (英数)」を追加する
+   （入れ替えたときは、sokkou を使っていれば両方とも自動で有効になる）
 
 ターミナルからなら 1 行で入る。
 
@@ -41,7 +41,9 @@ config.use_ime = true
 config.macos_forward_to_ime_modifier_mask = "SHIFT|CTRL"
 ```
 
-何も打っていないときに sokkou がモードの切り替えに使った Ctrl キーは、ターミナルが改行や画面の消去として重ねて処理しないよう、未確定の文字列を一瞬出して消して知らせる（AquaSKK・macSKK の空文字挿入と同じ）。英数モードの `C-l` はそのままシェルに渡るので、画面の消去に使える。
+Ghostty は 1.1.0 以降なら設定は要らない。Ghostty は「キーを押している間に入力ソースが変わったら、そのキーは IME が使った」とみなして端末に送らないので、入力ソースの切り替えになる `C-j` `C-l` は改行や画面の消去として漏れない（macSKK 作者の [Ghostty 向けの記事](https://zenn.dev/mtgto/articles/macskk-karabiner-settings-for-ghostty) と同じ仕組み）。そのため「sokkou (英数)」と「sokkou (日本語)」の両方を入力ソースに入れておく。1.0 までの Ghostty なら、記事のとおり `keybind = ctrl+j=ignore` を足す。カタカナ・半角カナは入力ソースが変わらないので、半角カナの `C-q` を使うなら `keybind = ctrl+q=ignore` を足しておくと端末に XON が送られない（何も打っていないときの `C-k` は、もともと行末までの削除としてシェルに渡している）。Karabiner-Elements の設定は要らない。
+
+ほかのターミナルでも、何も打っていないときに sokkou がモードの切り替えに使った Ctrl キーは、ターミナルが改行や画面の消去として重ねて処理しないよう、未確定の文字列を一瞬出して消して知らせる（AquaSKK・macSKK の空文字挿入と同じ）。英数モードの `C-l` はそのままシェルに渡るので、画面の消去に使える。
 
 ## 新しい版を試す
 
