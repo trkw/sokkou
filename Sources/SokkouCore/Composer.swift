@@ -104,6 +104,9 @@ public final class Composer {
             case .control("j"):
                 mode = .hiragana
                 return true
+            case .control("l"):
+                mode = .ascii
+                return true
             case .character(let character):
                 committed += Self.fullwidth(character)
                 return true

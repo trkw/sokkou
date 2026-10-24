@@ -7,9 +7,11 @@ import SokkouCore
         let loanwords = Loanwords(contents: "# 見出し\ntest\tテスト\nvirus\tウイルス\tヴァイラス\n")
         #expect(loanwords.katakana(of: "test") == ["テスト"])
         #expect(loanwords.katakana(of: "Virus") == ["ウイルス", "ヴァイラス"])
-        // 前後の空白は付け直し、2 語以上は引かない
+        // 前後の空白は付け直す。2 語以上は、どの語も表にあれば空白を詰めてつなぐ
         #expect(loanwords.katakana(of: " test ") == [" テスト "])
-        #expect(loanwords.katakana(of: "test virus").isEmpty)
+        #expect(loanwords.katakana(of: "virus test") == ["ウイルステスト"])
+        #expect(loanwords.katakana(of: "virus  test ") == ["ウイルステスト "])
+        #expect(loanwords.katakana(of: "test sokkou").isEmpty)
         #expect(loanwords.katakana(of: "sokkou").isEmpty)
     }
 
@@ -17,6 +19,13 @@ import SokkouCore
         let loanwords = try Loanwords.bundled()
         #expect(loanwords.katakana(of: "test").first == "テスト")
         #expect(loanwords.katakana(of: "update").first == "アップデート")
+        // azooKey の辞書に無い語は JMdict から補う
+        #expect(loanwords.katakana(of: "game").first == "ゲーム")
+        #expect(loanwords.katakana(of: "online").first == "オンライン")
+        // JMdict の訳語（mobile → メリー など）が azooKey の読みより先に来ない
+        #expect(loanwords.katakana(of: "mobile").first == "モバイル")
+        #expect(loanwords.katakana(of: "booth").first == "ブース")
+        #expect(loanwords.katakana(of: "creative").first == "クリエイティブ")
     }
 
     @Test func offersKatakanaRightAfterTheSpelling() {

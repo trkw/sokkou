@@ -24,6 +24,7 @@ enum Bench {
         var typing: [Duration] = []
         var selecting: [Duration] = []
         var byLength: [(length: Int, time: Duration)] = []
+        var slowest: [(typed: String, time: Duration)] = []
         func measure(_ key: Key) -> Duration {
             let start = clock.now
             _ = composer.handle(key, leading: { .start })
@@ -38,7 +39,10 @@ enum Bench {
                     let time = measure(character == " " ? .space : .character(character))
                     guard round > 0 else { continue }
                     typing.append(time)
-                    if round == 2 { byLength.append((index + 1, time)) }
+                    if round == 2 {
+                        byLength.append((index + 1, time))
+                        slowest.append((String(sentence.prefix(index + 1)), time))
+                    }
                 }
                 // 文節選択に入り、候補を 2 つ進めて窓を開き、確定する
                 for key in [Key.shiftSpace, .space, .space, .enter] {
@@ -55,6 +59,12 @@ enum Bench {
         print(row("打っている途中", typing))
         print(row("61 打鍵目から", longest))
         print(row("文節選択と確定", selecting))
+        print("")
+        print("遅かった打鍵（そこまでに打ったもの）")
+        print("")
+        for entry in slowest.sorted(by: { $0.time > $1.time }).prefix(5) {
+            print("- \(ms(entry.time)) ms `\(entry.typed)`")
+        }
         print("")
         print("- 辞書と語表の読み込み: \(ms(load)) ms")
         print("- メモリの最大（読み込み後）: \(megabytes(afterLoad)) MB")

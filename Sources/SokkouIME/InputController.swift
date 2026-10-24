@@ -3,22 +3,21 @@ import Cocoa
 import InputMethodKit
 import SokkouCore
 
-/// 英数と日本語の入力ソースの ID は、バンドル ID に接尾辞を付けたもの。
-/// 英数とひらがなの行き来は入力ソースの切り替えにするので、Ctrl-Space でも切り替わり、macOS が自分の札で見せる
-enum InputSource: String {
-    case japanese = "Japanese"
-    case roman = "Roman"
+/// 英数と日本語の入力ソースの ID は、バンドル ID に接尾辞を付けたもの
+extension InputSourceKind {
+    private var suffix: String { self == .roman ? "Roman" : "Japanese" }
 
-    var sourceID: String { "\(Bundle.main.bundleIdentifier!).\(rawValue)" }
+    var sourceID: String { "\(Bundle.main.bundleIdentifier!).\(suffix)" }
 
-    init(sourceID: String) {
-        self = sourceID.hasSuffix(".\(InputSource.roman.rawValue)") ? .roman : .japanese
-    }
-
-    init(_ mode: InputMode) {
-        self = mode == .ascii ? .roman : .japanese
+    /// sokkou の入力ソースの ID でなければ nil
+    init?(sourceID: String) {
+        guard let bundleID = Bundle.main.bundleIdentifier, sourceID.hasPrefix(bundleID + ".") else { return nil }
+        self = sourceID.hasSuffix(".Roman") ? .roman : .japanese
     }
 }
+
+/// アプリごとのモード。入力欄ごとの入力コントローラで共有する
+let modeMemory = ModeMemory()
 
 /// Carbon の仮想キーコード。NSEvent.keyCode と同じ UInt16 にそろえる
 private enum KeyCode {
@@ -72,7 +71,10 @@ final class SokkouInputController: IMKInputController {
     nonisolated override func setValue(_ value: Any!, forTag tag: Int, client sender: Any!) {
         guard let id = value as? String else { return }
         nonisolated(unsafe) let client = sender as? IMKTextInput
-        onMain { selectSource(InputSource(sourceID: id), client: client) }
+        onMain {
+            guard let source = InputSourceKind(sourceID: id) else { return }
+            selectSource(source, client: client)
+        }
     }
 
     nonisolated override func commitComposition(_ sender: Any!) {
@@ -142,7 +144,7 @@ final class SokkouInputController: IMKInputController {
         let wasComposing = composer.isComposing
         let handled = composer.handle(key, leading: { Self.leadingContext(of: client) })
         flush(client)
-        if case .control = key, handled, !wasComposing, !composer.isComposing, AppModes.isTerminal(app) {
+        if case .control = key, handled, !wasComposing, !composer.isComposing, ModeMemory.isTerminal(app) {
             tellKeyWasUsed(client)
         }
         if composer.mode != before {
@@ -153,16 +155,17 @@ final class SokkouInputController: IMKInputController {
 
     // MARK: モード
 
-    /// 入力欄に入ったとき。そのアプリで最後に使ったモードにそろえ、macOS の入力ソースもそれに合わせる
+    /// 入力欄に入ったとき。アプリを移ったらそのアプリで最後に使ったモードに、同じアプリの中なら今の入力ソースにそろえる
     private func activate(_ client: IMKTextInput) {
         app = client.bundleIdentifier()
-        let mode = AppModes.mode(for: app)
+        let current = Self.currentSourceID().flatMap(InputSourceKind.init(sourceID:))
+        let mode = modeMemory.activate(app, current: composer.mode, source: current)
         if composer.mode != mode {
             composer.select(mode: mode)
             flush(client)
         }
-        let source = InputSource(mode)
-        if Self.currentSourceID() != source.sourceID {
+        let source = InputSourceKind(mode)
+        if let current, current != source {
             client.selectMode(source.sourceID)
         }
     }
@@ -175,21 +178,22 @@ final class SokkouInputController: IMKInputController {
         return Unmanaged<CFString>.fromOpaque(raw).takeUnretainedValue() as String
     }
 
-    private func selectSource(_ source: InputSource, client: IMKTextInput?) {
-        guard InputSource(composer.mode) != source else { return }
-        composer.select(mode: source == .roman ? .ascii : .hiragana)
-        AppModes.remember(composer.mode, for: app)
+    /// macOS が入力ソースを切り替えたとき。カタカナなど日本語の中のモードにいて日本語が選ばれたなら、そのまま
+    private func selectSource(_ source: InputSourceKind, client: IMKTextInput?) {
+        guard InputSourceKind(composer.mode) != source else { return }
+        composer.select(mode: source.mode)
+        modeMemory.remember(composer.mode, for: app)
         if let client { flush(client) }
     }
 
     /// 英数とそれ以外の行き来は入力ソースを切り替え、macOS の札に任せる。
     /// カタカナ・半角カナ・全角英数は日本語の入力ソースの中のモードで、macOS は何も出さないので sokkou の札で見せる
     private func modeDidChange(from before: InputMode, client: IMKTextInput) {
-        AppModes.remember(composer.mode, for: app)
-        let source = InputSource(composer.mode)
-        if source != InputSource(before) {
+        modeMemory.remember(composer.mode, for: app)
+        switch ModeChangeReaction(from: before, to: composer.mode) {
+        case .selectSource(let source):
             client.selectMode(source.sourceID)
-        } else {
+        case .showBadge:
             modeBadge.show(composer.mode, near: caretRect(client))
         }
     }
