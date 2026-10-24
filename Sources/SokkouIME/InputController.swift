@@ -117,6 +117,8 @@ final class SokkouInputController: IMKInputController {
             flush(client)
             return false
         }
+        // 設定はほかの入力欄のメニューからも変わるので、打鍵ごとに読み直す
+        composer.learns = Settings.learns
         let before = composer.mode
         let handled = composer.handle(key, leading: { Self.leadingContext(of: client) })
         flush(client)
