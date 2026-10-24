@@ -7,12 +7,14 @@ public final class TugimeEngine: Engine {
     private let table: RomajiTable
     private let converter: any JapaneseConverting
     private let segmenter: Segmenter
+    private let loanwords: Loanwords
 
     /// method は既定で azooKey の辞書だけを使う。Zenzai（言語モデル）は軽さを測ってから入れる
     public init(method: ConversionMethod = .azooKey) throws {
         table = try Self.romajiTable()
         converter = method.make()
         segmenter = Segmenter(table: table, english: try Self.englishModel(table: table), japanese: converter)
+        loanwords = try Loanwords.bundled()
     }
 
     /// 英語として扱う語の頻度の下限。これより少なく、ローマ字で読める短い綴り（nai ine uso iku など）は、
@@ -62,30 +64,44 @@ public final class TugimeEngine: Engine {
     }
 
     public func live(_ keys: String, leading: Leading) -> [Span] {
+        // 表示と確定で同じ打鍵列を続けて読むので、最後の 1 つを覚えておく
+        if let last = lastLive, last.keys == keys, last.leading == leading { return last.spans }
         let segments = segmenter.segment(keys, leading: leading.tugime)
         let text = segmenter.liveText(keys, leading: leading.tugime)
-        return Self.spans(of: segments, in: text)
+        let spans = Self.spans(of: segments, in: text)
+        lastLive = (keys, leading, spans)
+        return spans
     }
 
+    private var lastLive: (keys: String, leading: Leading, spans: [Span])?
+
     public func clauses(_ keys: String, leading: Leading) -> ClauseList {
-        Self.list(segmenter.clauses(keys, leading: leading.tugime))
+        withLoanwords(segmenter.clauses(keys, leading: leading.tugime))
     }
 
     public func resize(_ list: ClauseList, at index: Int, by delta: Int, leading: Leading) -> ClauseList {
-        Self.list(segmenter.resize(Self.tugime(list), at: index, by: delta, leading: leading.tugime))
+        withLoanwords(segmenter.resize(Self.tugime(list), at: index, by: delta, leading: leading.tugime))
     }
 
     public func commit(_ list: ClauseList, through index: Int) -> (text: String, rest: ClauseList, keys: String)? {
         guard let result = segmenter.commit(Self.tugime(list), through: index) else { return nil }
-        return (result.text, Self.list(result.rest), result.keys)
+        return (result.text, withLoanwords(result.rest), result.keys)
     }
 
     public func whole(_ keys: String, form: SokkouCore.CharacterForm, leading: Leading) -> ClauseList {
-        Self.list([segmenter.wholeClause(keys, to: form.tugime, leading: leading.tugime)])
+        guard form == .katakana || form == .halfwidthKatakana else {
+            return Self.list([segmenter.wholeClause(keys, to: form.tugime, leading: leading.tugime)])
+        }
+        return Self.list([katakanaWhole(keys, form: form, leading: leading)])
     }
 
     public func form(_ list: ClauseList, at index: Int, to form: SokkouCore.CharacterForm) -> String? {
-        segmenter.convertClause(Self.tugime(list), at: index, to: form.tugime)
+        let clause = list.clauses[index]
+        if form == .katakana || form == .halfwidthKatakana, clause.kind == .english,
+           let katakana = loanwords.katakana(of: clause.reading).first {
+            return convert(kana: katakana, to: form)
+        }
+        return segmenter.convertClause(Self.tugime(list), at: index, to: form.tugime)
     }
 
     public func kana(_ romaji: String) -> (kana: String, rest: String) {
@@ -127,7 +143,59 @@ public final class TugimeEngine: Engine {
     }
 
     public func endComposition() {
+        lastLive = nil
         segmenter.endComposition()
+    }
+
+    // MARK: 英単語のカタカナ読み
+
+    /// 英語の文節に、test → テスト のようなカタカナ読みを候補として足す
+    private func withLoanwords(_ clauses: [TugimeCore.Clause]) -> ClauseList {
+        var list = Self.list(clauses)
+        for index in list.clauses.indices where list.clauses[index].kind == .english {
+            Self.offer(loanwords.katakana(of: list.clauses[index].reading), in: &list.clauses[index])
+        }
+        return list
+    }
+
+    /// 全体をカタカナ・半角カナにした 1 文節。tugime の `wholeClause` と同じく日本語区間は読み、
+    /// 英語区間は綴りの表で読めた読みにするが、表にある英単語は先にその読みにする（test → テスト）。
+    /// 表を使わない形も、違えば次の候補に置く
+    private func katakanaWhole(_ keys: String, form: SokkouCore.CharacterForm, leading: Leading) -> TugimeCore.Clause {
+        let segments = segmenter.segment(keys, leading: leading.tugime)
+        let parts = segments.map { segment in
+            segment.kind == .english ? englishReading(of: segment.source) ?? segment.source : segment.reading
+        }
+        let reading = parts.joined()
+        let withLoanwords = zip(segments, parts).map { segment, part in
+            segment.kind == .english ? loanwords.katakana(of: segment.source).first ?? part : part
+        }.joined()
+        var candidates = [convert(kana: withLoanwords, to: form)]
+        let plain = convert(kana: reading, to: form)
+        if plain != candidates[0] { candidates.append(plain) }
+        let span = ClauseSpan(index: 0, source: keys, reading: reading, context: leading == .start ? .start : .afterCaret)
+        return TugimeCore.Clause(kind: .whole, reading: reading, candidates: candidates, selected: 0, span: span)
+    }
+
+    /// tugime の `englishReading` と同じく、英語区間を空白で区切った語ごとに綴りの表で読む。1 語も読めなければ nil
+    private func englishReading(of source: String) -> String? {
+        var readAny = false
+        let words = source.split(separator: " ", omittingEmptySubsequences: false).map { word in
+            guard let kana = table.reading(of: String(word)) else { return String(word) }
+            readAny = true
+            return kana
+        }
+        return readAny ? words.joined(separator: " ") : nil
+    }
+
+    /// 英語の綴りのすぐ次に、よく使う読みから置く。すでにある候補は足さず、選んでいる候補は変えない
+    static func offer(_ words: [String], in clause: inout SokkouCore.Clause) {
+        var position = min(1, clause.candidates.count)
+        for word in words where !clause.candidates.contains(word) {
+            clause.candidates.insert(word, at: position)
+            if position <= clause.selected { clause.selected += 1 }
+            position += 1
+        }
     }
 
     // MARK: 型の付け替え

@@ -56,6 +56,7 @@ done
 # 入力メニューの「最新版に更新」が動かす
 cp "$root/install.sh" "$app/Contents/Resources/update.sh"
 swift "$root/scripts/make-icons.swift" "$app/Contents/Resources"
+swift "$root/scripts/make-app-icon.swift" "$app/Contents/Resources"
 
 echo "== ad-hoc 署名"
 codesign --force --timestamp=none --sign - "$app/Contents/Frameworks/llama.framework"
