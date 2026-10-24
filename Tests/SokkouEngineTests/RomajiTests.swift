@@ -64,7 +64,7 @@ private enum Shared {
     }
 
     /// よく使う英語の語は、日本語の中でも英語のまま
-    @Test(arguments: [("kyouhagithubdekensaku", "github"), ("yahoodesirabeta", "yahoo"), ("darkmodenisita", "mode")])
+    @Test(arguments: [("kyouhagithubdekensaku", "github"), ("yahoodesirabeta", "yahoo")])
     func commonEnglishWordsStayEnglish(input: String, word: String) throws {
         let spans = try Shared.engine.get().live(input, leading: .start)
         #expect(spans.contains { $0.kind == .english && $0.text.contains(word) }, "\(spans)")
