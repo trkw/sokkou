@@ -891,11 +891,11 @@ public final class Composer {
             words += engine.words(reading: heading.reading, okurigana: okuriKana)
             words += lexicon?.systemWords(reading: heading.reading, okuri: heading.okuri).map { $0 + okuriKana } ?? []
         }
+        words += words.prefix(3).flatMap(Numeric.variants)
+        words = Self.unique(words)
         if let lexicon {
             words = words.filter { !lexicon.isIgnored(Self.stripping(okuriKana, from: $0), reading: heading.reading, okuri: heading.okuri) }
         }
-        words += words.prefix(3).flatMap(Numeric.variants)
-        words = Self.unique(words)
         if learns, let learning, let word = learning.preferred(for: learningKey(manual)), let found = words.firstIndex(of: word) {
             words.remove(at: found)
             words.insert(word, at: 0)

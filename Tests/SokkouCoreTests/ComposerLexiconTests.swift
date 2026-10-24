@@ -141,6 +141,17 @@ struct ComposerLexiconTests {
         #expect(items.contains("三回"))
     }
 
+    @Test func removedNumberVariantStaysRemoved() {
+        let composer = composer()
+        // ▼3かい ３回 三回 ３かい
+        type(composer, characters(";3kai") + [.space, .space, .space, .space])
+        #expect(composer.presentation.text == "▼３かい")
+        type(composer, [.character("X")])
+        composer.cancel()
+        type(composer, characters(";3kai") + [.space, .space, .space])
+        #expect(composer.presentation.window?.items.contains("３かい") == false)
+    }
+
     // MARK: abbrev
 
     @Test func abbrevLooksUpTheDictionary() {

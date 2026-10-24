@@ -8,7 +8,7 @@ struct SKKDictionaryTests {
         ;; okuri-ari entries.
         かk /書/描;えがく/[く/書/]/
         ;; okuri-nasi entries.
-        かく /核;nucleus/角/(concat "a")/格/
+        かく /核;nucleus/角/(skk-current-date)/格/
         github /GitHub/
         #かい /#1回/#3回/
         """
@@ -17,6 +17,7 @@ struct SKKDictionaryTests {
         let dictionary = SKKDictionary(contents: contents)
         #expect(dictionary.words(reading: "か", okuri: "k") == ["書", "描"])
         #expect(dictionary.words(reading: "かく", okuri: nil) == ["核", "角", "格"])
+        #expect(SKKDictionary(contents: "ab /(concat \"a\\057b\")/\n").words(reading: "ab", okuri: nil) == ["a/b"])
         #expect(dictionary.words(reading: "github", okuri: nil) == ["GitHub"])
         #expect(dictionary.words(reading: "かく", okuri: "k").isEmpty)
     }
@@ -41,6 +42,14 @@ struct UserDictionaryTests {
         let text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
         #expect(text.contains("かく /核/角/\n"))
         #expect(text.contains("かk /書/\n"))
+    }
+
+    @Test func wordsWithDelimitersSurviveSaving() {
+        let dictionary = UserDictionary(url: url)
+        for word in ["https://example.com/a;b", "[x]", "(y)", "a\\\"b/"] {
+            dictionary.register(word, reading: "てすと", okuri: nil)
+        }
+        #expect(UserDictionary(url: url).words(reading: "てすと", okuri: nil) == ["a\\\"b/", "(y)", "[x]", "https://example.com/a;b"])
     }
 
     @Test func removedWordsAreIgnoredUntilRegisteredAgain() {

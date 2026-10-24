@@ -86,16 +86,67 @@ public struct SKKDictionary: Sendable {
                 if part == "]" { inBlock = false }
                 continue
             }
-            let word = part.split(separator: ";", maxSplits: 1, omittingEmptySubsequences: false).first.map { String($0) } ?? ""
+            var word = part.split(separator: ";", maxSplits: 1, omittingEmptySubsequences: false).first.map { String($0) } ?? ""
+            if word.hasPrefix("(concat ") {
+                word = concatenated(word) ?? ""
+            }
             guard !word.isEmpty, !word.hasPrefix("("), !words.contains(word) else { continue }
             words.append(word)
         }
         return words
     }
 
-    /// 候補を SKK の候補の欄の文字列にする。/ と ; を含む候補は書けないので外す
+    /// 候補を SKK の候補の欄の文字列にする。/ と ; を含む候補は、SKK と同じく (concat "a\057b") と書く
     static func field(_ words: [String]) -> String {
-        "/" + words.filter { !$0.contains("/") && !$0.contains(";") }.map { $0 + "/" }.joined()
+        "/" + words.map { word in
+            // [ と ( で始まる候補も、送り仮名の塊と式に読まれないよう concat にする
+            guard word.contains("/") || word.contains(";") || word.hasPrefix("[") || word.hasPrefix("(") else { return word + "/" }
+            var escaped = ""
+            for character in word {
+                switch character {
+                case "/": escaped += "\\057"
+                case ";": escaped += "\\073"
+                case "\\": escaped += "\\\\"
+                case "\"": escaped += "\\\""
+                default: escaped.append(character)
+                }
+            }
+            return "(concat \"" + escaped + "\")/"
+        }.joined()
+    }
+
+    /// (concat "a\057b" "c") の文字列をつないだもの。\ の 8 進数と \\ \" を読む。形が合わなければ nil
+    static func concatenated(_ expression: String) -> String? {
+        guard expression.hasSuffix(")") else { return nil }
+        var result = ""
+        var characters = expression.dropFirst("(concat ".count).dropLast()[...]
+        while let first = characters.first {
+            characters = characters.dropFirst()
+            if first == " " { continue }
+            guard first == "\"" else { return nil }
+            var closed = false
+            while let character = characters.first {
+                characters = characters.dropFirst()
+                if character == "\"" {
+                    closed = true
+                    break
+                }
+                guard character == "\\" else {
+                    result.append(character)
+                    continue
+                }
+                let octal = characters.prefix { ("0"..."7").contains($0) }.prefix(3)
+                if !octal.isEmpty, let value = UInt32(octal, radix: 8), let scalar = Unicode.Scalar(value) {
+                    result.append(Character(scalar))
+                    characters = characters.dropFirst(octal.count)
+                } else if let next = characters.first {
+                    result.append(next)
+                    characters = characters.dropFirst()
+                }
+            }
+            guard closed else { return nil }
+        }
+        return result
     }
 }
 

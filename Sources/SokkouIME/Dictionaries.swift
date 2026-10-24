@@ -45,6 +45,11 @@ enum Dictionaries {
         for url in urls {
             guard let dictionary = SKKDictionary(url: url), !dictionary.isEmpty else { continue }
             let destination = directory.appendingPathComponent(url.lastPathComponent)
+            // もう入っている辞書を選んだら、消してしまわずにそのまま読み直す
+            if url.standardizedFileURL.resolvingSymlinksInPath() == destination.standardizedFileURL.resolvingSymlinksInPath() {
+                added.append(url.lastPathComponent)
+                continue
+            }
             try? FileManager.default.removeItem(at: destination)
             if (try? FileManager.default.copyItem(at: url, to: destination)) != nil {
                 added.append(url.lastPathComponent)
