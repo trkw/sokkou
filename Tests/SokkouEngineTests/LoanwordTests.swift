@@ -17,6 +17,9 @@ import SokkouCore
         let loanwords = try Loanwords.bundled()
         #expect(loanwords.katakana(of: "test").first == "テスト")
         #expect(loanwords.katakana(of: "update").first == "アップデート")
+        // azooKey の辞書に無い語は JMdict から補う
+        #expect(loanwords.katakana(of: "game").first == "ゲーム")
+        #expect(loanwords.katakana(of: "online").first == "オンライン")
     }
 
     @Test func offersKatakanaRightAfterTheSpelling() {
