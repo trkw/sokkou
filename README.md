@@ -5,6 +5,7 @@ SKK の手触りで、打てばそのまま変換される、自分用の macOS 
 - 普段は Shift を押さずにローマ字を打つだけで、日本語と英語を判定して自動で変換する（meltype、tugime の流れ）
 - ローマ字は訓令式もヘボン式も読む（zi shi chi tsu fu sha cha jya zya）。綴りの表は `Sources/SokkouEngine/Resources/romaji.tsv`
 - モードは Ctrl で切り替える。`C-j` ひらがな、`C-q` 半角カナ、`C-l` 英数、`C-L` 全角英数（macSKK の流れ）
+- モードはアプリごとに覚える。ターミナル（Terminal、iTerm、WezTerm、Ghostty、kitty、Alacritty、Warp）は英数から始まる。アプリを移ると今のモードを札で見せる
 - 入力ソースは「sokkou」の 1 つだけ。英数も sokkou の中のモードなので、ほかの入力ソースに切り替えなくてよい。パスワード欄では macOS が ABC などの英字の入力ソースに自動で替える
 - 自分で区切りたいときは `;` で ▽ を始める。送り仮名も `;` か大文字で区切る
 - 変換中は Emacs のキーで操作する。何も打っていないときの Ctrl キーはアプリに渡す
@@ -30,6 +31,17 @@ curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash
 ```
 
 main に入るたびに CI が dmg を組み立ててリリースに置く。
+
+## ターミナルで使う
+
+WezTerm は既定では Ctrl 付きのキーを IME に渡さないので、`~/.wezterm.lua` に次を足す。足さないと `C-j` `C-l` が sokkou に届かない。
+
+```lua
+config.use_ime = true
+config.macos_forward_to_ime_modifier_mask = "SHIFT|CTRL"
+```
+
+何も打っていないときに sokkou がモードの切り替えに使った Ctrl キーは、ターミナルが改行や画面の消去として重ねて処理しないよう、未確定の文字列を一瞬出して消して知らせる（AquaSKK・macSKK の空文字挿入と同じ）。英数モードの `C-l` はそのままシェルに渡るので、画面の消去に使える。
 
 ## 新しい版を試す
 

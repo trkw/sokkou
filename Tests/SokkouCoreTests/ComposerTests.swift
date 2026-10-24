@@ -234,6 +234,15 @@ struct ComposerTests {
         #expect(composer.takeCommitted() == "ａ")
     }
 
+    @Test func controlLWhileTypingCommitsLettersAndEntersAscii() {
+        let composer = composer()
+        type(composer, characters("kaku") + [.control("l")])
+        #expect(composer.takeCommitted() == "kaku")
+        #expect(!composer.isComposing)
+        #expect(composer.mode == .ascii)
+        #expect(!composer.handle(.character("a"), leading: { .start }))
+    }
+
     @Test func idleControlKPassesThroughByDefault() {
         let composer = composer()
         #expect(!composer.handle(.control("k"), leading: { .start }))

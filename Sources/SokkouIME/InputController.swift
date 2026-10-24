@@ -28,6 +28,10 @@ final class SokkouInputController: IMKInputController {
     }()
     /// 未確定の文字列を表示しているか。表示していないときに空の未確定の文字列を送らない
     private var showsMarkedText = false
+    /// 入力欄のアプリのバンドル ID。モードをアプリごとに覚えるのに使う
+    private var app: String?
+    /// 最後に入力欄に入ったアプリ。アプリを移ったときだけ札を出す
+    private static var lastApp: String?
 
     // MARK: InputMethodKit からの呼び出し
     // InputMethodKit の基底クラスは隔離の指定を持たないので、上書きする関数は nonisolated にし、中身を onMain でメインアクターとして動かす
@@ -54,6 +58,14 @@ final class SokkouInputController: IMKInputController {
         onMain {
             composer.commitAll()
             flush(target)
+        }
+    }
+
+    nonisolated override func activateServer(_ sender: Any!) {
+        super.activateServer(sender)
+        nonisolated(unsafe) let target = sender as? IMKTextInput
+        onMain {
+            if let target { activate(target) }
         }
     }
 
@@ -102,14 +114,45 @@ final class SokkouInputController: IMKInputController {
         }
         // 設定はほかの入力欄のメニューからも変わるので、打鍵ごとに読み直す
         composer.learns = Settings.learns
+        if app == nil { app = client.bundleIdentifier() }
         let before = composer.mode
+        let wasComposing = composer.isComposing
         let handled = composer.handle(key, leading: { Self.leadingContext(of: client) })
         flush(client)
+        if case .control = key, handled, !wasComposing, !composer.isComposing, AppModes.isTerminal(app) {
+            tellKeyWasUsed(client)
+        }
         if composer.mode != before {
+            AppModes.remember(composer.mode, for: app)
             // 入力ソースは 1 つだけなので macOS は何も出さない。モードは sokkou の札で見せる
             modeBadge.show(composer.mode, near: caretRect(client))
         }
         return handled
+    }
+
+    /// 入力欄に入ったとき。そのアプリで最後に使ったモードにそろえ、アプリを移ったときは今のモードを札で見せる
+    private func activate(_ client: IMKTextInput) {
+        app = client.bundleIdentifier()
+        let mode = AppModes.mode(for: app)
+        if composer.mode != mode {
+            composer.select(mode: mode)
+            flush(client)
+        }
+        guard app != Self.lastApp else { return }
+        Self.lastApp = app
+        let line = caretRect(client)
+        guard line != .zero else { return }
+        // このとき macOS も入力ソースの札を出すことがあるので、その右に並べる
+        modeBadge.show(mode, near: line, besideSystemIndicator: true)
+    }
+
+    /// 何も打っていないときに Ctrl キーをモードの切り替えに使ったことを、ターミナルに知らせる。
+    /// ターミナルの多くは、IME が何も表示しなかったキーを自分でも処理するので、C-j が改行、C-l が画面の消去になってしまう。
+    /// 未確定の文字列を一瞬出して消す（AquaSKK・macSKK の空文字挿入と同じ）
+    private func tellKeyWasUsed(_ client: IMKTextInput) {
+        let none = NSRange(location: NSNotFound, length: 0)
+        client.setMarkedText("\u{0C}", selectionRange: none, replacementRange: none)
+        client.setMarkedText("", selectionRange: none, replacementRange: none)
     }
 
     /// sokkou が区別するキーにする。区別しないキーは nil
