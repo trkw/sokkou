@@ -35,7 +35,7 @@ jobs:
       - name: Build .app
         env:
           VERSION: ${{ steps.version.outputs.version }}
-        run: SOKKOU_BUILD_CHANNEL=stable SOKKOU_VERSION="${VERSION}" scripts/build-app.sh
+        run: SOKKOU_BUILD_CHANNEL=stable SOKKOU_VERSION="${VERSION}" SOKKOU_BUILD_LABEL="v${VERSION}" SOKKOU_COMMIT="${GITHUB_SHA}" scripts/build-app.sh
 
       - name: Check .app
         run: scripts/check-app.sh dist/sokkou.app

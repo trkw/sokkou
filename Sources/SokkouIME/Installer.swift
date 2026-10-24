@@ -52,12 +52,15 @@ enum Installer {
 
     private static func install(from source: URL, to destination: URL) throws {
         try FileManager.default.createDirectory(at: inputMethods, withIntermediateDirectories: true)
-        // 動いている古い版を止める。次に入力ソースが選ばれたときに新しい版が起動する
+        // 動いている古い版を止める。止めたら、入れ終えたあとに新しい版を起動し直す
+        var stopped: [pid_t] = []
         if let id = Bundle.main.bundleIdentifier {
             for app in NSRunningApplication.runningApplications(withBundleIdentifier: id) where app != .current {
                 app.forceTerminate()
+                stopped.append(app.processIdentifier)
             }
         }
+        waitUntilExited(stopped)
         // バンドルを消さずに中身を入れ替える。バンドルが無い瞬間に macOS が入力ソースの一覧を作り直すと登録が消えるため
         try run("/usr/bin/rsync", ["-a", "--delete", source.path + "/", destination.path + "/"])
         // ダウンロードした dmg から入れたときの隔離の属性を外す。ad-hoc 署名なので、付いたままだと入力メソッドとして起動できない
@@ -69,6 +72,19 @@ enum Installer {
         let status = TISRegisterInputSource(destination as CFURL)
         guard status == noErr else {
             throw InstallError("入力ソースとして登録できない（\(status)）")
+        }
+        // 使っていた版を止めたときだけ起こす。ログインし直さなくても、次の打鍵から新しい版が受ける
+        if !stopped.isEmpty {
+            try run("/usr/bin/open", ["-g", destination.path])
+            print("== 起動 \(destination.path)")
+        }
+    }
+
+    /// 止めたプロセスが消えるのを 3 秒まで待つ。残っているうちに起動すると、LaunchServices が古いほうを使おうとする
+    private static func waitUntilExited(_ pids: [pid_t]) {
+        let deadline = Date().addingTimeInterval(3)
+        while pids.contains(where: { kill($0, 0) == 0 }), Date() < deadline {
+            usleep(50_000)
         }
     }
 
