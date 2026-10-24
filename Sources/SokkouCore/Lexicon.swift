@@ -89,8 +89,10 @@ public struct SKKDictionary: Sendable {
             var word = part.split(separator: ";", maxSplits: 1, omittingEmptySubsequences: false).first.map { String($0) } ?? ""
             if word.hasPrefix("(concat ") {
                 word = concatenated(word) ?? ""
+            } else if word.hasPrefix("(") {
+                continue
             }
-            guard !word.isEmpty, !word.hasPrefix("("), !words.contains(word) else { continue }
+            guard !word.isEmpty, !words.contains(word) else { continue }
             words.append(word)
         }
         return words
