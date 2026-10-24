@@ -275,22 +275,6 @@ enum Installer {
         }
     }
 
-    /// sokkou の入力ソースを 1 つでも使っていたら、英数と日本語の両方を有効にする。
-    /// 入力ソースを 1 つにまとめていた版から入れ替えたとき、英数を自分で追加し直さなくて済むように
-    private static func enableSiblingSources() {
-        guard let bundleID = Bundle.main.bundleIdentifier else { return }
-        let filter = [kTISPropertyBundleID as String: bundleID] as CFDictionary
-        guard let list = TISCreateInputSourceList(filter, true)?.takeRetainedValue() as? [TISInputSource] else { return }
-        let enabled = list.contains { source in
-            guard let raw = TISGetInputSourceProperty(source, kTISPropertyInputSourceIsEnabled) else { return false }
-            return CFBooleanGetValue(Unmanaged<CFBoolean>.fromOpaque(raw).takeUnretainedValue())
-        }
-        guard enabled else { return }
-        for source in list {
-            TISEnableInputSource(source)
-        }
-    }
-
     private static func run(_ tool: String, _ arguments: [String]) throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: tool)
