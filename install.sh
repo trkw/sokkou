@@ -1,17 +1,21 @@
 #!/bin/bash
-# sokkou を ~/Library/Input Methods に置いて入力ソースとして登録する。有効化はしない。
-# 動いている版があれば止めて、入れた版をすぐ起動する（ログインし直すのは初めて入れたときだけ）
+# sokkou を ~/Library/Input Methods に置いて入力ソースとして登録し、有効にする。
+# 動いている版があれば止めて、入れた版をすぐ起動する。ログインし直さなくてよい。
 #
 # 使い方:
 #   curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash              # 最新のリリースを入れる
 #   curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash -s -- --pr 4  # PR #4 の CI のビルドを入れる
 #   bash install.sh "dist/sokkou Dev.app"                                                        # 手元で組み立てたものを入れる
 #
-# 入力メニューの「最新版に更新」「PR の版を入れる…」も、.app に入れたこのスクリプトを --notify 付きで動かす
+# 入力メニューの「最新版に更新」「PR の版を入れる…」と自動の更新も、.app に入れたこのスクリプトを --notify 付きで動かす。
+#
+# 取ってきた dmg は、GitHub がリリースの資産ごとに出す SHA-256 と突き合わせ、中の .app の署名とバンドル ID を確かめ、
+# その .app が辞書を読んで変換できるか（--check）を試してから入れる。入れ替えでしくじったら sokkou が前の版に戻す
 set -euo pipefail
 
 repo="trkw/sokkou"
 asset="sokkou-macos-arm64.dmg"
+bundle_id="io.github.trkw.inputmethod.sokkou"
 notify=false
 tag=""
 src=""
@@ -48,12 +52,22 @@ if $notify && [[ -z "${SOKKOU_DETACHED:-}" ]]; then
     exit $?
 fi
 
-# 入力メニューから動かしたときは端末が無いので、結果を通知でも出す
+log() {
+    echo "$(date '+%F %T') $1"
+}
+
+# 入力メニューから動かしたときは端末が無いので、結果を通知でも出す。通知は許可が無いと出ないので、窓は sokkou が出す
 say() {
-    echo "$1"
+    log "$1"
     if $notify; then
         osascript -e "display notification \"$1\" with title \"sokkou\"" >/dev/null 2>&1 || true
     fi
+}
+
+# 失敗の理由は最後の行に書く。sokkou はログの最後の行を窓に出す
+fail() {
+    log "失敗: $1"
+    exit 1
 }
 
 finish() {
@@ -65,41 +79,79 @@ finish() {
     if [[ $status -ne 0 ]]; then
         rm -f "$note"
     fi
-    if [[ $status -ne 0 ]] && $notify; then
-        say "入れられなかった。~/Library/Logs/sokkou-update.log を見る"
-    fi
 }
 trap finish EXIT
 
 if [[ "$(uname -s)" != "Darwin" || "$(uname -m)" != "arm64" ]]; then
-    echo "sokkou は Apple シリコンの macOS 専用" >&2
-    exit 1
+    fail "sokkou は Apple シリコンの macOS 専用"
 fi
+
+# JSON から 1 つの値を取る。macOS に最初からある plutil は JSON も読める
+json_value() {
+    plutil -extract "$2" raw -o - "$1" 2>/dev/null || true
+}
 
 if [[ -z "$src" ]]; then
     work="$(mktemp -d)"
     if [[ -n "$tag" ]]; then
         # PR のビルドは CI が pr-<番号> のプレリリースに置く（ci.yml の pr-build）
-        url="https://github.com/$repo/releases/download/$tag/$asset"
+        api="https://api.github.com/repos/$repo/releases/tags/$tag"
+        log "== PR #${tag#pr-} のビルドを入れる"
     else
-        url="https://github.com/$repo/releases/latest/download/$asset"
+        api="https://api.github.com/repos/$repo/releases/latest"
+        log "== 最新のリリースを入れる"
     fi
-    echo "== 取得 $url"
-    if ! curl -fsSL -o "$work/$asset" "$url"; then
-        [[ -z "$tag" ]] || say "PR #${tag#pr-} のビルドがまだ無い。PR の CI（app と pr-build）が終わるまで数分待ってからもう一度。fork からの PR は置かれない"
-        exit 1
+    # 資産の URL と SHA-256 を同じ答えから取る。latest の付け替えと取得の間でずれないように
+    if ! curl -fsSL --retry 2 -H "Accept: application/vnd.github+json" -o "$work/release.json" "$api"; then
+        if [[ -n "$tag" ]]; then
+            fail "PR #${tag#pr-} のビルドがまだ無い。PR の CI（app と pr-build）が終わるまで数分待ってからもう一度。マージした PR、閉じた PR、fork からの PR のビルドは無い"
+        fi
+        fail "リリースの情報を GitHub から取れない（ネットワークか、1 時間に 60 回までの API の上限）"
+    fi
+    release=$(json_value "$work/release.json" "tag_name")
+    url=""
+    digest=""
+    for i in $(seq 0 20); do
+        name=$(json_value "$work/release.json" "assets.$i.name")
+        [[ -n "$name" ]] || break
+        if [[ "$name" == "$asset" ]]; then
+            url=$(json_value "$work/release.json" "assets.$i.browser_download_url")
+            digest=$(json_value "$work/release.json" "assets.$i.digest")
+            break
+        fi
+    done
+    [[ -n "$url" ]] || fail "$release に $asset が無い"
+    log "== 取得 $url"
+    curl -fsSL --retry 3 -o "$work/$asset" "$url" || fail "dmg を取れない: $url"
+    actual="sha256:$(shasum -a 256 "$work/$asset" | cut -d ' ' -f 1)"
+    if [[ -n "$digest" ]]; then
+        [[ "$actual" == "$digest" ]] || fail "dmg の SHA-256 が合わない（取得 $actual、GitHub $digest）"
+        log "== SHA-256 一致 $actual"
+    else
+        log "== GitHub が SHA-256 を出していないので突き合わせない（$actual）"
     fi
     mkdir -p "$work/mount"
-    hdiutil attach -quiet -nobrowse -readonly -mountpoint "$work/mount" "$work/$asset"
+    hdiutil attach -quiet -nobrowse -readonly -noautoopen -mountpoint "$work/mount" "$work/$asset" || fail "dmg を開けない"
     src="$work/mount/sokkou.app"
 fi
-[[ -d "$src/Contents" ]] || { echo "$src は .app ではない" >&2; exit 1; }
+[[ -d "$src/Contents" ]] || fail "$src は .app ではない"
 plist="$src/Contents/Info.plist"
 name=$(/usr/libexec/PlistBuddy -c "Print :CFBundleName" "$plist")
+id=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$plist")
 build=$(/usr/libexec/PlistBuddy -c "Print :SokkouBuild" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$plist")
+# 取ってきたものは普段使いの sokkou に限る。手元で組み立てた開発版（.dev）は引数で渡したときだけ入れる
+if [[ -n "$work" && "$id" != "$bundle_id" ]]; then
+    fail "dmg の中身が sokkou ではない（$id）"
+fi
+codesign --verify --strict "$src" || fail "$name の署名が壊れている"
+# 辞書と語表を読んで 1 文を変換できるかを、入れ替える前に試す。読めない版を入れて打てなくならないように
+"$src/Contents/MacOS/sokkou" --check >/dev/null || fail "$build が変換を試せない（辞書を読めない）"
+log "== 確かめた $name $build"
+
 mkdir -p "$(dirname "$note")"
 echo "$name を $build にしました" > "$note"
-# 入れる処理は sokkou 自身が持つ（dmg から開いたときと同じ）。動いている版を止め、入れた版を起動し直す
-"$src/Contents/MacOS/sokkou" --install
-say "$name を $build にした"
-$notify || echo "初めて入れたときは、ログインし直してから、システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 → $name (日本語) で追加する"
+# 入れる処理は sokkou 自身が持つ（dmg から開いたときと同じ）。今の版を取っておき、動いている版を止めて入れ替え、起動し直す。
+# 入れ替えや起動でしくじったら、sokkou が取っておいた版に戻して失敗を返す
+"$src/Contents/MacOS/sokkou" --install || fail "入れ替えられなかった。前の版のまま"
+say "$name を $build にしました"
+$notify || echo "メニューバーの入力メニューから $name を選ぶと使える"

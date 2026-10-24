@@ -1,7 +1,8 @@
 import AppKit
 
-/// 入力メニューから新しい版に入れ替える。中身は .app に入れた install.sh（Resources/update.sh）で、
-/// 取ってきた版の --install がこのプロセスを止めて、入れた版を起動し直す。結果は通知で出る
+/// 入力メニューと自動の更新から新しい版に入れ替える。中身は .app に入れた install.sh（Resources/update.sh）で、
+/// 取ってきた版の --install がこのプロセスを止めて、入れた版を起動し直す。
+/// 入れ替わったら新しい版が、しくじったら残っているこの版が、窓で知らせる
 enum Updater {
     /// 入力メニューに出す、どのビルドか（例: v0.1.7 · abc1234、PR #4 · abc1234）
     static var build: String {
@@ -16,21 +17,38 @@ enum Updater {
             && Bundle.main.url(forResource: "update", withExtension: "sh") != nil
     }
 
+    /// 取っておいた 1 つ前の版のビルド。無ければ nil
+    static var previousBuild: String? {
+        guard let info = NSDictionary(contentsOf: Installer.previous.appendingPathComponent("Contents/Info.plist")) else { return nil }
+        return info["SokkouBuild"] as? String ?? info["CFBundleShortVersionString"] as? String
+    }
+
+    static let log = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/sokkou-update.log")
+
     /// 最新のリリースか、pr を渡したらその PR の CI のビルドを入れる
     static func install(pr: Int? = nil) {
-        guard let script = Bundle.main.url(forResource: "update", withExtension: "sh") else { return }
-        var arguments = [script.path, "--notify"]
+        var arguments = ["--notify"]
         if let pr {
             arguments += ["--pr", String(pr)]
         }
-        let logs = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs", isDirectory: true)
-        let log = logs.appendingPathComponent("sokkou-update.log")
-        try? FileManager.default.createDirectory(at: logs, withIntermediateDirectories: true)
-        FileManager.default.createFile(atPath: log.path, contents: nil)
+        runScript(arguments, reason: pr.map { "PR #\($0) の版を入れる" } ?? "最新版に更新")
+    }
+
+    /// 取っておいた 1 つ前の版に戻す。戻した版は、自動の更新でもう一度入れない
+    static func rollback() {
+        if let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String, build.hasPrefix("v") {
+            Settings.skippedRelease = version
+        }
+        runScript(["--notify", Installer.previous.path], reason: "前の版に戻す")
+    }
+
+    private static func runScript(_ arguments: [String], reason: String) {
+        guard let script = Bundle.main.url(forResource: "update", withExtension: "sh") else { return }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
-        process.arguments = arguments
-        if let handle = try? FileHandle(forWritingTo: log) {
+        process.arguments = [script.path] + arguments
+        if let handle = openLog() {
+            handle.write(Data("\n==== \(Date().formatted(.iso8601)) \(reason)（\(build) から）\n".utf8))
             process.standardOutput = handle
             process.standardError = handle
         }
@@ -38,7 +56,7 @@ enum Updater {
         // 入れられなかったときはこのプロセスが残るので、ここで知らせる（通知は許可が無いと出ないため）
         process.terminationHandler = { finished in
             guard finished.terminationStatus != 0 else { return }
-            Task { @MainActor in reportFailure(log: log) }
+            Task { @MainActor in reportFailure() }
         }
         do {
             try process.run()
@@ -47,9 +65,24 @@ enum Updater {
         }
     }
 
+    /// 更新のたびに書き足す。512 KB を超えたら古いほうの半分を捨てる
+    private static func openLog() -> FileHandle? {
+        let fileManager = FileManager.default
+        try? fileManager.createDirectory(at: log.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if let size = (try? fileManager.attributesOfItem(atPath: log.path))?[.size] as? Int, size > 512 * 1024,
+           let data = try? Data(contentsOf: log) {
+            try? data.suffix(256 * 1024).write(to: log)
+        }
+        if !fileManager.fileExists(atPath: log.path) {
+            fileManager.createFile(atPath: log.path, contents: nil)
+        }
+        guard let handle = try? FileHandle(forWritingTo: log) else { return nil }
+        handle.seekToEndOfFile()
+        return handle
+    }
+
     /// install.sh が入れ替える直前に書く。起動し直した新しい版が読んで、入れ替わったことを知らせる
-    static let updatedNote = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Application Support/sokkou/updated.txt")
+    static let updatedNote = Installer.support.appendingPathComponent("updated.txt")
 
     /// 入れ替わった直後の起動なら、どの版になったかを知らせる
     static func reportUpdate() {
@@ -68,20 +101,17 @@ enum Updater {
         }
     }
 
-    private static func reportFailure(log: URL) {
-        let lines = (try? String(contentsOf: log, encoding: .utf8))?
-            .split(separator: "\n").map(String.init).filter { !$0.isEmpty } ?? []
-        alert("更新できませんでした", (lines.suffix(3) + ["詳しくは ~/Library/Logs/sokkou-update.log"]).joined(separator: "\n"))
+    /// ログの最後の「失敗: 」の行を出す。無ければ最後の 3 行
+    private static func reportFailure() {
+        let text = (try? String(contentsOf: log, encoding: .utf8)) ?? ""
+        let lines = text.split(separator: "\n").map(String.init).filter { !$0.isEmpty }
+        let reason = lines.last { $0.contains("失敗: ") }.map { String($0[$0.range(of: "失敗: ")!.upperBound...]) }
+            ?? lines.suffix(3).joined(separator: "\n")
+        alert("更新できませんでした", "\(reason)\n\n今の版（\(build)）のまま使えます。詳しくは ~/Library/Logs/sokkou-update.log")
     }
 
     private static func alert(_ title: String, _ message: String) {
-        // 入力メソッドは裏で動くアプリなので、窓を出す間だけ前に出られるようにする
-        NSApplication.shared.setActivationPolicy(.accessory)
-        NSApplication.shared.activate(ignoringOtherApps: true)
-        let alert = NSAlert()
-        alert.messageText = title
-        alert.informativeText = message
-        alert.runModal()
+        Installer.alert(title, message)
         NSApplication.shared.setActivationPolicy(.prohibited)
     }
 
@@ -103,6 +133,25 @@ enum Updater {
         let text = field.stringValue.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         guard response == .alertFirstButtonReturn, let pr = Int(text), pr > 0 else { return }
         install(pr: pr)
+    }
+
+    /// 確かめてから取り除く。取り除いたらこのプロセスも終える
+    static func askAndUninstall() {
+        NSApplication.shared.setActivationPolicy(.accessory)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "sokkou"
+        let alert = NSAlert()
+        alert.messageText = "\(name) を取り除きますか？"
+        alert.informativeText = "入力ソースから外し、~/Library/Input Methods の \(name) と取っておいた前の版を消します。"
+        let purge = NSButton(checkboxWithTitle: "覚えた候補と設定も消す", target: nil, action: nil)
+        alert.accessoryView = purge
+        alert.addButton(withTitle: "取り除く")
+        alert.addButton(withTitle: "やめる")
+        alert.alertStyle = .warning
+        let response = alert.runModal()
+        NSApplication.shared.setActivationPolicy(.prohibited)
+        guard response == .alertFirstButtonReturn else { return }
+        exit(Installer.uninstall(purge: purge.state == .on))
     }
 
     // MARK: 自動の更新
@@ -145,8 +194,7 @@ enum Updater {
         if let tag = pending {
             if Date().timeIntervalSince(lastKey) >= idleInterval {
                 pending = nil
-                print("== 自動で更新 \(tag)")
-                install()
+                runScript(["--notify"], reason: "自動で \(tag) に更新")
             }
         } else if Date().timeIntervalSince(lastCheck) >= checkInterval {
             lastCheck = Date()
@@ -163,8 +211,10 @@ enum Updater {
               let release = (try? JSONSerialization.jsonObject(with: fetched.0)) as? [String: Any],
               let tag = release["tag_name"] as? String
         else { return }
-        let latest = numbers(String(tag.drop { $0 == "v" }))
-        guard current.lexicographicallyPrecedes(latest) else { return }
+        let version = String(tag.drop { $0 == "v" })
+        // 前の版に戻したときの版は、もう一度は入れない。それより新しい版が出たら入れる
+        guard version != Settings.skippedRelease else { return }
+        guard current.lexicographicallyPrecedes(numbers(version)) else { return }
         pending = tag
     }
 

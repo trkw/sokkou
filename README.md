@@ -18,22 +18,43 @@ SKK の手触りで、打てばそのまま変換される、自分用の macOS 
 Apple シリコンの macOS 14 以降で動く。
 
 1. [最新のリリース](https://github.com/trkw/sokkou/releases/latest) から `sokkou-macos-arm64.dmg` を取ってきて開く
-2. 中の sokkou を右クリックして「開く」を選ぶ。sokkou が自分を `~/Library/Input Methods` に入れて登録する
-   （Apple の公証を受けていないので、初回は「開発元を確認できない」と出る。システム設定 → プライバシーとセキュリティ の「このまま開く」で開ける）
-3. 初めて入れたときはログインし直してから、システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 → sokkou を追加する
-   （前の版の「sokkou (英数)」「sokkou (日本語)」が残っていたら、両方を「−」で外してから sokkou を追加し直す）
+2. 窓の sokkou をダブルクリックする。sokkou が自分を `~/Library/Input Methods` に入れ、入力ソースに足す
+3. 「sokkou を入れました」と出たら「sokkou に切り替える」を押す。入力ソースの一覧に出ないときだけ、ログインし直す
+   （前の版の「sokkou (英数)」「sokkou (日本語)」が残っていたら、システム設定 → キーボード → 入力ソース で両方を「−」で外す）
 
-ターミナルからなら 1 行で入る。
+ターミナルからなら 1 行で入る。こちらは次の「開けません」も出ない。
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash
 ```
 
-main に入るたびに CI が dmg を組み立ててリリースに置く。
+### 「開けません」「開発元を確認できません」と出たとき
 
-## 新しい版を試す
+sokkou は Apple の公証を受けていないので、dmg から開くと最初の 1 回だけ macOS が止める。
 
-入れ替えると動いている版を止めて新しい版をすぐ起動するので、ログインし直すのは初めて入れたときだけでよい。
+- **macOS 15 以降**: いったん閉じて、システム設定 → プライバシーとセキュリティ の下のほうにある「このまま開く」を押し、もう一度 sokkou を開いて「このまま開く」を選ぶ
+- **macOS 14**: sokkou を右クリック（Control + クリック）して「開く」を選び、出てきた窓で「開く」を押す
+
+### 取り除き方
+
+入力メニューの「sokkou を取り除く…」を選ぶ。入力ソースから外し、`~/Library/Input Methods/sokkou.app` と取っておいた前の版を消す。覚えた候補と設定も消すかを選べる。ターミナルからなら:
+
+```sh
+~/Library/Input\ Methods/sokkou.app/Contents/MacOS/sokkou --uninstall          # 覚えた候補（~/Library/Application Support/sokkou）は残す
+~/Library/Input\ Methods/sokkou.app/Contents/MacOS/sokkou --uninstall --purge  # 覚えた候補と設定も消す
+```
+
+## 更新
+
+main に入るたびに CI が dmg を組み立ててリリースに置く。入れ替えると動いている版を止めて新しい版をすぐ起動するので、ログインし直さなくてよい。
+
+入れる前に次を確かめ、どれかが合わなければ今の版のまま失敗を窓で知らせる。
+
+1. dmg の SHA-256 が、GitHub がリリースの資産ごとに出す値と合う
+2. 中の .app の署名が壊れておらず、バンドル ID が sokkou のもの
+3. その .app が辞書を読んで 1 文を変換できる（`--check`）
+
+入れ替える前の版は `~/Library/Application Support/sokkou/previous` に取っておく。入れ替えに失敗したときや、新しい版が起動してすぐ落ちたときは、自動でそれに戻す。入力メニューの「前の版に戻す」でも戻せ、戻した版は自動の更新でもう一度は入れない。更新の記録は `~/Library/Logs/sokkou-update.log` に日時つきで書き足す。
 
 リリースの版で動いているときは、1 時間ごとに新しいリリースを確かめ、見つけたら 2 分打たなかったときに自動で入れ替える（入力メニューの「新しいリリースを自動で入れる」で切れる）。PR の版や手元の版を試している間は自動では入れ替えない。
 

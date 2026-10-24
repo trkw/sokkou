@@ -15,4 +15,10 @@ enum Settings {
         get { defaults.object(forKey: "autoUpdates") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "autoUpdates") }
     }
+
+    /// 「前の版に戻す」で戻した版。自動の更新はこの版をもう一度は入れない
+    static var skippedRelease: String? {
+        get { defaults.string(forKey: "skippedRelease") }
+        set { defaults.set(newValue, forKey: "skippedRelease") }
+    }
 }

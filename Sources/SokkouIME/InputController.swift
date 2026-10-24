@@ -242,7 +242,12 @@ final class SokkouInputController: IMKInputController {
             let auto = NSMenuItem(title: "新しいリリースを自動で入れる", action: #selector(toggleAutoUpdates(_:)), keyEquivalent: "")
             auto.state = Settings.autoUpdates ? .on : .off
             menu.addItem(auto)
+            if let previous = Updater.previousBuild {
+                menu.addItem(NSMenuItem(title: "前の版に戻す（\(previous)）", action: #selector(rollback(_:)), keyEquivalent: ""))
+            }
         }
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "sokkou を取り除く…", action: #selector(uninstall(_:)), keyEquivalent: ""))
         return menu
     }
 
@@ -252,6 +257,14 @@ final class SokkouInputController: IMKInputController {
 
     @objc nonisolated func installPR(_ sender: Any?) {
         onMain { Updater.askAndInstallPR() }
+    }
+
+    @objc nonisolated func rollback(_ sender: Any?) {
+        onMain { Updater.rollback() }
+    }
+
+    @objc nonisolated func uninstall(_ sender: Any?) {
+        onMain { Updater.askAndUninstall() }
     }
 
     @objc nonisolated func toggleAutoUpdates(_ sender: Any?) {

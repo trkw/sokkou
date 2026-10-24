@@ -54,6 +54,8 @@ case "--version":
     exit(0)
 case "--install":
     exit(Installer.run(interactive: false))
+case "--uninstall":
+    exit(Installer.uninstall(purge: CommandLine.arguments.contains("--purge")))
 case "--snapshot":
     exit(Snapshot.write(to: CommandLine.arguments.dropFirst(2).first ?? "snapshots"))
 default:
