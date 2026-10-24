@@ -73,11 +73,41 @@ enum Installer {
         guard status == noErr else {
             throw InstallError("入力ソースとして登録できない（\(status)）")
         }
-        // 使っていた版を止めたときだけ起こす。ログインし直さなくても、次の打鍵から新しい版が受ける
+        // 使っていた版を止めたときだけ起こす。ログインし直さなくても、次の打鍵から新しい版が受ける。
+        // 起こせなくても入れ替えは済んでいるので、失敗にはしない
         if !stopped.isEmpty {
-            try run("/usr/bin/open", ["-g", destination.path])
-            print("== 起動 \(destination.path)")
+            if (try? run("/usr/bin/open", ["-g", destination.path])) != nil {
+                print("== 起動 \(destination.path)")
+            }
+            reselectIfCurrent()
         }
+    }
+
+    /// 選んでいる入力ソースが sokkou なら、いったん別のものにしてから選び直す。
+    /// 止めた版につながったままのアプリは、そのままだと入力ソースを切り替えるまで何も打てないため
+    private static func reselectIfCurrent() {
+        guard let id = Bundle.main.bundleIdentifier,
+              let current = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
+              property(current, kTISPropertyBundleID) as? String == id,
+              let sourceID = property(current, kTISPropertyInputSourceID) as? String
+        else { return }
+        let filter = [
+            kTISPropertyInputSourceCategory as String: kTISCategoryKeyboardInputSource as String,
+            kTISPropertyInputSourceIsSelectCapable as String: true,
+        ] as CFDictionary
+        let sources = TISCreateInputSourceList(filter, false)?.takeRetainedValue() as? [TISInputSource] ?? []
+        guard let other = sources.first(where: { property($0, kTISPropertyBundleID) as? String != id }) else { return }
+        TISSelectInputSource(other)
+        usleep(300_000)
+        let again = TISCreateInputSourceList([kTISPropertyInputSourceID as String: sourceID] as CFDictionary, false)?
+            .takeRetainedValue() as? [TISInputSource]
+        TISSelectInputSource(again?.first ?? current)
+        print("== 選び直し \(sourceID)")
+    }
+
+    private static func property(_ source: TISInputSource, _ key: CFString) -> Any? {
+        guard let raw = TISGetInputSourceProperty(source, key) else { return nil }
+        return Unmanaged<AnyObject>.fromOpaque(raw).takeUnretainedValue()
     }
 
     /// 止めたプロセスが消えるのを 3 秒まで待つ。残っているうちに起動すると、LaunchServices が古いほうを使おうとする

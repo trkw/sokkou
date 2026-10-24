@@ -19,6 +19,7 @@ work=""
 # 入れ替えたあとに起動した新しい版が読み、どの版になったかを知らせる（Updater.reportUpdate）
 note="$HOME/Library/Application Support/sokkou/updated.txt"
 
+args=("$@")
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --pr)
@@ -36,6 +37,16 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# 入力メニューから動かしたときは、sokkou と別のプロセスグループで動かす。
+# 入れ替えで sokkou が止められたときに、launchd がプロセスグループごと止めて途中で終わらないように。
+# 外側は待って終わりの状態を返すので、sokkou は失敗を知らせられる
+if $notify && [[ -z "${SOKKOU_DETACHED:-}" ]]; then
+    set -m
+    SOKKOU_DETACHED=1 /bin/bash "$0" "${args[@]}" </dev/null &
+    wait "$!"
+    exit $?
+fi
 
 # 入力メニューから動かしたときは端末が無いので、結果を通知でも出す
 say() {
