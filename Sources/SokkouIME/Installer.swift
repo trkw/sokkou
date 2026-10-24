@@ -34,7 +34,7 @@ enum Installer {
             """
             初めて入れたときは、いったんログアウトしてログインし直してください。
 
-            そのあと、システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 から「\(name) (日本語)」を追加すると使えます。
+            そのあと、システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 から「\(name) (日本語)」と「\(name) (英数)」を追加すると使えます。
 
             新しい版に入れ替えたときは、そのまま使えます。
             """,
@@ -73,6 +73,7 @@ enum Installer {
         guard status == noErr else {
             throw InstallError("入力ソースとして登録できない（\(status)）")
         }
+        enableSiblingSources()
         // 使っていた版を止めたときだけ起こす。ログインし直さなくても、次の打鍵から新しい版が受ける
         if !stopped.isEmpty {
             try run("/usr/bin/open", ["-g", destination.path])
@@ -85,6 +86,22 @@ enum Installer {
         let deadline = Date().addingTimeInterval(3)
         while pids.contains(where: { kill($0, 0) == 0 }), Date() < deadline {
             usleep(50_000)
+        }
+    }
+
+    /// sokkou の入力ソースを 1 つでも使っていたら、英数と日本語の両方を有効にする。
+    /// 入力ソースを 1 つにまとめていた版から入れ替えたとき、英数を自分で追加し直さなくて済むように
+    private static func enableSiblingSources() {
+        guard let bundleID = Bundle.main.bundleIdentifier else { return }
+        let filter = [kTISPropertyBundleID as String: bundleID] as CFDictionary
+        guard let list = TISCreateInputSourceList(filter, true)?.takeRetainedValue() as? [TISInputSource] else { return }
+        let enabled = list.contains { source in
+            guard let raw = TISGetInputSourceProperty(source, kTISPropertyInputSourceIsEnabled) else { return false }
+            return CFBooleanGetValue(Unmanaged<CFBoolean>.fromOpaque(raw).takeUnretainedValue())
+        }
+        guard enabled else { return }
+        for source in list {
+            TISEnableInputSource(source)
         }
     }
 

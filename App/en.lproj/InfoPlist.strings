@@ -1,2 +1,3 @@
 CFBundleName = "__NAME__";
-com.apple.inputmethod.Japanese = "__NAME__";
+com.apple.inputmethod.Japanese = "__NAME__ (日本語)";
+com.apple.inputmethod.Roman = "__NAME__ (英数)";
