@@ -81,6 +81,10 @@ bash install.sh "dist/sokkou Dev.app"        # 組み立てたものを入れる
 | `SokkouEngine` | tugime の `TugimeCore`（日英判定と azooKey の変換）を `Engine` につなぐ |
 | `SokkouIME` | InputMethodKit の入力コントローラ、候補の窓、モードの印 |
 
+## 上流を追う
+
+tugime と、tugime が固定している AzooKeyKanaKanjiConverter は revision で固定している。`upstream-watch` のワークフローが毎朝、tugime・azooKey・azooKey-Desktop・Meltype の新しいコミットやリリースを見て、`upstream` ラベルの issue で知らせる。上げるときは `Package.swift` の tugime の revision を書き換える（azooKey は tugime を通して上がる）。Meltype は GPL-3.0 なので、取り込むのは考え方と動きだけで、コードは写さない。
+
 ## 謝辞
 
 - 日英判定と変換は [tugime](https://github.com/miyaoka/tugime)（miyaoka さん）の `TugimeCore` をそのまま使っている。入力メソッドの組み立ての手順も tugime を手本にした。tugime のリポジトリには今のところ LICENSE が無いので、公開して配る前に miyaoka さんと扱いを決める
