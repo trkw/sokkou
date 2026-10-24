@@ -24,8 +24,9 @@ import sys
 SKIPPED_IDS = {1290, 1291, 1300}
 # 一般の語（名詞・動詞・形容詞）。固有名詞（Bar → バリ など）より先に並べる
 GENERAL_IDS = {1283, 1285, 1287}
-# 読みの並び。小さいほど先。azooKey の一般の語、JMdict のよく使う語、azooKey の固有名詞、JMdict の残りの順
-AZOOKEY_GENERAL, JMDICT_COMMON, AZOOKEY_OTHER, JMDICT_OTHER = range(4)
+# 読みの並び。小さいほど先。azooKey の読みを先に、JMdict は azooKey に無い語を補うために後ろに置く。
+# JMdict は音の近さで拾うので、mobile → メリー（つるす玩具）のような訳語が混じることがある
+AZOOKEY_GENERAL, AZOOKEY_OTHER, JMDICT_COMMON, JMDICT_OTHER = range(4)
 # 1 語あたりに残す読みの数
 MAX_READINGS = 3
 # JMdict の訳語と読みの子音の並びが、どれだけ似ていれば読みとみなすか（test と テスト は似ていて、exam と テスト は似ていない）
@@ -96,11 +97,18 @@ def english_consonants(word):
     return squeeze(re.sub(r"[aeiouhwy]", "", word))
 
 
+def is_subsequence(short, long):
+    rest = iter(long)
+    return all(consonant in rest for consonant in short)
+
+
 def sounds_alike(word, katakana):
+    """英語の子音がすべて順に読みに現れ、全体も似ているか。英語の子音を落とした読み（mobile と メリー）は別の語とみなす"""
     kana = kana_consonants(katakana)
     # 語末の r は長音になることが多い（door と ドア）
     for english in {english_consonants(word), english_consonants(word).removesuffix("r")}:
-        if english and kana and english[0] == kana[0] and difflib.SequenceMatcher(None, english, kana).ratio() >= MIN_SIMILARITY:
+        if (english and kana and english[0] == kana[0] and is_subsequence(english, kana)
+                and difflib.SequenceMatcher(None, english, kana).ratio() >= MIN_SIMILARITY):
             return True
     return False
 
