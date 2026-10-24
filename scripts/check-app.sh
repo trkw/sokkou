@@ -1,0 +1,17 @@
+#!/bin/bash
+# 組み立てた .app が、組み立てたディレクトリ（.build）に頼らずに綴りの表・語表・辞書を読めるかと、arm64 だけを含むかを確かめる
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+app=$(cd "$1" && pwd)
+aside=$(mktemp -d)
+
+mv "$root/.build" "$aside/"
+trap 'mv "$aside/.build" "$root/" && rmdir "$aside"' EXIT
+"$app/Contents/MacOS/sokkou" --check
+
+for binary in "$app/Contents/MacOS/sokkou" "$app/Contents/Frameworks/llama.framework/llama"; do
+    archs=$(lipo -archs "$binary")
+    [[ "$archs" == "arm64" ]] || { echo "対象が arm64 だけではない: $binary $archs" >&2; exit 1; }
+    echo "対象 $archs $(basename "$binary")"
+done
