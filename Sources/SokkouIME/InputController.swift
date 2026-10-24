@@ -183,7 +183,7 @@ final class SokkouInputController: IMKInputController {
         }
         if let client {
             flush(client)
-            modeBadge.show(composer.mode, near: caretRect(client))
+            showBadge(client: client, sourceChanged: true)
         }
     }
 
@@ -194,7 +194,16 @@ final class SokkouInputController: IMKInputController {
         } else if before == .ascii {
             client.selectMode(InputSource.japanese.sourceID)
         }
-        modeBadge.show(composer.mode, near: caretRect(client))
+        showBadge(client: client, sourceChanged: (composer.mode == .ascii) != (before == .ascii))
+    }
+
+    /// 入力ソースが替わると macOS も自分の札をカーソルの下に出す。二枚が重ならないよう、そのときは macOS に譲る
+    private func showBadge(client: IMKTextInput, sourceChanged: Bool) {
+        if sourceChanged && SystemIndicator.isEnabled {
+            modeBadge.hide()
+        } else {
+            modeBadge.show(composer.mode, near: caretRect(client))
+        }
     }
 
     // MARK: 表示と確定

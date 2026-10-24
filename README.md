@@ -11,6 +11,15 @@ SKK の手触りで、打てばそのまま変換される、自分用の macOS 
 
 キーの全体は [docs/keys.md](docs/keys.md)。
 
+### モードの札と macOS の青い札
+
+英数と日本語を行き来すると、macOS もカーソルの下に青い札を出す。二枚が重ならないよう、そのときは sokkou の札を出さずに macOS に譲る（ひらがな・カタカナ・半角カナ・全角英数の間の切り替えでは sokkou の札が出る）。
+どの切り替えでも sokkou の札にそろえたいときは、macOS の札を消す。ログインし直すと効く。
+
+```sh
+defaults write -g TSMLanguageIndicatorEnabled -bool false   # 戻すときは defaults delete -g TSMLanguageIndicatorEnabled
+```
+
 ## 入れ方
 
 Apple シリコンの macOS 14 以降で動く。

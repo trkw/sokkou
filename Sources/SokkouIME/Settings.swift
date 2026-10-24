@@ -10,3 +10,17 @@ enum Settings {
         set { defaults.set(newValue, forKey: "learns") }
     }
 }
+
+/// 入力ソースを替えるとカーソルの下に出る青い札
+enum SystemIndicator {
+    /// `defaults write -g TSMLanguageIndicatorEnabled -bool false` で消える。キーがなければ出る
+    static var isEnabled: Bool {
+        let value = CFPreferencesCopyValue(
+            "TSMLanguageIndicatorEnabled" as CFString,
+            kCFPreferencesAnyApplication,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesAnyHost
+        )
+        return (value as? Bool) ?? true
+    }
+}
