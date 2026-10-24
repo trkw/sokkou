@@ -22,12 +22,21 @@ public struct Loanwords: Sendable {
         return Loanwords(contents: try String(contentsOf: url, encoding: .utf8))
     }
 
-    /// 打ったままの英語の区間のカタカナ読み。1 語のときだけ引き、前後の空白は付け直す
+    /// 打ったままの英語の区間のカタカナ読み。前後の空白は付け直す。
+    /// 2 語以上なら、どの語も表にあるときだけ、それぞれのよく使う読みを空白を詰めてつなぐ（online game → オンラインゲーム）
     public func katakana(of source: String) -> [String] {
         let head = String(source.prefix { $0 == " " })
         let tail = String(source.reversed().prefix { $0 == " " })
-        let word = source.trimmingCharacters(in: .init(charactersIn: " "))
-        guard !word.isEmpty, !word.contains(" ") else { return [] }
-        return (readings[word.lowercased()] ?? []).map { head + $0 + tail }
+        let words = source.split(separator: " ")
+        guard let first = words.first else { return [] }
+        guard words.count > 1 else {
+            return (readings[first.lowercased()] ?? []).map { head + $0 + tail }
+        }
+        var joined = ""
+        for word in words {
+            guard let reading = readings[word.lowercased()]?.first else { return [] }
+            joined += reading
+        }
+        return [head + joined + tail]
     }
 }
