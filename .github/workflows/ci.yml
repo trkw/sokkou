@@ -110,6 +110,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+      pull-requests: read
     env:
       TAG: pr-${{ github.event.pull_request.number }}
       NUMBER: ${{ github.event.pull_request.number }}
@@ -125,6 +126,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # 組み立てている間に PR が閉じられていたら置かない。置くと pr-build-cleanup.yml が先に済んでいて消えずに残る
+          state=$(gh pr view "${NUMBER}" --repo "${GITHUB_REPOSITORY}" --json state --jq .state)
+          if [[ "${state}" != "OPEN" ]]; then
+            echo "PR #${NUMBER} は ${state} なので置かない"
+            exit 0
+          fi
           gh release delete "${TAG}" --repo "${GITHUB_REPOSITORY}" --cleanup-tag --yes 2>/dev/null || true
           gh release create "${TAG}" --repo "${GITHUB_REPOSITORY}" --prerelease --latest=false --target "${SHA}" \
             --title "PR #${NUMBER} のビルド" \
