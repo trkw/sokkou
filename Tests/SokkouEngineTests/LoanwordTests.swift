@@ -7,9 +7,11 @@ import SokkouCore
         let loanwords = Loanwords(contents: "# 見出し\ntest\tテスト\nvirus\tウイルス\tヴァイラス\n")
         #expect(loanwords.katakana(of: "test") == ["テスト"])
         #expect(loanwords.katakana(of: "Virus") == ["ウイルス", "ヴァイラス"])
-        // 前後の空白は付け直し、2 語以上は引かない
+        // 前後の空白は付け直す。2 語以上は、どの語も表にあれば空白を詰めてつなぐ
         #expect(loanwords.katakana(of: " test ") == [" テスト "])
-        #expect(loanwords.katakana(of: "test virus").isEmpty)
+        #expect(loanwords.katakana(of: "virus test") == ["ウイルステスト"])
+        #expect(loanwords.katakana(of: "virus  test ") == ["ウイルステスト "])
+        #expect(loanwords.katakana(of: "test sokkou").isEmpty)
         #expect(loanwords.katakana(of: "sokkou").isEmpty)
     }
 
