@@ -1,5 +1,6 @@
 /// sokkou の入力モード。ひらがなモードだけが日英の自動判定と自動変換をする
-public enum InputMode: Sendable, Hashable, CaseIterable {
+/// 生の値はアプリごとのモードを保存するときに使う
+public enum InputMode: String, Sendable, Hashable, CaseIterable {
     case hiragana
     case katakana
     case halfwidthKatakana

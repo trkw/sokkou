@@ -42,11 +42,19 @@ public final class ModeMemory {
         "dev.warp.Warp-Stable",
     ]
 
-    private var modes: [String: InputMode] = [:]
+    private var modes: [String: InputMode]
     /// 最後に入力欄に入ったアプリ
     private var lastApp: String?
 
-    public init() {}
+    /// saved は saved プロパティで取り出した値。読めないモードは捨てる
+    public init(saved: [String: String] = [:]) {
+        modes = saved.compactMapValues(InputMode.init(rawValue:))
+    }
+
+    /// 保存する形。アプリのバンドル ID とモードの生の値。入力メソッドはこれを保存し、入れ替えや再起動のあとも覚えておく
+    public var saved: [String: String] {
+        modes.mapValues(\.rawValue)
+    }
 
     public static func isTerminal(_ app: String?) -> Bool {
         app.map(terminals.contains) ?? false
