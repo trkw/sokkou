@@ -12,7 +12,45 @@ public final class TugimeEngine: Engine {
     public init(method: ConversionMethod = .azooKey) throws {
         table = try Self.romajiTable()
         converter = method.make()
-        segmenter = Segmenter(table: table, english: try .bundled(), japanese: converter)
+        segmenter = Segmenter(table: table, english: try Self.englishModel(table: table), japanese: converter)
+    }
+
+    /// 英語として扱う語の頻度の下限。これより少なく、ローマ字で読める短い綴り（nai ine uso iku など）は、
+    /// tugime の語表ではローマ字書きの日本語が拾われたもので、英語の語として扱わない
+    static let minShortReadableZipf = 3.0
+    /// 「短い綴り」の長さ。2 文字以下は tugime が元から日本語を優先する
+    static let maxShortReadableLength = 3
+
+    /// tugime の英語の語表から、ローマ字で読める短くて少ない語を除いたもの。
+    /// 除かないと、naine の ine が英語の語として残り「なってなine」になる
+    public static func englishModel(table: RomajiTable) throws -> EnglishModel {
+        let resources = try tugimeResources()
+        let spellings = try String(contentsOf: resources.appendingPathComponent("english-words.txt"), encoding: .utf8)
+        var zipf: [String: Double] = [:]
+        let frequency = try String(contentsOf: resources.appendingPathComponent("english-frequency.tsv"), encoding: .utf8)
+        for (index, line) in frequency.split(separator: "\n").enumerated() {
+            let fields = line.split(separator: "\t")
+            guard fields.count == 2, let value = Double(fields[1]) else {
+                throw EnglishModel.LoadError.malformedLine("english-frequency.tsv", index + 1, String(line))
+            }
+            let word = String(fields[0])
+            if value < minShortReadableZipf, word.count <= maxShortReadableLength, table.reading(of: word) != nil { continue }
+            zipf[word] = value
+        }
+        return EnglishModel(spellings: spellings.split(separator: "\n"), zipf: zipf)
+    }
+
+    /// tugime の語表がある Resources。tugime のリソースのバンドルは、sokkou のリソースのバンドルと同じところに置かれる
+    /// （.app では Contents/Resources、swift test では組み立てたディレクトリ）
+    private static func tugimeResources() throws -> URL {
+        let directory = Bundle.module.bundleURL.deletingLastPathComponent()
+        let bundles = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        for url in bundles where url.pathExtension == "bundle" {
+            if let file = Bundle(url: url)?.url(forResource: "english-frequency", withExtension: "tsv", subdirectory: "Resources") {
+                return file.deletingLastPathComponent()
+            }
+        }
+        throw EnglishModel.LoadError.missingResource("english-frequency.tsv")
     }
 
     /// sokkou の綴りの表。tugime の既定の表は使わない（zi や shi を読まないので、その綴りから先が英語になる）
