@@ -270,6 +270,14 @@ public final class Composer {
             }
             commitThrough(startSelecting(typing.keys))
             return true
+        case .control("l"):
+            // SKK と同じく、打った分を英字のまま確定して英数モードに入る
+            if !typing.keys.isEmpty {
+                committed += engine.whole(typing.keys, form: .roman, leading: leading).clauses.map(\.output).joined()
+            }
+            finish()
+            mode = .ascii
+            return true
         case .control(let letter):
             guard let form = Self.forms[letter] else {
                 // 割り当ての無い Ctrl キーは、確定してからアプリに渡す

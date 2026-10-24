@@ -47,7 +47,7 @@ enum Installer {
             let choice = alert(
                 "\(name) を入れました",
                 """
-                入力ソースに \(name) を足しました。メニューバーの入力メニューからいつでも選べます。
+                入力ソースに「\(name) (日本語)」と「\(name) (英数)」を足しました。メニューバーの入力メニューからいつでも選べます。
 
                 新しい版が出ると、打っていないときに自動で入れ替わります。入力メニューから止められます。
                 """,
@@ -61,7 +61,7 @@ enum Installer {
             let choice = alert(
                 "\(name) を入れました",
                 """
-                システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 から「\(name)」を足すと使えます。
+                システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 から「\(name) (日本語)」と「\(name) (英数)」を足すと使えます。
 
                 一覧に見当たらないときは、いったんログアウトしてログインし直してください。
                 """,
@@ -179,6 +179,18 @@ enum Installer {
         guard status == noErr else {
             throw InstallError("入力ソースとして登録できない（\(status)）")
         }
+        enableSiblingSources()
+    }
+
+    /// sokkou の入力ソースを 1 つでも使っていたら、英数と日本語の両方を有効にする。
+    /// 入力ソースを 1 つにまとめていた版から入れ替えたとき、英数を自分で追加し直さなくて済むように
+    private static func enableSiblingSources() {
+        guard let id = Bundle.main.bundleIdentifier else { return }
+        let sources = inputSources(id)
+        guard sources.contains(where: { property($0, kTISPropertyInputSourceIsEnabled) as? Bool == true }) else { return }
+        for source in sources {
+            TISEnableInputSource(source)
+        }
     }
 
     /// 起動した版が 5 秒のうちに現れ、さらに 2 秒動き続けるか。辞書を読めずに落ちる版を見つける
@@ -204,7 +216,9 @@ enum Installer {
                 let status = TISEnableInputSource(source)
                 print("== 有効にする \(property(source, kTISPropertyInputSourceID) as? String ?? "?") -> \(status)")
             }
-            if selectable == nil, property(source, kTISPropertyInputSourceIsSelectCapable) as? Bool == true {
+            // 切り替える先は日本語にする
+            if property(source, kTISPropertyInputSourceIsSelectCapable) as? Bool == true,
+               selectable == nil || (property(source, kTISPropertyInputSourceID) as? String)?.hasSuffix(".Japanese") == true {
                 selectable = source
             }
         }
@@ -258,6 +272,22 @@ enum Installer {
         let deadline = Date().addingTimeInterval(3)
         while pids.contains(where: { kill($0, 0) == 0 }), Date() < deadline {
             usleep(50_000)
+        }
+    }
+
+    /// sokkou の入力ソースを 1 つでも使っていたら、英数と日本語の両方を有効にする。
+    /// 入力ソースを 1 つにまとめていた版から入れ替えたとき、英数を自分で追加し直さなくて済むように
+    private static func enableSiblingSources() {
+        guard let bundleID = Bundle.main.bundleIdentifier else { return }
+        let filter = [kTISPropertyBundleID as String: bundleID] as CFDictionary
+        guard let list = TISCreateInputSourceList(filter, true)?.takeRetainedValue() as? [TISInputSource] else { return }
+        let enabled = list.contains { source in
+            guard let raw = TISGetInputSourceProperty(source, kTISPropertyInputSourceIsEnabled) else { return false }
+            return CFBooleanGetValue(Unmanaged<CFBoolean>.fromOpaque(raw).takeUnretainedValue())
+        }
+        guard enabled else { return }
+        for source in list {
+            TISEnableInputSource(source)
         }
     }
 
