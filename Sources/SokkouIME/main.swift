@@ -73,4 +73,6 @@ let candidatePanel = CandidatePanel()
 let modeBadge = ModeBadge()
 // 綴りの表・語表・辞書の読み込みを、最初の打鍵より前に済ませる
 _ = sharedEngine
+// リリースの版で動いていれば、新しいリリースを確かめて、打っていないときに入れ替える
+Updater.startAutoUpdate()
 NSApplication.shared.run()

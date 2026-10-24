@@ -57,4 +57,71 @@ enum Updater {
         guard response == .alertFirstButtonReturn, let pr = Int(text), pr > 0 else { return }
         install(pr: pr)
     }
+
+    // MARK: 自動の更新
+
+    /// 最後にキーを受けた時刻。打っている途中で入れ替えて、未確定の文字列を失わないようにする
+    private static var lastKey = Date()
+    /// 見つけた新しいリリースのタグ。打たない時間が続いたら入れる
+    private static var pending: String?
+    private static var lastCheck = Date.distantPast
+    private static var timer: Timer?
+
+    /// 1 時間ごとに確かめる。GitHub の API は認証なしだと 1 時間に 60 回まで
+    private static let checkInterval: TimeInterval = 60 * 60
+    /// これだけ打たなければ入れ替える
+    private static let idleInterval: TimeInterval = 2 * 60
+
+    static func noteKey() {
+        lastKey = Date()
+    }
+
+    /// リリースの版（v0.1.7 など）で動いているときだけ自動で更新する。
+    /// PR の版や手元の版を試している途中に、最新のリリースへ戻してしまわないため
+    private static var releaseVersion: [Int]? {
+        guard isAvailable, build.hasPrefix("v"),
+              let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        else { return nil }
+        return numbers(version)
+    }
+
+    static func startAutoUpdate() {
+        guard releaseVersion != nil, timer == nil else { return }
+        timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+            MainActor.assumeIsolated { tick() }
+        }
+        tick()
+    }
+
+    private static func tick() {
+        guard Settings.autoUpdates else { return }
+        if let tag = pending {
+            if Date().timeIntervalSince(lastKey) >= idleInterval {
+                pending = nil
+                print("== 自動で更新 \(tag)")
+                install()
+            }
+        } else if Date().timeIntervalSince(lastCheck) >= checkInterval {
+            lastCheck = Date()
+            Task { await check() }
+        }
+    }
+
+    private static func check() async {
+        guard let current = releaseVersion else { return }
+        var request = URLRequest(url: URL(string: "https://api.github.com/repos/trkw/sokkou/releases/latest")!)
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        guard let fetched = try? await URLSession.shared.data(for: request),
+              (fetched.1 as? HTTPURLResponse)?.statusCode == 200,
+              let release = (try? JSONSerialization.jsonObject(with: fetched.0)) as? [String: Any],
+              let tag = release["tag_name"] as? String
+        else { return }
+        let latest = numbers(String(tag.drop { $0 == "v" }))
+        guard current.lexicographicallyPrecedes(latest) else { return }
+        pending = tag
+    }
+
+    private static func numbers(_ version: String) -> [Int] {
+        version.split(separator: ".").map { Int($0) ?? 0 }
+    }
 }

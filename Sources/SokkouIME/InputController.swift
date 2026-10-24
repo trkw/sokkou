@@ -87,6 +87,7 @@ final class SokkouInputController: IMKInputController {
     // MARK: キー入力
 
     private func handleKeyDown(_ event: NSEvent, client: IMKTextInput) -> Bool {
+        Updater.noteKey()
         // パスワード欄などで安全入力が有効なら、何も変換せずアプリに渡す
         if IsSecureEventInputEnabled() {
             composer.commitAll()
@@ -238,6 +239,9 @@ final class SokkouInputController: IMKInputController {
         if Updater.isAvailable {
             menu.addItem(NSMenuItem(title: "最新版に更新", action: #selector(installLatest(_:)), keyEquivalent: ""))
             menu.addItem(NSMenuItem(title: "PR の版を入れる…", action: #selector(installPR(_:)), keyEquivalent: ""))
+            let auto = NSMenuItem(title: "新しいリリースを自動で入れる", action: #selector(toggleAutoUpdates(_:)), keyEquivalent: "")
+            auto.state = Settings.autoUpdates ? .on : .off
+            menu.addItem(auto)
         }
         return menu
     }
@@ -248,6 +252,10 @@ final class SokkouInputController: IMKInputController {
 
     @objc nonisolated func installPR(_ sender: Any?) {
         onMain { Updater.askAndInstallPR() }
+    }
+
+    @objc nonisolated func toggleAutoUpdates(_ sender: Any?) {
+        onMain { Settings.autoUpdates.toggle() }
     }
 
     @objc nonisolated func toggleLearning(_ sender: Any?) {

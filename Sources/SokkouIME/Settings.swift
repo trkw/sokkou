@@ -9,4 +9,10 @@ enum Settings {
         get { defaults.object(forKey: "learns") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "learns") }
     }
+
+    /// 新しいリリースが出たら、打っていないときに自動で入れ替えるか。既定は入れ替える
+    static var autoUpdates: Bool {
+        get { defaults.object(forKey: "autoUpdates") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "autoUpdates") }
+    }
 }
