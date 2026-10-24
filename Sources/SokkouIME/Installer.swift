@@ -34,7 +34,7 @@ enum Installer {
             """
             初めて入れたときは、いったんログアウトしてログインし直してください。
 
-            そのあと、システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 から「\(name) (日本語)」を追加すると使えます。
+            そのあと、システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 から「\(name)」を追加すると使えます。前の版の「\(name) (英数)」「\(name) (日本語)」が残っていたら、外してから追加し直してください。
 
             新しい版に入れ替えたときは、そのまま使えます。
             """,
@@ -69,6 +69,21 @@ enum Installer {
         let status = TISRegisterInputSource(destination as CFURL)
         guard status == noErr else {
             throw InstallError("入力ソースとして登録できない（\(status)）")
+        }
+        disableRetiredSources()
+    }
+
+    /// 前の版にあった英数の入力ソース（接尾辞 .Roman）が有効のまま残っていたら外す。いまは入力ソースを 1 つにまとめている
+    private static func disableRetiredSources() {
+        guard let bundleID = Bundle.main.bundleIdentifier else { return }
+        let filter = [kTISPropertyBundleID as String: bundleID] as CFDictionary
+        guard let list = TISCreateInputSourceList(filter, true)?.takeRetainedValue() as? [TISInputSource] else { return }
+        for source in list {
+            guard let raw = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else { continue }
+            let id = Unmanaged<CFString>.fromOpaque(raw).takeUnretainedValue() as String
+            if id.hasSuffix(".Roman") {
+                TISDisableInputSource(source)
+            }
         }
     }
 

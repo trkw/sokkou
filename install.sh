@@ -31,4 +31,4 @@ fi
 name=$(/usr/libexec/PlistBuddy -c "Print :CFBundleName" "$src/Contents/Info.plist")
 # 入れる処理は sokkou 自身が持つ（dmg から開いたときと同じ）
 "$src/Contents/MacOS/sokkou" --install
-echo "初めて入れたときは、ログインし直してから、システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 → $name (日本語) で追加する"
+echo "初めて入れたときは、ログインし直してから、システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 → $name で追加する（前の版の「$name (英数)」「$name (日本語)」が残っていたら外してから）"
