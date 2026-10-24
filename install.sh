@@ -1,25 +1,33 @@
 #!/bin/bash
-# 組み立てた .app を ~/Library/Input Methods に置いて入力ソースとして登録する。有効化はしない。
-# 使い方: scripts/build-app.sh && bash install.sh ["dist/sokkou Dev.app"]
+# sokkou を ~/Library/Input Methods に置いて入力ソースとして登録する。有効化はしない。
+#
+# 使い方:
+#   curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash   # 最新のリリースの dmg から入れる
+#   bash install.sh "dist/sokkou Dev.app"                                            # 手元で組み立てたものを入れる
 set -euo pipefail
 
-lsregister="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-root=$(cd "$(dirname "$0")" && pwd)
-src=${1:-"$root/dist/sokkou Dev.app"}
-[[ -d "$src/Contents" ]] || { echo "$src は .app ではない。先に scripts/build-app.sh を実行する" >&2; exit 1; }
-src=$(CDPATH='' cd -- "$src" && pwd -P)
-app_dir=${src##*/}
-dest="$HOME/Library/Input Methods/$app_dir"
-exe="$dest/Contents/MacOS/sokkou"
+repo="trkw/sokkou"
+asset="sokkou-macos-arm64.dmg"
 
-# バンドルを消さずに中身を上書きする。バンドルが無い瞬間に macOS が入力ソースの一覧を作り直すと登録が消えるため
-mkdir -p "$dest"
-rsync -a --delete "$src/" "$dest/"
-"$lsregister" -f "$dest"
-"$exe" --register
-# 動いている古い版を止める。次に入力ソースが選ばれたときに新しい版が起動する
-found=$(ps -axo pid=,comm= | exe="$exe" awk '{ pid = $1; sub(/^ *[0-9]+ /, ""); if ($0 == ENVIRON["exe"]) printf "%s ", pid }')
-read -r -a pids <<< "$found"
-(( ${#pids[@]} == 0 )) || kill "${pids[@]}"
-echo "== 配置 $dest"
-echo "初めて入れたときは、ログインし直してから、システム設定 → キーボード → 入力ソース → 「+」→ 日本語 → ${app_dir%.app} (日本語) で追加する"
+if [[ "$(uname -s)" != "Darwin" || "$(uname -m)" != "arm64" ]]; then
+    echo "sokkou は Apple シリコンの macOS 専用" >&2
+    exit 1
+fi
+
+if [[ $# -ge 1 ]]; then
+    src="$1"
+else
+    work="$(mktemp -d)"
+    mount="$work/mount"
+    trap 'hdiutil detach -quiet "$mount" 2>/dev/null || true; rm -rf "$work"' EXIT
+    url="https://github.com/$repo/releases/latest/download/$asset"
+    echo "== 取得 $url"
+    curl -fsSL -o "$work/$asset" "$url"
+    mkdir -p "$mount"
+    hdiutil attach -quiet -nobrowse -readonly -mountpoint "$mount" "$work/$asset"
+    src="$mount/sokkou.app"
+fi
+[[ -d "$src/Contents" ]] || { echo "$src は .app ではない" >&2; exit 1; }
+# 入れる処理は sokkou 自身が持つ（dmg から開いたときと同じ）
+"$src/Contents/MacOS/sokkou" --install
+echo "初めて入れたときは、ログインし直してから、システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 → sokkou (日本語) で追加する"

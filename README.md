@@ -11,17 +11,33 @@ SKK の手触りで、打てばそのまま変換される、自分用の macOS 
 
 キーの全体は [docs/keys.md](docs/keys.md)。
 
-## 組み立てと導入
+## 入れ方
 
-Apple シリコンの macOS 14 以降、Xcode 26 が要る。
+Apple シリコンの macOS 14 以降で動く。
+
+1. [最新のリリース](https://github.com/trkw/sokkou/releases/latest) から `sokkou-macos-arm64.dmg` を取ってきて開く
+2. 中の sokkou を右クリックして「開く」を選ぶ。sokkou が自分を `~/Library/Input Methods` に入れて登録する
+   （Apple の公証を受けていないので、初回は「開発元を確認できない」と出る。システム設定 → プライバシーとセキュリティ の「このまま開く」で開ける）
+3. 初めて入れたときはログインし直してから、システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 → sokkou (日本語) を追加する
+
+ターミナルからなら 1 行で入る。
 
 ```sh
-swift test                 # キー操作の状態のテスト（SokkouCore は Linux でも動く）
-scripts/build-app.sh       # dist/sokkou Dev.app を組み立てる
-bash install.sh            # ~/Library/Input Methods に置いて登録する
+curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash
 ```
 
-初めて入れたときはログインし直してから、システム設定 → キーボード → 入力ソース → 「+」→ 日本語 → sokkou Dev (日本語) で追加する。
+main に入るたびに CI が dmg を組み立ててリリースに置く。新しい版も同じ手順で入れ替わる。
+
+## 手元で組み立てる
+
+Xcode 26 が要る。
+
+```sh
+swift test                                   # キー操作の状態のテスト（SokkouCore は Linux でも動く）
+scripts/build-app.sh                         # dist/sokkou Dev.app を組み立てる
+bash install.sh "dist/sokkou Dev.app"        # 組み立てたものを入れる
+"dist/sokkou Dev.app/Contents/MacOS/sokkou" --snapshot snapshots   # 候補の窓とモードの札を画像に書き出す
+```
 
 ## 構成
 
