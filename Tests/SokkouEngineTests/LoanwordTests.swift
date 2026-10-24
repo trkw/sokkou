@@ -33,4 +33,12 @@ import SokkouCore
         let english = try #require(clauses.first { $0.kind == .english }, "\(clauses)")
         #expect(english.candidates.prefix(2) == ["test", "テスト"], "\(english)")
     }
+
+    /// C-k や C-q で全体をカタカナにするときも、表にある英単語はその読みにする。表を使わない形は次の候補
+    @Test func wholeKatakanaUsesLoanwords() throws {
+        let engine = try Shared.engine.get()
+        #expect(engine.whole("test", form: .katakana, leading: .start).clauses[0].candidates == ["テスト", "test"])
+        #expect(engine.whole("test", form: .halfwidthKatakana, leading: .start).clauses[0].output == "ﾃｽﾄ")
+        #expect(engine.whole("sushi", form: .katakana, leading: .start).clauses[0].candidates == ["スシ"])
+    }
 }
