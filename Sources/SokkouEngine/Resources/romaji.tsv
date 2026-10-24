@@ -1,0 +1,173 @@
+# sokkou のローマ字の綴りの表。tugime の既定の表（miyaoka さんの綴り）に、訓令式とヘボン式の別の綴りを足したもの。
+# 1 行に「綴り<TAB>かな」を 1 組書く。# で始まる行と空行は読まない。
+# @ で始まる行は表で書けない規則を指定する。
+#   @sokuon  同じ文字を 2 つ重ねると前の 1 文字を「っ」と読む文字の集合
+#   @n       この文字の前に置いた単独の n を「ん」と読む文字の集合
+# 「っ」と単独の「ん」は、後ろに表の綴りが続くときだけ読む。区間の末尾では読まない。
+#
+# 表に無い綴りは日本語として読まず、その綴りを含む区間は英語になる（tugime の日英判定）。
+# なので zi のような普通の綴りが無いと、iikanzi が「いいかnzi」のように途中から英語になる。綴りの方針:
+#   長音      省かずに母音で書く（とう = tou、りゅう = ryuu）。ー は -
+#   ん        母音・y・n の前と語末は nn。それ以外の子音の前は単独の n でもよい
+#   し ち つ ふ じ  si ti tu hu ji zi、shi chi tsu fu も読む
+#   拗音      sya tya ja zya jya、sha cha も読む
+#   っ        n 以外の子音を重ねるか xtu。cchi の cc も「っ」
+#   小さい文字  x で始める（xa xya xtu）。l は使わない
+#   ぢ づ      di du
+#   外来語    fa fi fe fo、thi dhi、va vi vu ve vo、wi we、tye je sye
+#   she che は英語の she と重なるので入れない（しぇ ちぇ は sye tye）
+#   l q       使わない。c は ch の綴りだけ
+
+@sokuon	bcdfghjkmprstvwyz
+@n	bcdfghjkmprstvwz
+
+a	あ
+i	い
+u	う
+e	え
+o	お
+ka	か
+ki	き
+ku	く
+ke	け
+ko	こ
+kya	きゃ
+kyu	きゅ
+kyo	きょ
+sa	さ
+si	し
+su	す
+se	せ
+so	そ
+sya	しゃ
+syu	しゅ
+syo	しょ
+sye	しぇ
+ta	た
+ti	ち
+tu	つ
+te	て
+to	と
+tya	ちゃ
+tyu	ちゅ
+tyo	ちょ
+tye	ちぇ
+thi	てぃ
+na	な
+ni	に
+nu	ぬ
+ne	ね
+no	の
+nya	にゃ
+nyu	にゅ
+nyo	にょ
+nn	ん
+ha	は
+hi	ひ
+hu	ふ
+he	へ
+ho	ほ
+hya	ひゃ
+hyu	ひゅ
+hyo	ひょ
+ma	ま
+mi	み
+mu	む
+me	め
+mo	も
+mya	みゃ
+myu	みゅ
+myo	みょ
+ya	や
+yu	ゆ
+yo	よ
+ra	ら
+ri	り
+ru	る
+re	れ
+ro	ろ
+rya	りゃ
+ryu	りゅ
+ryo	りょ
+wa	わ
+wo	を
+wi	うぃ
+we	うぇ
+ga	が
+gi	ぎ
+gu	ぐ
+ge	げ
+go	ご
+gya	ぎゃ
+gyu	ぎゅ
+gyo	ぎょ
+za	ざ
+zu	ず
+ze	ぜ
+zo	ぞ
+ji	じ
+ja	じゃ
+ju	じゅ
+je	じぇ
+jo	じょ
+da	だ
+di	ぢ
+du	づ
+de	で
+do	ど
+dhi	でぃ
+ba	ば
+bi	び
+bu	ぶ
+be	べ
+bo	ぼ
+bya	びゃ
+byu	びゅ
+byo	びょ
+pa	ぱ
+pi	ぴ
+pu	ぷ
+pe	ぺ
+po	ぽ
+pya	ぴゃ
+pyu	ぴゅ
+pyo	ぴょ
+fa	ふぁ
+fi	ふぃ
+fe	ふぇ
+fo	ふぉ
+va	ゔぁ
+vi	ゔぃ
+vu	ゔ
+ve	ゔぇ
+vo	ゔぉ
+xa	ぁ
+xi	ぃ
+xu	ぅ
+xe	ぇ
+xo	ぉ
+xya	ゃ
+xyu	ゅ
+xyo	ょ
+xtu	っ
+xwa	ゎ
+-	ー
+
+# 訓令式とヘボン式の別の綴り。同じかなに綴りが複数あれば、逆引き（文節の伸縮）は短く辞書順で前のものを使う
+zi	じ
+zya	じゃ
+zyu	じゅ
+zyo	じょ
+jya	じゃ
+jyu	じゅ
+jyo	じょ
+shi	し
+sha	しゃ
+shu	しゅ
+sho	しょ
+chi	ち
+cha	ちゃ
+chu	ちゅ
+cho	ちょ
+tsu	つ
+fu	ふ
