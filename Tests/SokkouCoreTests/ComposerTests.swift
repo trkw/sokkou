@@ -232,6 +232,8 @@ struct ComposerTests {
         #expect(composer.mode == .fullwidthRoman)
         type(composer, [.character("a")])
         #expect(composer.takeCommitted() == "ａ")
+        type(composer, [.control("l")])
+        #expect(composer.mode == .ascii)
     }
 
     @Test func controlLWhileTypingCommitsLettersAndEntersAscii() {
