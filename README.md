@@ -41,7 +41,9 @@ config.use_ime = true
 config.macos_forward_to_ime_modifier_mask = "SHIFT|CTRL"
 ```
 
-英数と日本語の切り替えは入力ソースの切り替えなので、Ghostty はそのキーを IME が使ったものとして端末に送らない。ほかのターミナルでも、何も打っていないときに sokkou がモードの切り替えに使った Ctrl キーは、ターミナルが改行や画面の消去として重ねて処理しないよう、未確定の文字列を一瞬出して消して知らせる（AquaSKK・macSKK の空文字挿入と同じ）。英数モードの `C-l` はそのままシェルに渡るので、画面の消去に使える。
+Ghostty は 1.1.0 以降なら設定は要らない。Ghostty は「キーを押している間に入力ソースが変わったら、そのキーは IME が使った」とみなして端末に送らないので、入力ソースの切り替えになる `C-j` `C-l` は改行や画面の消去として漏れない（macSKK 作者の [Ghostty 向けの記事](https://zenn.dev/mtgto/articles/macskk-karabiner-settings-for-ghostty) と同じ仕組み）。そのため「sokkou (英数)」と「sokkou (日本語)」の両方を入力ソースに入れておく。1.0 までの Ghostty なら、記事のとおり `keybind = ctrl+j=ignore` を足す。カタカナ・半角カナは入力ソースが変わらないので、半角カナの `C-q` を使うなら `keybind = ctrl+q=ignore` を足しておくと端末に XON が送られない（何も打っていないときの `C-k` は、もともと行末までの削除としてシェルに渡している）。Karabiner-Elements の設定は要らない。
+
+ほかのターミナルでも、何も打っていないときに sokkou がモードの切り替えに使った Ctrl キーは、ターミナルが改行や画面の消去として重ねて処理しないよう、未確定の文字列を一瞬出して消して知らせる（AquaSKK・macSKK の空文字挿入と同じ）。英数モードの `C-l` はそのままシェルに渡るので、画面の消去に使える。
 
 ## 新しい版を試す
 
