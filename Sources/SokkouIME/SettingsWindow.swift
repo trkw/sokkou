@@ -120,7 +120,7 @@ enum InputSourceRow: String, CaseIterable {
 // MARK: 窓の中身
 
 struct SettingsView: View {
-    static let size = NSSize(width: 600, height: 540)
+    static let size = NSSize(width: 620, height: 580)
 
     @Bindable var model: SettingsModel
 
@@ -300,15 +300,15 @@ private struct KeysPage: View {
         ("モード", [
             Entry(keys: ["⌃J"], action: "ひらがな"),
             Entry(keys: ["⌃L"], action: "英数"),
-            Entry(keys: ["⌃K"], action: "カタカナ（打っている途中）"),
+            Entry(keys: ["⌃K"], action: "カタカナにする"),
             Entry(keys: ["⌃Q"], action: "半角カナ"),
             Entry(keys: ["⌃⇧L"], action: "全角英数"),
         ]),
         ("打っている途中", [
             Entry(keys: ["⏎"], action: "確定"),
-            Entry(keys: ["⇧Space", "↓"], action: "文節を選んで直す"),
+            Entry(keys: ["⇧Space"], action: "文節を選んで直す"),
             Entry(keys: ["⌃F", "⌃B"], action: "区切りを伸ばす・縮める"),
-            Entry(keys: ["⌃G"], action: "打ったままに戻す・取り消す"),
+            Entry(keys: ["⌃G"], action: "かなに戻す・取り消す"),
             Entry(keys: [";"], action: "自分で区切る（▽）"),
         ]),
         ("候補を選ぶ", [
@@ -341,9 +341,11 @@ private struct KeysPage: View {
                         HStack(spacing: 3) {
                             ForEach(entry.keys, id: \.self) { Keycap(text: $0) }
                         }
-                        .frame(width: 92, alignment: .leading)
+                        .frame(width: 78, alignment: .leading)
                         Text(entry.action)
                             .font(.system(size: 12))
+                            .lineLimit(1)
+                            .fixedSize()
                             .foregroundStyle(Theme.ink)
                         Spacer(minLength: 0)
                     }

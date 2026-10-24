@@ -11,6 +11,7 @@ public final class TugimeEngine: Engine {
 
     /// method は既定で azooKey の辞書だけを使う。Zenzai（言語モデル）は軽さを測ってから入れる
     public init(method: ConversionMethod = .azooKey) throws {
+        readsDisplayFromSegments = method.weight == nil
         table = try Self.romajiTable()
         converter = method.make()
         segmenter = Segmenter(table: table, english: try Self.englishModel(table: table), japanese: converter)
@@ -67,13 +68,27 @@ public final class TugimeEngine: Engine {
         // 表示と確定で同じ打鍵列を続けて読むので、最後の 1 つを覚えておく
         if let last = lastLive, last.keys == keys, last.leading == leading { return last.spans }
         let segments = segmenter.segment(keys, leading: leading.tugime)
-        let text = segmenter.liveText(keys, leading: leading.tugime)
+        let text = readsDisplayFromSegments ? Self.liveText(of: segments) : segmenter.liveText(keys, leading: leading.tugime)
         let spans = Self.spans(of: segments, in: text)
         lastLive = (keys, leading, spans)
         return spans
     }
 
     private var lastLive: (keys: String, leading: Leading, spans: [Span])?
+
+    /// Zenzai を使わないときは、表示の変換は区切りの採点の変換と同じになる。そのときは tugime の liveText に
+    /// 区切りをもう一度作らせず、区切りの結果から表示を作る。区切りは打鍵列の長さの 2 乗で重くなるので、長く打つほど効く
+    var readsDisplayFromSegments: Bool
+
+    /// tugime の Segmenter.liveConversionMinLength。これより短い日本語区間はかなのまま見せる
+    static let liveConversionMinLength = 4
+
+    /// Segmenter.liveText と同じ文字列を、区切りの結果から作る。Zenzai を使わないときだけ同じになる
+    static func liveText(of segments: [Segment]) -> String {
+        segments.map { segment in
+            segment.kind == .japanese && segment.reading.count < liveConversionMinLength ? segment.reading : segment.output
+        }.joined()
+    }
 
     public func clauses(_ keys: String, leading: Leading) -> ClauseList {
         withLoanwords(segmenter.clauses(keys, leading: leading.tugime))
