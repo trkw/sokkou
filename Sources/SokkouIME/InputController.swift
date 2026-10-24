@@ -96,7 +96,10 @@ final class SokkouInputController: IMKInputController {
     }
 
     nonisolated override func menu() -> NSMenu! {
-        onMain { makeMenu() }
+        // NSMenu は Sendable ではないので onMain の戻り値にできない。メインアクターで作って外の変数に入れる
+        nonisolated(unsafe) var menu: NSMenu?
+        MainActor.assumeIsolated { menu = makeMenu() }
+        return menu
     }
 
     // MARK: キー入力
