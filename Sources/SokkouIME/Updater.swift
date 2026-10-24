@@ -34,8 +34,55 @@ enum Updater {
             process.standardOutput = handle
             process.standardError = handle
         }
-        // 待たない。入れ替えの途中でこのプロセスは止められ、スクリプトはそのまま最後まで動く
-        try? process.run()
+        // 入れ替えられたらこのプロセスは止められ、新しい版が updated.txt を読んで知らせる。
+        // 入れられなかったときはこのプロセスが残るので、ここで知らせる（通知は許可が無いと出ないため）
+        process.terminationHandler = { finished in
+            guard finished.terminationStatus != 0 else { return }
+            Task { @MainActor in reportFailure(log: log) }
+        }
+        do {
+            try process.run()
+        } catch {
+            alert("更新を始められませんでした", error.localizedDescription)
+        }
+    }
+
+    /// install.sh が入れ替える直前に書く。起動し直した新しい版が読んで、入れ替わったことを知らせる
+    static let updatedNote = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Application Support/sokkou/updated.txt")
+
+    /// 入れ替わった直後の起動なら、どの版になったかを知らせる
+    static func reportUpdate() {
+        let path = updatedNote.path
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+              let written = attributes[.modificationDate] as? Date,
+              let note = try? String(contentsOfFile: path, encoding: .utf8)
+        else { return }
+        try? FileManager.default.removeItem(atPath: path)
+        // 古いものは、入れ替えの途中で止まった跡なので知らせない
+        guard Date().timeIntervalSince(written) < 5 * 60 else { return }
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                alert(note.trimmingCharacters(in: .whitespacesAndNewlines), "入力メニューにも、いま動いているビルドが出ます。")
+            }
+        }
+    }
+
+    private static func reportFailure(log: URL) {
+        let lines = (try? String(contentsOf: log, encoding: .utf8))?
+            .split(separator: "\n").map(String.init).filter { !$0.isEmpty } ?? []
+        alert("更新できませんでした", (lines.suffix(3) + ["詳しくは ~/Library/Logs/sokkou-update.log"]).joined(separator: "\n"))
+    }
+
+    private static func alert(_ title: String, _ message: String) {
+        // 入力メソッドは裏で動くアプリなので、窓を出す間だけ前に出られるようにする
+        NSApplication.shared.setActivationPolicy(.accessory)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.runModal()
+        NSApplication.shared.setActivationPolicy(.prohibited)
     }
 
     /// PR の番号を尋ねてから入れる

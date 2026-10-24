@@ -16,6 +16,8 @@ notify=false
 tag=""
 src=""
 work=""
+# 入れ替えたあとに起動した新しい版が読み、どの版になったかを知らせる（Updater.reportUpdate）
+note="$HOME/Library/Application Support/sokkou/updated.txt"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -49,6 +51,9 @@ finish() {
         hdiutil detach -quiet "$work/mount" 2>/dev/null || true
         rm -rf "$work"
     fi
+    if [[ $status -ne 0 ]]; then
+        rm -f "$note"
+    fi
     if [[ $status -ne 0 ]] && $notify; then
         say "入れられなかった。~/Library/Logs/sokkou-update.log を見る"
     fi
@@ -70,7 +75,7 @@ if [[ -z "$src" ]]; then
     fi
     echo "== 取得 $url"
     if ! curl -fsSL -o "$work/$asset" "$url"; then
-        [[ -z "$tag" ]] || say "PR #${tag#pr-} のビルドが無い（CI が終わっていないか、fork からの PR）"
+        [[ -z "$tag" ]] || say "PR #${tag#pr-} のビルドがまだ無い。PR の CI（app と pr-build）が終わるまで数分待ってからもう一度。fork からの PR は置かれない"
         exit 1
     fi
     mkdir -p "$work/mount"
@@ -81,6 +86,8 @@ fi
 plist="$src/Contents/Info.plist"
 name=$(/usr/libexec/PlistBuddy -c "Print :CFBundleName" "$plist")
 build=$(/usr/libexec/PlistBuddy -c "Print :SokkouBuild" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$plist")
+mkdir -p "$(dirname "$note")"
+echo "$name を $build にしました" > "$note"
 # 入れる処理は sokkou 自身が持つ（dmg から開いたときと同じ）。動いている版を止め、入れた版を起動し直す
 "$src/Contents/MacOS/sokkou" --install
 say "$name を $build にした"
