@@ -40,7 +40,7 @@ jobs:
       # PR のビルドは pr-<番号> のプレリリースに置き、install.sh --pr <番号> と入力メニューから入れられるようにする
       - name: Build .app
         env:
-          SOKKOU_BUILD_LABEL: ${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || 'main' }}
+          SOKKOU_BUILD_LABEL: "${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || 'main' }}"
           SOKKOU_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: SOKKOU_BUILD_CHANNEL=stable scripts/build-app.sh
 
