@@ -19,6 +19,15 @@ enum Snapshot {
                         let file = folder.appendingPathComponent("ui-\(name).png")
                         try render(Board().environment(\.colorScheme, scheme), to: file)
                         print(file.path)
+                        for tab in SettingsTab.allCases {
+                            let model = SettingsModel()
+                            model.tab = tab
+                            // 片方だけ足した状態にして、両方の見た目を確かめる
+                            model.enabled = [.japanese]
+                            let page = folder.appendingPathComponent("settings-\(tab.id)-\(name).png")
+                            try render(SettingsView(model: model).environment(\.colorScheme, scheme), to: page)
+                            print(page.path)
+                        }
                     } catch {
                         failure = error
                     }
@@ -68,6 +77,10 @@ enum Snapshot {
                         .padding(.leading, 70)
                 }
                 VStack(alignment: .leading, spacing: 12) {
+                    // アプリのアイコン。Finder・dmg・通知に出る
+                    Image(nsImage: Bundle.main.image(forResource: "AppIcon") ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath))
+                        .resizable()
+                        .frame(width: 128, height: 128)
                     ForEach([InputMode.hiragana, .katakana, .halfwidthKatakana, .ascii, .fullwidthRoman], id: \.self) { mode in
                         ModeChip(mode: mode)
                             .padding(.leading, 5)

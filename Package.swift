@@ -14,7 +14,7 @@ let package = Package(
     ],
     dependencies: [
         // tugime はまだ版を切っていないので revision で固定する
-        .package(url: "https://github.com/miyaoka/tugime", revision: "040aefe4a716ea084660bc5605725d91295b1dd4"),
+        .package(url: "https://github.com/miyaoka/tugime", revision: "407ea0da9417c24e989d549edd3a28741f791bd0"),
     ],
     targets: [
         // キー操作の状態と表示。変換エンジンに頼らないので Linux でもテストできる

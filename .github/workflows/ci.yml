@@ -47,6 +47,10 @@ jobs:
       - name: Check .app
         run: scripts/check-app.sh dist/sokkou.app
 
+      # 打鍵ごとの時間とメモリ。MacBook Neo（8GB）でも軽いかの目安にする
+      - name: Bench
+        run: dist/sokkou.app/Contents/MacOS/sokkou --bench | tee -a "$GITHUB_STEP_SUMMARY"
+
       # dmg を作れるかと、dmg の外（dist）から --install で入れられるか
       - name: Make dmg
         run: scripts/make-dmg.sh

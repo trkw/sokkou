@@ -88,7 +88,9 @@ struct CandidateList: View {
 
     private func row(label: Character, item: String, highlighted: Bool) -> some View {
         HStack(spacing: 0) {
-            Keycap(text: String(label).uppercased(), inverted: highlighted)
+            Text(String(label).uppercased())
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(highlighted ? Theme.onAccent.opacity(0.75) : Theme.quiet.opacity(0.8))
                 .frame(width: CandidateView.textInset - 6)
             Text(item)
                 .font(.system(size: 16, weight: highlighted ? .medium : .regular))
@@ -101,31 +103,39 @@ struct CandidateList: View {
             if highlighted {
                 RoundedRectangle(cornerRadius: Theme.rowRadius)
                     .fill(Theme.accent)
-                    .shadow(color: Theme.accent.opacity(0.35), radius: 6, y: 2)
+                    .shadow(color: Theme.accent.opacity(0.22), radius: 4, y: 1.5)
                     .matchedGeometryEffect(id: "highlight", in: highlight)
             }
         }
     }
 
+    /// 操作の案内。候補より目立たないよう、細い線の下に小さく置く
     private var footer: some View {
-        HStack(spacing: 10) {
-            hint("⌃N", "次")
-            hint("⌃P", "前")
-            hint("⌃G", "閉じる")
+        VStack(spacing: 0) {
+            Rectangle().fill(Theme.rule).frame(height: 0.5)
+                .padding(.horizontal, 12)
+            HStack(spacing: 12) {
+                hint("⌃N", "次")
+                hint("⌃P", "前")
+                hint("⌃G", "閉じる")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, CandidateView.textInset)
+            .padding(.trailing, 14)
+            .padding(.top, 7)
+            .padding(.bottom, 9)
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 14)
-        .padding(.top, 8)
-        .padding(.bottom, 10)
+        .padding(.top, 6)
     }
 
     private func hint(_ key: String, _ action: String) -> some View {
-        HStack(spacing: 4) {
-            Keycap(text: key)
+        HStack(spacing: 3) {
+            Text(key)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
             Text(action)
-                .font(.system(size: 10.5))
-                .foregroundStyle(Theme.quiet)
+                .font(.system(size: 10))
         }
+        .foregroundStyle(Theme.quiet.opacity(0.85))
     }
 }
 

@@ -318,6 +318,8 @@ final class SokkouInputController: IMKInputController {
 
     private func makeMenu() -> NSMenu {
         let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "設定…", action: #selector(openSettings(_:)), keyEquivalent: ""))
+        menu.addItem(.separator())
         let learning = NSMenuItem(title: "選んだ候補を覚える", action: #selector(toggleLearning(_:)), keyEquivalent: "")
         learning.state = Settings.learns ? .on : .off
         menu.addItem(learning)
@@ -339,6 +341,10 @@ final class SokkouInputController: IMKInputController {
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "sokkou を取り除く…", action: #selector(uninstall(_:)), keyEquivalent: ""))
         return menu
+    }
+
+    @objc nonisolated func openSettings(_ sender: Any?) {
+        onMain { SettingsWindow.shared.show() }
     }
 
     @objc nonisolated func installLatest(_ sender: Any?) {
