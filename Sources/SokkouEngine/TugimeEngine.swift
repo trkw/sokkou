@@ -10,9 +10,17 @@ public final class TugimeEngine: Engine {
 
     /// method は既定で azooKey の辞書だけを使う。Zenzai（言語モデル）は軽さを測ってから入れる
     public init(method: ConversionMethod = .azooKey) throws {
-        table = try .bundled()
+        table = try Self.romajiTable()
         converter = method.make()
         segmenter = Segmenter(table: table, english: try .bundled(), japanese: converter)
+    }
+
+    /// sokkou の綴りの表。tugime の既定の表は使わない（zi や shi を読まないので、その綴りから先が英語になる）
+    public static func romajiTable() throws -> RomajiTable {
+        guard let url = Bundle.module.url(forResource: "romaji", withExtension: "tsv", subdirectory: "Resources") else {
+            throw RomajiTable.ParseError.missingResource
+        }
+        return try RomajiTable(contents: String(contentsOf: url, encoding: .utf8))
     }
 
     public func live(_ keys: String, leading: Leading) -> [Span] {

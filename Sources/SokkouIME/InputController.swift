@@ -3,18 +3,6 @@ import Cocoa
 import InputMethodKit
 import SokkouCore
 
-/// 日本語と英数の入力ソースの ID は、バンドル ID に接尾辞を付けたもの
-enum InputSource: String {
-    case japanese = "Japanese"
-    case roman = "Roman"
-
-    var sourceID: String { "\(Bundle.main.bundleIdentifier!).\(rawValue)" }
-
-    init(sourceID: String) {
-        self = sourceID.hasSuffix(".\(InputSource.roman.rawValue)") ? .roman : .japanese
-    }
-}
-
 /// Carbon の仮想キーコード。NSEvent.keyCode と同じ UInt16 にそろえる
 private enum KeyCode {
     static let returnKey = UInt16(kVK_Return)
@@ -58,12 +46,6 @@ final class SokkouInputController: IMKInputController {
 
     nonisolated override func recognizedEvents(_ sender: Any!) -> Int {
         Int(NSEvent.EventTypeMask.keyDown.rawValue)
-    }
-
-    nonisolated override func setValue(_ value: Any!, forTag tag: Int, client sender: Any!) {
-        guard let id = value as? String else { return }
-        nonisolated(unsafe) let client = sender as? IMKTextInput
-        onMain { selectSource(InputSource(sourceID: id), client: client) }
     }
 
     nonisolated override func commitComposition(_ sender: Any!) {
@@ -123,7 +105,8 @@ final class SokkouInputController: IMKInputController {
         let handled = composer.handle(key, leading: { Self.leadingContext(of: client) })
         flush(client)
         if composer.mode != before {
-            modeDidChange(from: before, client: client)
+            // 入力ソースは 1 つだけなので macOS は何も出さない。モードは sokkou の札で見せる
+            modeBadge.show(composer.mode, near: caretRect(client))
         }
         return handled
     }
@@ -168,33 +151,6 @@ final class SokkouInputController: IMKInputController {
               !before.unicodeScalars.contains(where: \.properties.isSentenceTerminal)
         else { return .start }
         return before.isASCII ? .afterEnglish : .afterJapanese
-    }
-
-    // MARK: モード
-
-    private func selectSource(_ source: InputSource, client: IMKTextInput?) {
-        switch source {
-        case .roman:
-            guard composer.mode != .ascii else { return }
-            composer.select(mode: .ascii)
-        case .japanese:
-            guard composer.mode == .ascii else { return }
-            composer.select(mode: .hiragana)
-        }
-        if let client {
-            flush(client)
-            modeBadge.show(composer.mode, near: caretRect(client))
-        }
-    }
-
-    /// sokkou のキーでモードが変わったら、メニューバーの入力ソースもそろえる
-    private func modeDidChange(from before: InputMode, client: IMKTextInput) {
-        if composer.mode == .ascii {
-            client.selectMode(InputSource.roman.sourceID)
-        } else if before == .ascii {
-            client.selectMode(InputSource.japanese.sourceID)
-        }
-        modeBadge.show(composer.mode, near: caretRect(client))
     }
 
     // MARK: 表示と確定
