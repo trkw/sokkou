@@ -23,6 +23,8 @@ let package = Package(
         .target(
             name: "SokkouEngine",
             dependencies: ["SokkouCore", .product(name: "TugimeCore", package: "tugime")],
+            // sokkou の綴りの表。tugime の表に zi shi chi tsu fu などの綴りを足したもの
+            resources: [.copy("Resources")],
             swiftSettings: [cxx]
         ),
         .executableTarget(
@@ -33,5 +35,12 @@ let package = Package(
             linkerSettings: [.linkedFramework("InputMethodKit")]
         ),
         .testTarget(name: "SokkouCoreTests", dependencies: ["SokkouCore"]),
+        // 本物の綴りの表と azooKey の辞書を通すテスト。macOS でだけ組み立てられる
+        .testTarget(
+            name: "SokkouEngineTests",
+            dependencies: ["SokkouCore", "SokkouEngine", .product(name: "TugimeCore", package: "tugime")],
+            // テストは 1 つの本物の変換エンジンを共有するので、同時に使わないようメインアクターで動かす
+            swiftSettings: [.defaultIsolation(MainActor.self), cxx]
+        ),
     ]
 )

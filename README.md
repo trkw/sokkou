@@ -3,6 +3,7 @@
 SKK の手触りで、打てばそのまま変換される、自分用の macOS 日本語入力。
 
 - 普段は Shift を押さずにローマ字を打つだけで、日本語と英語を判定して自動で変換する（meltype、tugime の流れ）
+- ローマ字は訓令式もヘボン式も読む（zi shi chi tsu fu sha cha jya zya）。綴りの表は `Sources/SokkouEngine/Resources/romaji.tsv`
 - モードは Ctrl で切り替える。`C-j` ひらがな、`C-q` 半角カナ、`C-l` 英数、`C-L` 全角英数（macSKK の流れ）
 - 自分で区切りたいときは `;` で ▽ を始める。送り仮名も `;` か大文字で区切る
 - 変換中は Emacs のキーで操作する。何も打っていないときの Ctrl キーはアプリに渡す
