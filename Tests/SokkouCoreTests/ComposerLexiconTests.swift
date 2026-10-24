@@ -221,4 +221,35 @@ struct ComposerLexiconTests {
         #expect(!handled)
         #expect(composer.takeCommitted() == "紙")
     }
+
+    // MARK: でたらめなキー
+
+    /// 登録・X・abbrev・補完を混ぜても止まらず、表示が崩れない
+    @Test(arguments: 0..<4)
+    func randomKeysWithTheLexiconNeverBreak(seed: UInt64) {
+        var random = ComposerFuzzTests.Generator(state: seed &+ 100)
+        let keys = ComposerFuzzTests.keys + "/X3".map { .character($0) } + [.tab, .tab, .enter]
+        lexicon.register("確認", reading: "かくにん", okuri: nil)
+        for _ in 0..<300 {
+            let composer = composer(learning: MemoryLearning())
+            var typed: [Key] = []
+            for _ in 0..<Int.random(in: 1...60, using: &random) {
+                let key = keys.randomElement(using: &random)!
+                typed.append(key)
+                _ = composer.handle(key, leading: { .start })
+                let presentation = composer.presentation
+                if !composer.isComposing {
+                    #expect(presentation.segments.isEmpty, "\(typed)")
+                }
+                if let window = presentation.window {
+                    #expect(window.items.count == window.labels.count, "\(typed)")
+                    #expect(window.items.indices.contains(window.highlighted), "\(typed)")
+                }
+                #expect(!composer.takeCommitted().contains(Composer.registerItem), "\(typed)")
+            }
+            composer.commitAll()
+            #expect(!composer.takeCommitted().contains(Composer.registerItem), "\(typed)")
+            #expect(composer.presentation == .empty, "\(typed)")
+        }
+    }
 }
