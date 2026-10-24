@@ -83,11 +83,19 @@ public final class TugimeEngine: Engine {
     }
 
     public func whole(_ keys: String, form: SokkouCore.CharacterForm, leading: Leading) -> ClauseList {
-        Self.list([segmenter.wholeClause(keys, to: form.tugime, leading: leading.tugime)])
+        guard form == .katakana || form == .halfwidthKatakana else {
+            return Self.list([segmenter.wholeClause(keys, to: form.tugime, leading: leading.tugime)])
+        }
+        return Self.list([katakanaWhole(keys, form: form, leading: leading)])
     }
 
     public func form(_ list: ClauseList, at index: Int, to form: SokkouCore.CharacterForm) -> String? {
-        segmenter.convertClause(Self.tugime(list), at: index, to: form.tugime)
+        let clause = list.clauses[index]
+        if form == .katakana || form == .halfwidthKatakana, clause.kind == .english,
+           let katakana = loanwords.katakana(of: clause.reading).first {
+            return convert(kana: katakana, to: form)
+        }
+        return segmenter.convertClause(Self.tugime(list), at: index, to: form.tugime)
     }
 
     public func kana(_ romaji: String) -> (kana: String, rest: String) {
@@ -141,6 +149,36 @@ public final class TugimeEngine: Engine {
             Self.offer(loanwords.katakana(of: list.clauses[index].reading), in: &list.clauses[index])
         }
         return list
+    }
+
+    /// 全体をカタカナ・半角カナにした 1 文節。tugime の `wholeClause` と同じく日本語区間は読み、
+    /// 英語区間は綴りの表で読めた読みにするが、表にある英単語は先にその読みにする（test → テスト）。
+    /// 表を使わない形も、違えば次の候補に置く
+    private func katakanaWhole(_ keys: String, form: SokkouCore.CharacterForm, leading: Leading) -> TugimeCore.Clause {
+        let segments = segmenter.segment(keys, leading: leading.tugime)
+        let parts = segments.map { segment in
+            segment.kind == .english ? englishReading(of: segment.source) ?? segment.source : segment.reading
+        }
+        let reading = parts.joined()
+        let withLoanwords = zip(segments, parts).map { segment, part in
+            segment.kind == .english ? loanwords.katakana(of: segment.source).first ?? part : part
+        }.joined()
+        var candidates = [convert(kana: withLoanwords, to: form)]
+        let plain = convert(kana: reading, to: form)
+        if plain != candidates[0] { candidates.append(plain) }
+        let span = ClauseSpan(index: 0, source: keys, reading: reading, context: leading == .start ? .start : .afterCaret)
+        return TugimeCore.Clause(kind: .whole, reading: reading, candidates: candidates, selected: 0, span: span)
+    }
+
+    /// tugime の `englishReading` と同じく、英語区間を空白で区切った語ごとに綴りの表で読む。1 語も読めなければ nil
+    private func englishReading(of source: String) -> String? {
+        var readAny = false
+        let words = source.split(separator: " ", omittingEmptySubsequences: false).map { word in
+            guard let kana = table.reading(of: String(word)) else { return String(word) }
+            readAny = true
+            return kana
+        }
+        return readAny ? words.joined(separator: " ") : nil
     }
 
     /// 英語の綴りのすぐ次に、よく使う読みから置く。すでにある候補は足さず、選んでいる候補は変えない
