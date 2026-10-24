@@ -1,0 +1,72 @@
+# main への push ごとに dmg を組み立て、GitHub のリリースに Latest として置く。
+# 版は 0.1.<実行番号>。install.sh は /releases/latest から最新を取る
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
+# 同じ番号の衝突を避けるため直列にする。途中で取り消すと tag だけ残るので取り消さない
+concurrency:
+  group: release
+
+jobs:
+  # 外部のパッケージを組み立てるので、書き込みの権限を持たせない
+  build:
+    runs-on: macos-26
+    timeout-minutes: 40
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - id: version
+        run: echo "version=0.1.${GITHUB_RUN_NUMBER}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build .app
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: SOKKOU_BUILD_CHANNEL=stable SOKKOU_VERSION="${VERSION}" scripts/build-app.sh
+
+      - name: Check .app
+        run: scripts/check-app.sh dist/sokkou.app
+
+      - name: Make dmg
+        run: scripts/make-dmg.sh
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sokkou-macos-arm64
+          path: dist/sokkou-macos-arm64.dmg
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      TAG: v${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sokkou-macos-arm64
+          path: dist
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${TAG}" --repo "${GITHUB_REPOSITORY}" --generate-notes --latest --target "${GITHUB_SHA}" dist/sokkou-macos-arm64.dmg

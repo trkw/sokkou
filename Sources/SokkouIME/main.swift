@@ -2,7 +2,6 @@ import Carbon
 import Cocoa
 import InputMethodKit
 import SokkouCore
-import SokkouEngine
 
 /// バンドルを入力ソースとして登録する。有効化はしない（利用者がシステム設定の「+」で追加する）
 func register() -> Int32 {
@@ -43,21 +42,6 @@ func check() -> Int32 {
     return 0
 }
 
-/// 変換エンジンはプロセスに 1 つだけ持つ。辞書と語表の読み込みが重いので、入力欄ごとに作らない
-let sharedEngine: TugimeEngine = {
-    do {
-        return try TugimeEngine()
-    } catch {
-        fatalError("sokkou を初期化できない: \(error)")
-    }
-}()
-
-/// 覚えた候補は ~/Library/Application Support/sokkou/learning.json に置く
-let sharedLearning: FileLearning = {
-    let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-    return FileLearning(url: support.appendingPathComponent("sokkou/learning.json"))
-}()
-
 switch CommandLine.arguments.dropFirst().first {
 case "--register":
     exit(register())
@@ -65,8 +49,15 @@ case "--status":
     exit(printStatus())
 case "--check":
     exit(check())
+case "--install":
+    exit(Installer.run(interactive: false))
+case "--snapshot":
+    exit(Snapshot.write(to: CommandLine.arguments.dropFirst(2).first ?? "snapshots"))
 default:
-    break
+    // dmg から開かれたら、入力メソッドとして動く前に自分をインストールする
+    if !Installer.isInstalled {
+        exit(Installer.run(interactive: true))
+    }
 }
 
 guard let connectionName = Bundle.main.infoDictionary?["InputMethodConnectionName"] as? String else {
