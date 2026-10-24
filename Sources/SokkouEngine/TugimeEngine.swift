@@ -64,10 +64,16 @@ public final class TugimeEngine: Engine {
     }
 
     public func live(_ keys: String, leading: Leading) -> [Span] {
+        // 表示と確定で同じ打鍵列を続けて読むので、最後の 1 つを覚えておく
+        if let last = lastLive, last.keys == keys, last.leading == leading { return last.spans }
         let segments = segmenter.segment(keys, leading: leading.tugime)
         let text = segmenter.liveText(keys, leading: leading.tugime)
-        return Self.spans(of: segments, in: text)
+        let spans = Self.spans(of: segments, in: text)
+        lastLive = (keys, leading, spans)
+        return spans
     }
+
+    private var lastLive: (keys: String, leading: Leading, spans: [Span])?
 
     public func clauses(_ keys: String, leading: Leading) -> ClauseList {
         withLoanwords(segmenter.clauses(keys, leading: leading.tugime))
@@ -137,6 +143,7 @@ public final class TugimeEngine: Engine {
     }
 
     public func endComposition() {
+        lastLive = nil
         segmenter.endComposition()
     }
 
