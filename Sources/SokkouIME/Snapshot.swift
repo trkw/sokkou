@@ -19,6 +19,15 @@ enum Snapshot {
                         let file = folder.appendingPathComponent("ui-\(name).png")
                         try render(Board().environment(\.colorScheme, scheme), to: file)
                         print(file.path)
+                        for tab in SettingsTab.allCases {
+                            let model = SettingsModel()
+                            model.tab = tab
+                            // 片方だけ足した状態にして、両方の見た目を確かめる
+                            model.enabled = [.japanese]
+                            let page = folder.appendingPathComponent("settings-\(tab.id)-\(name).png")
+                            try render(SettingsView(model: model).environment(\.colorScheme, scheme), to: page)
+                            print(page.path)
+                        }
                     } catch {
                         failure = error
                     }
