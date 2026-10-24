@@ -7,12 +7,14 @@ public final class TugimeEngine: Engine {
     private let table: RomajiTable
     private let converter: any JapaneseConverting
     private let segmenter: Segmenter
+    private let loanwords: Loanwords
 
     /// method は既定で azooKey の辞書だけを使う。Zenzai（言語モデル）は軽さを測ってから入れる
     public init(method: ConversionMethod = .azooKey) throws {
         table = try Self.romajiTable()
         converter = method.make()
         segmenter = Segmenter(table: table, english: try Self.englishModel(table: table), japanese: converter)
+        loanwords = try Loanwords.bundled()
     }
 
     /// 英語として扱う語の頻度の下限。これより少なく、ローマ字で読める短い綴り（nai ine uso iku など）は、
@@ -68,16 +70,16 @@ public final class TugimeEngine: Engine {
     }
 
     public func clauses(_ keys: String, leading: Leading) -> ClauseList {
-        Self.list(segmenter.clauses(keys, leading: leading.tugime))
+        withLoanwords(segmenter.clauses(keys, leading: leading.tugime))
     }
 
     public func resize(_ list: ClauseList, at index: Int, by delta: Int, leading: Leading) -> ClauseList {
-        Self.list(segmenter.resize(Self.tugime(list), at: index, by: delta, leading: leading.tugime))
+        withLoanwords(segmenter.resize(Self.tugime(list), at: index, by: delta, leading: leading.tugime))
     }
 
     public func commit(_ list: ClauseList, through index: Int) -> (text: String, rest: ClauseList, keys: String)? {
         guard let result = segmenter.commit(Self.tugime(list), through: index) else { return nil }
-        return (result.text, Self.list(result.rest), result.keys)
+        return (result.text, withLoanwords(result.rest), result.keys)
     }
 
     public func whole(_ keys: String, form: SokkouCore.CharacterForm, leading: Leading) -> ClauseList {
@@ -128,6 +130,27 @@ public final class TugimeEngine: Engine {
 
     public func endComposition() {
         segmenter.endComposition()
+    }
+
+    // MARK: 英単語のカタカナ読み
+
+    /// 英語の文節に、test → テスト のようなカタカナ読みを候補として足す
+    private func withLoanwords(_ clauses: [TugimeCore.Clause]) -> ClauseList {
+        var list = Self.list(clauses)
+        for index in list.clauses.indices where list.clauses[index].kind == .english {
+            Self.offer(loanwords.katakana(of: list.clauses[index].reading), in: &list.clauses[index])
+        }
+        return list
+    }
+
+    /// 英語の綴りのすぐ次に、よく使う読みから置く。すでにある候補は足さず、選んでいる候補は変えない
+    static func offer(_ words: [String], in clause: inout SokkouCore.Clause) {
+        var position = min(1, clause.candidates.count)
+        for word in words where !clause.candidates.contains(word) {
+            clause.candidates.insert(word, at: position)
+            if position <= clause.selected { clause.selected += 1 }
+            position += 1
+        }
     }
 
     // MARK: 型の付け替え

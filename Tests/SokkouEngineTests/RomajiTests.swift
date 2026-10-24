@@ -4,7 +4,7 @@ import SokkouEngine
 import TugimeCore
 
 /// 本物の綴りの表と変換エンジン。作るたびに辞書と語表を読むので、全テストで共有する
-private enum Shared {
+enum Shared {
     static let table = Result { try TugimeEngine.romajiTable() }
     static let engine = Result { try TugimeEngine() }
 }
