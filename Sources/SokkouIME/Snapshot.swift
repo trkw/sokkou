@@ -68,6 +68,10 @@ enum Snapshot {
                         .padding(.leading, 70)
                 }
                 VStack(alignment: .leading, spacing: 12) {
+                    // アプリのアイコン。Finder・dmg・通知に出る
+                    Image(nsImage: Bundle.main.image(forResource: "AppIcon") ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath))
+                        .resizable()
+                        .frame(width: 128, height: 128)
                     ForEach([InputMode.hiragana, .katakana, .halfwidthKatakana, .ascii, .fullwidthRoman], id: \.self) { mode in
                         ModeChip(mode: mode)
                             .padding(.leading, 5)

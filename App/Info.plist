@@ -16,6 +16,8 @@
 	<string>__VERSION__</string>
 	<key>CFBundleVersion</key>
 	<string>__VERSION__</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>SokkouBuild</key>
 	<string>__BUILD__</string>
 	<key>LSMinimumSystemVersion</key>
