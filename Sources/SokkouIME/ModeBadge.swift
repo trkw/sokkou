@@ -15,11 +15,17 @@ final class ModeBadge {
         panel.setGlassContent(host, cornerRadius: BadgeView.height / 2)
     }
 
-    func show(_ mode: InputMode, near line: NSRect) {
+    /// macOS が入力ソースを切り替えたときにカーソルの下に出す札の幅と、その札との間
+    private static let systemIndicatorWidth: CGFloat = 30
+    private static let systemIndicatorGap: CGFloat = 6
+
+    /// besideSystemIndicator なら、macOS の札と重ならないようにその右に出す
+    func show(_ mode: InputMode, near line: NSRect, besideSystemIndicator: Bool = false) {
         model.mode = mode
         fade?.cancel()
         host.layoutSubtreeIfNeeded()
-        panel.place(size: host.fittingSize, below: line, gap: 8)
+        let shift = besideSystemIndicator && Self.systemIndicatorEnabled ? Self.systemIndicatorWidth + Self.systemIndicatorGap : 0
+        panel.place(size: host.fittingSize, below: line, gap: 8, leading: -shift)
         if panel.isVisible {
             panel.alphaValue = 1
         } else {
@@ -39,6 +45,11 @@ final class ModeBadge {
                 }
             })
         }
+    }
+
+    /// `defaults write -g TSMLanguageIndicatorEnabled -bool false` で macOS の札を消していれば false
+    private static var systemIndicatorEnabled: Bool {
+        UserDefaults.standard.object(forKey: "TSMLanguageIndicatorEnabled") as? Bool ?? true
     }
 
     func hide() {
