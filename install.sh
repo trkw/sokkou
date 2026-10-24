@@ -28,6 +28,7 @@ else
     src="$mount/sokkou.app"
 fi
 [[ -d "$src/Contents" ]] || { echo "$src は .app ではない" >&2; exit 1; }
+name=$(/usr/libexec/PlistBuddy -c "Print :CFBundleName" "$src/Contents/Info.plist")
 # 入れる処理は sokkou 自身が持つ（dmg から開いたときと同じ）
 "$src/Contents/MacOS/sokkou" --install
-echo "初めて入れたときは、ログインし直してから、システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 → sokkou (日本語) で追加する"
+echo "初めて入れたときは、ログインし直してから、システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 → $name (日本語) で追加する"

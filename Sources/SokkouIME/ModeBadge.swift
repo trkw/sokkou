@@ -67,7 +67,7 @@ struct BadgeView: View {
     }
 }
 
-/// モードの字と名前。ひらがなは朱で塗り、カタカナは朱の枠、英字は墨の枠
+/// モードの字と名前。ひらがなは朱で塗り、カタカナは朱の枠。英数は墨の枠、全角英数は墨で塗る
 struct ModeChip: View {
     let mode: InputMode
 
@@ -95,7 +95,7 @@ struct ModeChip: View {
         case .katakana: ("ア", "カタカナ", false, Theme.accent)
         case .halfwidthKatakana: ("ｱ", "半角カナ", false, Theme.accent)
         case .ascii: ("A", "英数", false, Theme.ink)
-        case .fullwidthRoman: ("Ａ", "全角英数", false, Theme.ink)
+        case .fullwidthRoman: ("Ａ", "全角英数", true, Theme.ink)
         }
     }
 }

@@ -47,6 +47,8 @@ struct CandidateView: View {
 
 /// 候補の窓の中身。読み、候補、操作の案内を縦に並べる
 struct CandidateList: View {
+    static let maxWidth: CGFloat = 420
+
     let window: CandidateWindow
     @Namespace var highlight
 
@@ -62,7 +64,8 @@ struct CandidateList: View {
             .animation(Theme.move, value: window.highlighted)
             footer
         }
-        .frame(minWidth: 196, alignment: .leading)
+        // 長い読みや候補でも画面からはみ出さないよう幅に上限を置き、あふれた文字は末尾を省く
+        .frame(minWidth: 196, maxWidth: CandidateList.maxWidth, alignment: .leading)
         .fixedSize()
     }
 
@@ -133,12 +136,21 @@ struct PageDots: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            ForEach(0..<min(count, 8), id: \.self) { index in
+            ForEach(Self.visible(page: page, count: count), id: \.self) { index in
                 Capsule()
                     .fill(index == page ? Theme.accent : Theme.quiet.opacity(0.3))
                     .frame(width: index == page ? 12 : 5, height: 5)
             }
         }
         .animation(Theme.move, value: page)
+    }
+
+    static let limit = 8
+
+    /// 点は 8 個までにし、今のページが入るように窓をずらす
+    static func visible(page: Int, count: Int) -> Range<Int> {
+        guard count > limit else { return 0..<count }
+        let start = min(max(page - limit / 2, 0), count - limit)
+        return start..<(start + limit)
     }
 }
