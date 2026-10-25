@@ -4,7 +4,7 @@ SKK の手触りで、打てばそのまま変換される、自分用の macOS 
 
 - 普段は Shift を押さずにローマ字を打つだけで、日本語と英語を判定して自動で変換する（meltype、tugime の流れ）
 - ローマ字は訓令式もヘボン式も読む（zi shi chi tsu fu sha cha jya zya）。綴りの表は `Sources/SokkouEngine/Resources/romaji.tsv`
-- 英語と判定した語も、候補の窓や `C-k` でカタカナにできる（test → テスト）。表は azooKey の辞書と JMdict から `scripts/make-loanwords.py` で作った `Sources/SokkouEngine/Resources/loanwords.tsv`（約 1 万 5 千語）
+- 英語と判定した語も、候補の窓や `C-k` でカタカナにできる（test → テスト、online game → オンラインゲーム）。表は azooKey の辞書と JMdict から `scripts/make-loanwords.py` で作った `Sources/SokkouEngine/Resources/loanwords.tsv`（約 1 万 5 千語）
 - モードは Ctrl で切り替える。`C-j` ひらがな、`C-q` 半角カナ、`C-l` 英数、`C-L` 全角英数（macSKK の流れ）
 - 入力ソースは「sokkou (英数)」と「sokkou (日本語)」の 2 つ。`C-l` `C-j` でも Ctrl-Space（macOS の入力ソースの切り替え）でも行き来でき、macOS の札とメニューバーのアイコンで今どちらか分かる。カタカナ・半角カナ・全角英数は日本語の中のモードで、切り替えると sokkou の札が出る
 - モードはアプリごとに覚える。ターミナル（Terminal、iTerm、WezTerm、Ghostty、kitty、Alacritty、Warp）は英数から始まる
