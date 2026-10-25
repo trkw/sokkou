@@ -13,6 +13,8 @@ public struct MarkedSegment: Sendable, Equatable {
         case focused
         /// ▽ ▼（自分で区切った読みと、その変換）
         case manual
+        /// ▽ の読みに続く、登録した読みの残り。薄く見せ、Tab で採る
+        case suggestion
     }
 
     public var text: String
@@ -37,14 +39,24 @@ public struct CandidateWindow: Sendable, Equatable {
     /// 0 から数えたページ
     public var page: Int
     public var pageCount: Int
+    /// 候補の注釈（SKK 辞書の ; のあと）。items と同じ数か、注釈が 1 つも無ければ空
+    public var annotations: [String?]
 
-    public init(reading: String, items: [String], labels: [Character], highlighted: Int, page: Int, pageCount: Int) {
+    public init(
+        reading: String, items: [String], labels: [Character], highlighted: Int, page: Int, pageCount: Int, annotations: [String?] = []
+    ) {
         self.reading = reading
         self.items = items
         self.labels = labels
         self.highlighted = highlighted
         self.page = page
         self.pageCount = pageCount
+        self.annotations = annotations
+    }
+
+    /// index 番目の候補の注釈
+    public func annotation(at index: Int) -> String? {
+        annotations.indices.contains(index) ? annotations[index] : nil
     }
 }
 

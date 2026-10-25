@@ -58,7 +58,8 @@ enum Snapshot {
             labels: Array("asdfjkl"),
             highlighted: 2,
             page: 0,
-            pageCount: 2
+            pageCount: 2,
+            annotations: [nil, "絵や図をかく", nil, nil, nil, nil, "不足する"]
         )
 
         var body: some View {

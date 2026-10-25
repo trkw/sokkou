@@ -14,6 +14,12 @@ public protocol Lexicon: AnyObject {
     func remove(_ word: String, reading: String, okuri: Character?)
     /// prefix で始まる送りなしの読み。新しく使ったものから
     func completions(of prefix: String) -> [String]
+    /// 追加した SKK 辞書にある語の注釈（/描く;絵を/ の 絵を）。無ければ nil
+    func annotation(of word: String, reading: String, okuri: Character?) -> String?
+}
+
+public extension Lexicon {
+    func annotation(of word: String, reading: String, okuri: Character?) -> String? { nil }
 }
 
 // MARK: SKK 辞書
@@ -55,8 +61,23 @@ public struct SKKDictionary: Sendable {
     public var isEmpty: Bool { okuriAri.isEmpty && okuriNasi.isEmpty }
 
     public func words(reading: String, okuri: Character?) -> [String] {
-        let field = okuri.map { okuriAri[reading + String($0)] } ?? okuriNasi[reading]
-        return field.map(Self.candidates) ?? []
+        field(reading, okuri).map(Self.candidates) ?? []
+    }
+
+    /// 語の注釈。注釈の頭の * （ユーザー辞書の印）は外す。注釈が無いか、式の注釈なら nil
+    public func annotation(of word: String, reading: String, okuri: Character?) -> String? {
+        guard let field = field(reading, okuri) else { return nil }
+        for part in field.split(separator: "/") {
+            let pieces = part.split(separator: ";", maxSplits: 1)
+            guard pieces.count == 2, pieces[0] == word else { continue }
+            let note = pieces[1].drop { $0 == "*" }
+            return note.isEmpty || note.hasPrefix("(") ? nil : String(note)
+        }
+        return nil
+    }
+
+    private func field(_ reading: String, _ okuri: Character?) -> Substring? {
+        okuri.map { okuriAri[reading + String($0)] } ?? okuriNasi[reading]
     }
 
     /// 1 行を見出しと候補の欄に分ける。; で始まる行（コメント）と、形の合わない行は nil
@@ -347,6 +368,13 @@ public final class SKKLexicon: Lexicon {
 
     public func completions(of prefix: String) -> [String] {
         user.completions(of: prefix)
+    }
+
+    public func annotation(of word: String, reading: String, okuri: Character?) -> String? {
+        for system in systems {
+            if let note = system.annotation(of: word, reading: reading, okuri: okuri) { return note }
+        }
+        return nil
     }
 
     private static func lookup(_ reading: String, _ okuri: Character?, _ find: (String, Character?) -> [String]) -> [String] {
