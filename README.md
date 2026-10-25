@@ -87,10 +87,14 @@ tugime と、tugime が固定している AzooKeyKanaKanjiConverter は revision
 
 ## 謝辞
 
-- 日英判定と変換は [tugime](https://github.com/miyaoka/tugime)（miyaoka さん）の `TugimeCore` をそのまま使っている。入力メソッドの組み立ての手順も tugime を手本にした。tugime のリポジトリには今のところ LICENSE が無いので、公開して配る前に miyaoka さんと扱いを決める
+- 日英判定と変換は [tugime](https://github.com/miyaoka/tugime)（miyaoka さん）の `TugimeCore` をそのまま使っている。入力メソッドの組み立ての手順も tugime を手本にした。tugime のリポジトリには今のところ LICENSE が無いので、扱いは miyaoka さんと相談している
 - かな漢字変換は [AzooKeyKanaKanjiConverter](https://github.com/azooKey/AzooKeyKanaKanjiConverter)
 - キー操作は [macSKK](https://github.com/mtgto/macSKK)、自動変換の手軽さは meltype を参考にした
 
 ## 辞書のクレジット
 
 英単語のカタカナ読みの表（`Sources/SokkouEngine/Resources/loanwords.tsv`）は、[azooKey の辞書](https://github.com/ensan-hcl/azooKey_dictionary_storage)（Apache License 2.0）と、[Electronic Dictionary Research and Development Group](https://www.edrdg.org/) の [JMdict](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project)（[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)）から作っている。この表も CC BY-SA 4.0 で使える。
+
+## ライセンス
+
+sokkou のコードは [MIT](LICENSE)。ただし `Sources/SokkouEngine/Resources/loanwords.tsv` は JMdict を含むので CC BY-SA 4.0。アプリに入っている第三者のソフトウェアとデータのライセンスは [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) にまとめた（アプリの中にも入れている）。

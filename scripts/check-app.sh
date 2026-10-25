@@ -10,6 +10,10 @@ mv "$root/.build" "$aside/"
 trap 'mv "$aside/.build" "$root/" && rmdir "$aside"' EXIT
 "$app/Contents/MacOS/sokkou" --check
 
+for notice in LICENSE THIRD_PARTY_NOTICES.md; do
+    [[ -s "$app/Contents/Resources/$notice" ]] || { echo "$notice が入っていない" >&2; exit 1; }
+done
+
 for binary in "$app/Contents/MacOS/sokkou" "$app/Contents/Frameworks/llama.framework/llama"; do
     archs=$(lipo -archs "$binary")
     [[ "$archs" == "arm64" ]] || { echo "対象が arm64 だけではない: $binary $archs" >&2; exit 1; }

@@ -55,6 +55,8 @@ for lproj in en.lproj ja.lproj; do
 done
 # 入力メニューの「最新版に更新」が動かす
 cp "$root/install.sh" "$app/Contents/Resources/update.sh"
+# 配るときにライセンスと第三者の表示を一緒に渡す
+cp "$root/LICENSE" "$root/THIRD_PARTY_NOTICES.md" "$app/Contents/Resources/"
 swift "$root/scripts/make-icons.swift" "$app/Contents/Resources"
 swift "$root/scripts/make-app-icon.swift" "$app/Contents/Resources"
 
