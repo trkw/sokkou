@@ -45,6 +45,8 @@ public enum Key: Sendable, Equatable {
     case down
     case shiftLeft
     case shiftRight
+    /// ▽ の読みを、ユーザー辞書の読みで補完する
+    case tab
     /// JIS キーボードの英数キー
     case eisu
     /// JIS キーボードのかなキー

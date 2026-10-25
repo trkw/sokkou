@@ -19,6 +19,12 @@ public final class FileLearning: Learning {
         save()
     }
 
+    public func forget(reading: String, word: String) {
+        guard words[reading] == word else { return }
+        words[reading] = nil
+        save()
+    }
+
     /// 覚えた候補をすべて忘れる
     public func forget() {
         words = [:]

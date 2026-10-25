@@ -310,11 +310,15 @@ private struct KeysPage: View {
             Entry(keys: ["⌃F", "⌃B"], action: "区切りを伸ばす・縮める"),
             Entry(keys: ["⌃G"], action: "かなに戻す・取り消す"),
             Entry(keys: [";"], action: "自分で区切る（▽）"),
+            Entry(keys: ["⇥"], action: "読みを補完する"),
+            Entry(keys: ["/"], action: "英字の読みで辞書を引く（abbrev）"),
         ]),
         ("候補を選ぶ", [
             Entry(keys: ["⌃N", "⌃P"], action: "次・前の候補"),
             Entry(keys: ["A", "S", "D", "F"], action: "窓の候補を選ぶ"),
             Entry(keys: ["⇧⏎"], action: "選んでいる文節まで確定"),
+            Entry(keys: ["⇧X"], action: "候補を消す"),
+            Entry(keys: ["登録…"], action: "最後の候補で単語を登録"),
         ]),
     ]
 
