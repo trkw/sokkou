@@ -78,6 +78,29 @@ jobs:
       - name: Make dmg
         run: scripts/make-dmg.sh
 
+      # install.sh で最新のリリースを取って入れられるか（SHA-256 の突き合わせ、署名、--check）
+      - name: Install the latest release with install.sh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash install.sh
+
+      # 組み立てたものに入れ替え、もう一度入れ替えて、前の版が取っておかれるか
+      - name: Install from .app with install.sh
+        run: |
+          set -euo pipefail
+          bash install.sh dist/sokkou.app
+          bash install.sh dist/sokkou.app
+          test -d "$HOME/Library/Application Support/sokkou/previous/sokkou.app"
+          "$HOME/Library/Input Methods/sokkou.app/Contents/MacOS/sokkou" --version
+
+      - name: Uninstall
+        run: |
+          set -euo pipefail
+          "$HOME/Library/Input Methods/sokkou.app/Contents/MacOS/sokkou" --uninstall --purge
+          test ! -e "$HOME/Library/Input Methods/sokkou.app"
+          test ! -e "$HOME/Library/Application Support/sokkou"
+
+      # 次の手順の --snapshot のため、もう一度入れる
       - name: Install from .app
         run: dist/sokkou.app/Contents/MacOS/sokkou --install
 
@@ -122,7 +145,12 @@ jobs:
 
       # 候補の窓とモードの札の見た目を画像に書き出す
       - name: Snapshot UI
-        run: dist/sokkou.app/Contents/MacOS/sokkou --snapshot snapshots
+        run: |
+          set -euo pipefail
+          dist/sokkou.app/Contents/MacOS/sokkou --snapshot snapshots
+          swift scripts/make-dmg-background.swift snapshots/dmg-background.tiff
+          sips -s format png snapshots/dmg-background.tiff --out snapshots/dmg-background.png
+          rm snapshots/dmg-background.tiff
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

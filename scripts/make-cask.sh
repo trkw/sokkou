@@ -43,8 +43,11 @@ cask "sokkou" do
     system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/sokkou.app"]
   end
 
-  # 裏で動く入力メソッドなので quit では止まらない。TERM で止める
-  uninstall signal: ["TERM", "io.github.trkw.inputmethod.sokkou"],
+  # sokkou 自身の --uninstall で、入力ソースから外して止め、入れた版と取っておいた前の版を消す
+  uninstall script: {
+              executable: "sokkou.app/Contents/MacOS/sokkou",
+              args:       ["--uninstall"],
+            },
             delete: "~/Library/Input Methods/sokkou.app"
 
   zap trash: [
@@ -54,9 +57,8 @@ cask "sokkou" do
   ]
 
   caveats <<~EOS
-    初めて入れたときは、ログアウトしてログインし直してから
-    システム設定 → キーボード → 入力ソース → 編集 → 「+」→ 日本語 で
-    「sokkou (日本語)」と「sokkou (英数)」を追加してください。
+    入力ソースに「sokkou (日本語)」と「sokkou (英数)」を足しました。
+    一覧に出ないときは、ログアウトしてログインし直してください。
   EOS
 end
 CASK

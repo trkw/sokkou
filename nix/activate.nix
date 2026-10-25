@@ -37,6 +37,6 @@ writeShellScript "sokkou-activate" ''
     "$app/Contents/MacOS/sokkou" --install
     # ストアの読み取り専用の属性が写るので、自動更新が入れ替えられるようにする（0.1.21 までの --install はしない）
     /bin/chmod -R u+w "$installed"
-    [ -n "$have" ] || echo "sokkou: 初めて入れたときは、ログインし直してから入力ソースに「sokkou (日本語)」と「sokkou (英数)」を足す"
+    [ -n "$have" ] || echo "sokkou: 入力ソースに「sokkou (日本語)」と「sokkou (英数)」を足した。一覧に出ないときはログインし直す"
   fi
 ''
