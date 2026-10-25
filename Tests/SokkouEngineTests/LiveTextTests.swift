@@ -2,7 +2,7 @@ import Testing
 import SokkouCore
 @testable import SokkouEngine
 
-/// 区切りの結果から作る表示が、tugime の liveText と同じになること
+/// 区切りの結果から作る表示が、Segmenter の liveText と同じになること
 @Suite struct LiveTextTests {
     @Test(arguments: [
         "kyouhagithubdekensakusitekara,pull requestwotukurimasu.",
@@ -13,7 +13,7 @@ import SokkouCore
         "kyo",
         "iikanzi",
     ])
-    func readsTheSameAsTugime(input: String) throws {
+    func readsTheSameAsSegmenter(input: String) throws {
         let engine = try Shared.engine.get()
         for leading in [Leading.start, .afterJapanese, .afterEnglish] {
             engine.endComposition()

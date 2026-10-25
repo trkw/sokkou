@@ -1,10 +1,12 @@
 # main への push ごとに dmg を組み立て、GitHub のリリースに Latest として置く。
 # 版は 0.1.<実行番号>。install.sh は /releases/latest から最新を取る
+# Actions が止まっていたなどで出しそびれたときは、Actions の画面から main で手で動かせる
 name: release
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,6 +21,8 @@ concurrency:
 jobs:
   # 外部のパッケージを組み立てるので、書き込みの権限を持たせない
   build:
+    # 手で動かすときも main からだけ出す
+    if: github.ref == 'refs/heads/main'
     runs-on: macos-26
     timeout-minutes: 40
     outputs:

@@ -30,7 +30,7 @@ import SokkouCore
 
     @Test func offersKatakanaRightAfterTheSpelling() {
         var clause = Clause(kind: .english, reading: "test", candidates: ["test", "tesuto"], selected: 1)
-        TugimeEngine.offer(["テスト", "tesuto"], in: &clause)
+        AzooKeyEngine.offer(["テスト", "tesuto"], in: &clause)
         #expect(clause.candidates == ["test", "テスト", "tesuto"])
         #expect(clause.output == "tesuto")
     }

@@ -1,5 +1,5 @@
 /// 日英の判定とかな漢字変換。sokkou はこれを通してだけ変換エンジンを使う。
-/// 入力メソッドは tugime の変換エンジンをつないだもの（SokkouEngine）を、テストは小さな辞書の偽物を渡す
+/// 入力メソッドは azooKey の変換エンジンをつないだもの（SokkouEngine）を、テストは小さな辞書の偽物を渡す
 public protocol Engine: AnyObject {
     /// 打っている途中に見せる区間の並び。text をつなぐと、そのまま Enter で確定する文字列になる
     func live(_ keys: String, leading: Leading) -> [Span]
@@ -27,6 +27,8 @@ public protocol Engine: AnyObject {
 public protocol Learning: AnyObject {
     func preferred(for reading: String) -> String?
     func record(reading: String, word: String)
+    /// `X` で消した語を覚えていれば忘れる
+    func forget(reading: String, word: String)
 }
 
 /// 覚えた候補をメモリだけに持つ。テストとプライベートモードで使う
@@ -38,4 +40,8 @@ public final class MemoryLearning: Learning {
     public func preferred(for reading: String) -> String? { words[reading] }
 
     public func record(reading: String, word: String) { words[reading] = word }
+
+    public func forget(reading: String, word: String) {
+        if words[reading] == word { words[reading] = nil }
+    }
 }

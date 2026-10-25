@@ -16,8 +16,8 @@ extension InputSourceKind {
     }
 }
 
-/// アプリごとのモード。入力欄ごとの入力コントローラで共有する
-let modeMemory = ModeMemory()
+/// アプリごとのモード。入力欄ごとの入力コントローラで共有し、入れ替えや再起動のあとも覚えておく
+let modeMemory = ModeMemory(saved: Settings.appModes)
 
 /// Carbon の仮想キーコード。NSEvent.keyCode と同じ UInt16 にそろえる
 private enum KeyCode {
@@ -32,13 +32,14 @@ private enum KeyCode {
     static let right = UInt16(kVK_RightArrow)
     static let down = UInt16(kVK_DownArrow)
     static let up = UInt16(kVK_UpArrow)
+    static let tab = UInt16(kVK_Tab)
 }
 
 @objc(SokkouInputController)
 final class SokkouInputController: IMKInputController {
     /// キー操作の状態は入力欄ごとに持つ。変換エンジンと覚えた候補はプロセスで共有する
     private lazy var composer: Composer = {
-        let composer = Composer(engine: sharedEngine, learning: sharedLearning)
+        let composer = Composer(engine: sharedEngine, learning: sharedLearning, lexicon: sharedLexicon)
         composer.learns = Settings.learns
         return composer
     }()
@@ -159,6 +160,7 @@ final class SokkouInputController: IMKInputController {
         app = client.bundleIdentifier()
         let current = Self.currentSourceID().flatMap(InputSourceKind.init(sourceID:))
         let mode = modeMemory.activate(app, current: composer.mode, source: current)
+        Settings.appModes = modeMemory.saved
         if composer.mode != mode {
             composer.select(mode: mode)
             flush(client)
@@ -182,6 +184,7 @@ final class SokkouInputController: IMKInputController {
         guard InputSourceKind(composer.mode) != source else { return }
         composer.select(mode: source.mode)
         modeMemory.remember(composer.mode, for: app)
+        Settings.appModes = modeMemory.saved
         if let client { flush(client) }
     }
 
@@ -189,6 +192,7 @@ final class SokkouInputController: IMKInputController {
     /// カタカナ・半角カナ・全角英数は日本語の入力ソースの中のモードで、macOS は何も出さないので sokkou の札で見せる
     private func modeDidChange(from before: InputMode, client: IMKTextInput) {
         modeMemory.remember(composer.mode, for: app)
+        Settings.appModes = modeMemory.saved
         switch ModeChangeReaction(from: before, to: composer.mode) {
         case .selectSource(let source):
             client.selectMode(source.sourceID)
@@ -229,6 +233,7 @@ final class SokkouInputController: IMKInputController {
         case KeyCode.right: return shift ? .shiftRight : .right
         case KeyCode.up: return .up
         case KeyCode.down: return .down
+        case KeyCode.tab: return shift ? nil : .tab
         default: break
         }
         guard let text = event.characters, text.count == 1, let scalar = text.unicodeScalars.first,
@@ -328,6 +333,11 @@ final class SokkouInputController: IMKInputController {
         learning.state = Settings.learns ? .on : .off
         menu.addItem(learning)
         menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "SKK-JISYO.L を入れる", action: #selector(downloadLargeDictionary(_:)), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "SKK 辞書を追加…", action: #selector(addDictionary(_:)), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "SKK のユーザー辞書を取り込む…", action: #selector(importUserDictionary(_:)), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "辞書のフォルダを開く", action: #selector(openDictionaries(_:)), keyEquivalent: ""))
+        menu.addItem(.separator())
         // どのビルドが動いているかを、試すたびに確かめられるように出す
         let build = NSMenuItem(title: Updater.build, action: nil, keyEquivalent: "")
         build.isEnabled = false
@@ -369,6 +379,22 @@ final class SokkouInputController: IMKInputController {
 
     @objc nonisolated func toggleAutoUpdates(_ sender: Any?) {
         onMain { Settings.autoUpdates.toggle() }
+    }
+
+    @objc nonisolated func downloadLargeDictionary(_ sender: Any?) {
+        onMain { Dictionaries.downloadLarge() }
+    }
+
+    @objc nonisolated func addDictionary(_ sender: Any?) {
+        onMain { Dictionaries.add() }
+    }
+
+    @objc nonisolated func importUserDictionary(_ sender: Any?) {
+        onMain { Dictionaries.importUserDictionary() }
+    }
+
+    @objc nonisolated func openDictionaries(_ sender: Any?) {
+        onMain { Dictionaries.openFolder() }
     }
 
     @objc nonisolated func toggleLearning(_ sender: Any?) {

@@ -21,4 +21,10 @@ enum Settings {
         get { defaults.string(forKey: "skippedRelease") }
         set { defaults.set(newValue, forKey: "skippedRelease") }
     }
+
+    /// アプリごとに最後に使ったモード。バンドル ID とモードの生の値
+    static var appModes: [String: String] {
+        get { defaults.dictionary(forKey: "appModes") as? [String: String] ?? [:] }
+        set { defaults.set(newValue, forKey: "appModes") }
+    }
 }

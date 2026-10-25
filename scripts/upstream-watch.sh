@@ -92,15 +92,14 @@ watch_release() {
 $notes"
 }
 
-tugime_pinned=$(sed -n 's|.*github.com/miyaoka/tugime", revision: "\([0-9a-f]*\)".*|\1|p' Package.swift)
-[[ -n "$tugime_pinned" ]] || { echo "Package.swift に tugime の revision が無い" >&2; exit 1; }
-watch_revision tugime miyaoka/tugime "$tugime_pinned" "sokkou の Package.swift"
+# SokkouConverter は tugime の TugimeCore をもとにしている。取り込んだ revision と比べ、新しい変更を知らせる。
+# 取り込んだら、ここを取り込んだ revision に書き換える
+tugime_ported=407ea0da9417c24e989d549edd3a28741f791bd0
+watch_revision tugime miyaoka/tugime "$tugime_ported" "SokkouConverter が取り込んだ版"
 
-# azooKey は tugime を通して入るので、tugime が固定している revision と比べる
-azookey_pinned=$(gh api "repos/miyaoka/tugime/contents/Package.swift?ref=$tugime_pinned" --jq .content | base64 -d |
-    tr -d ' \n' | sed -n 's|.*AzooKeyKanaKanjiConverter",revision:"\([0-9a-f]*\)".*|\1|p')
-[[ -n "$azookey_pinned" ]] || { echo "tugime の Package.swift に azooKey の revision が無い" >&2; exit 1; }
-watch_revision AzooKeyKanaKanjiConverter azooKey/AzooKeyKanaKanjiConverter "$azookey_pinned" "sokkou が使う tugime（\`${tugime_pinned:0:7}\`）の固定"
+azookey_pinned=$(tr -d ' \n' <Package.swift | sed -n 's|.*AzooKeyKanaKanjiConverter",revision:"\([0-9a-f]*\)".*|\1|p')
+[[ -n "$azookey_pinned" ]] || { echo "Package.swift に azooKey の revision が無い" >&2; exit 1; }
+watch_revision AzooKeyKanaKanjiConverter azooKey/AzooKeyKanaKanjiConverter "$azookey_pinned" "sokkou の Package.swift"
 
 watch_release azooKey-Desktop azooKey/azooKey-Desktop
 watch_release Meltype yksr-melt/Meltype

@@ -1,5 +1,5 @@
 # GitHub Actions の版（SHA で固定）を週に 1 度上げる。
-# Swift のパッケージ（tugime と、その先の azooKey）は revision で固定しているので Dependabot では追えず、
+# Swift のパッケージ（azooKey）は revision で固定しているので Dependabot では追えず、
 # .github/workflows/upstream-watch.yml が issue で知らせる
 version: 2
 updates:

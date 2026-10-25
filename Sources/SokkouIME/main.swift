@@ -77,6 +77,8 @@ let candidatePanel = CandidatePanel()
 let modeBadge = ModeBadge()
 // 綴りの表・語表・辞書の読み込みを、最初の打鍵より前に済ませる
 _ = sharedEngine
+// ユーザー辞書も先に読み、追加の SKK 辞書（SKK-JISYO.L など）は別のスレッドで読み始める
+_ = sharedLexicon
 // リリースの版で動いていれば、新しいリリースを確かめて、打っていないときに入れ替える
 Updater.startAutoUpdate()
 // 入れ替えた直後なら、どの版になったかを知らせる

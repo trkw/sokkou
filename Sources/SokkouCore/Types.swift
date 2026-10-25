@@ -1,5 +1,6 @@
 /// sokkou の入力モード。ひらがなモードだけが日英の自動判定と自動変換をする
-public enum InputMode: Sendable, Hashable, CaseIterable {
+/// 生の値はアプリごとのモードを保存するときに使う
+public enum InputMode: String, Sendable, Hashable, CaseIterable {
     case hiragana
     case katakana
     case halfwidthKatakana
@@ -44,6 +45,8 @@ public enum Key: Sendable, Equatable {
     case down
     case shiftLeft
     case shiftRight
+    /// ▽ の読みを、ユーザー辞書の読みで補完する
+    case tab
     /// JIS キーボードの英数キー
     case eisu
     /// JIS キーボードのかなキー

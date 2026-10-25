@@ -1,6 +1,6 @@
 # sokkou が追う上流（tugime・AzooKeyKanaKanjiConverter・azooKey-Desktop・Meltype）を毎日見て、
 # 新しいコミットやリリースがあれば upstream ラベルの issue で知らせる。
-# tugime と azooKey は revision で固定しているので Dependabot では追えない。同じ相手の issue は 1 つにまとめて書き直す
+# tugime（取り込んだ版）と azooKey は revision で比べるので Dependabot では追えない。同じ相手の issue は 1 つにまとめて書き直す
 name: upstream-watch
 
 on:
