@@ -44,8 +44,44 @@ jobs:
       - name: Check .app
         run: scripts/check-app.sh dist/sokkou.app
 
-      - name: Make dmg
-        run: scripts/make-dmg.sh
+      # 署名と公証は鍵を持たせた sign ジョブでする。zip にしないとフレームワークのリンクが崩れる
+      - name: Pack .app
+        run: ditto -c -k --keepParent dist/sokkou.app dist/sokkou-app.zip
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sokkou-app
+          path: dist/sokkou-app.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  # Developer ID で署名して公証を受け、dmg にする（docs/signing.md）。外部のパッケージは組み立てず、鍵はここにだけ渡す
+  sign:
+    needs: build
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sokkou-app
+          path: dist
+
+      - name: Unpack .app
+        run: ditto -x -k dist/sokkou-app.zip dist && rm dist/sokkou-app.zip
+
+      - name: Sign, notarize and make dmg
+        env:
+          APPLE_DEVELOPER_ID_P12: ${{ secrets.APPLE_DEVELOPER_ID_P12 }}
+          APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+          APPLE_NOTARY_KEY: ${{ secrets.APPLE_NOTARY_KEY }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: scripts/sign-and-notarize.sh
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -55,7 +91,7 @@ jobs:
           retention-days: 1
 
   release:
-    needs: build
+    needs: [build, sign]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

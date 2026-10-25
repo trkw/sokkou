@@ -51,6 +51,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
 
 enum SettingsTab: String, CaseIterable, Identifiable {
     case general = "一般"
+    case skk = "SKK"
     case keys = "キー"
     case about = "情報"
 
@@ -66,6 +67,12 @@ final class SettingsModel {
     var autoUpdates = Settings.autoUpdates {
         didSet { Settings.autoUpdates = autoUpdates }
     }
+    /// 使っている SKK の手触りの機能
+    var features = Set(SKKFeature.allCases.filter(\.isOn)) {
+        didSet {
+            for feature in SKKFeature.allCases { feature.isOn = features.contains(feature) }
+        }
+    }
     /// 有効になっている sokkou の入力ソース
     var enabled: Set<InputSourceRow> = []
     var forgotten = false
@@ -73,7 +80,17 @@ final class SettingsModel {
     func refresh() {
         learns = Settings.learns
         autoUpdates = Settings.autoUpdates
+        features = Set(SKKFeature.allCases.filter(\.isOn))
         enabled = InputSourceRow.enabled()
+    }
+
+    func isOn(_ feature: SKKFeature) -> Binding<Bool> {
+        Binding(
+            get: { self.features.contains(feature) },
+            set: { on in
+                if on { self.features.insert(feature) } else { self.features.remove(feature) }
+            }
+        )
     }
 
     func forget() {
@@ -137,6 +154,7 @@ struct SettingsView: View {
             Group {
                 switch model.tab {
                 case .general: GeneralPage(model: model)
+                case .skk: SKKPage(model: model)
                 case .keys: KeysPage()
                 case .about: AboutPage()
                 }
@@ -271,6 +289,29 @@ private struct GeneralPage: View {
     }
 }
 
+/// SKK の手触りの機能を 1 つずつ切り替える
+private struct SKKPage: View {
+    @Bindable var model: SettingsModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            SettingsSection(title: "SKK の手触り") {
+                ForEach(Array(SKKFeature.allCases.enumerated()), id: \.element) { index, feature in
+                    SettingsRow(title: feature.title, detail: feature.detail, first: index == 0) {
+                        Toggle("", isOn: model.isOn(feature)).toggleStyle(PaperToggleStyle())
+                    }
+                }
+            }
+            Text("自動変換と ; の ▽ はそのままに、SKK の操作を足します。切り替えはすぐに効きます")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.quiet)
+                .padding(.leading, 4)
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 22)
+    }
+}
+
 /// 入力ソースを足してあるか。足してあれば朱の印、まだなら薄い文字
 private struct SourceStatus: View {
     let added: Bool
@@ -312,9 +353,11 @@ private struct KeysPage: View {
             Entry(keys: [";"], action: "自分で区切る（▽）"),
             Entry(keys: ["⇥"], action: "読みを補完する"),
             Entry(keys: ["/"], action: "英字の読みで辞書を引く（abbrev）"),
+            Entry(keys: ["⌃/"], action: "確定した直後に、選び直す"),
         ]),
         ("候補を選ぶ", [
             Entry(keys: ["⌃N", "⌃P"], action: "次・前の候補"),
+            Entry(keys: ["x"], action: "▼ で前の候補"),
             Entry(keys: ["A", "S", "D", "F"], action: "窓の候補を選ぶ"),
             Entry(keys: ["⇧⏎"], action: "選んでいる文節まで確定"),
             Entry(keys: ["⇧X"], action: "候補を消す"),

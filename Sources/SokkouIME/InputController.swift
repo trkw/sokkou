@@ -40,7 +40,7 @@ final class SokkouInputController: IMKInputController {
     /// キー操作の状態は入力欄ごとに持つ。変換エンジンと覚えた候補はプロセスで共有する
     private lazy var composer: Composer = {
         let composer = Composer(engine: sharedEngine, learning: sharedLearning, lexicon: sharedLexicon)
-        composer.learns = Settings.learns
+        Self.apply(to: composer)
         return composer
     }()
     /// 未確定の文字列を表示しているか。表示していないときに空の未確定の文字列を送らない
@@ -137,9 +137,13 @@ final class SokkouInputController: IMKInputController {
             flush(client)
             return false
         }
-        // 設定はほかの入力欄のメニューからも変わるので、打鍵ごとに読み直す
-        composer.learns = Settings.learns
+        // 設定はほかの入力欄のメニューや設定の窓からも変わるので、打鍵ごとに読み直す
+        Self.apply(to: composer)
         if app == nil { app = client.bundleIdentifier() }
+        if key == .control("/"), let text = composer.undoableCommit, Self.range(before: text, in: client) == nil {
+            // 入力欄のカーソルの前が確定した文字列でない（カーソルが動いた、読めないアプリ）なら、取り消さずにアプリに渡す
+            composer.forgetCommit()
+        }
         let before = composer.mode
         let wasComposing = composer.isComposing
         let handled = composer.handle(key, leading: { Self.leadingContext(of: client) })
@@ -210,6 +214,27 @@ final class SokkouInputController: IMKInputController {
         client.setMarkedText("", selectionRange: none, replacementRange: none)
     }
 
+    /// 設定を Composer に移す
+    private static func apply(to composer: Composer) {
+        composer.learns = Settings.learns
+        composer.undoesCommit = SKKFeature.undoCommit.isOn
+        composer.convertsWithQ = SKKFeature.katakanaWithQ.isOn
+        composer.usesSKKCandidateKeys = SKKFeature.candidateKeys.isOn
+        composer.commitsAtPunctuation = SKKFeature.commitAtPunctuation.isOn
+        composer.suggestsCompletion = SKKFeature.completionHint.isOn
+        composer.showsAnnotations = SKKFeature.annotations.isOn
+    }
+
+    /// 入力欄のカーソルの直前にある text の範囲。カーソルの前が text でないか、読めなければ nil
+    private static func range(before text: String, in client: IMKTextInput) -> NSRange? {
+        let selection = client.selectedRange()
+        let length = (text as NSString).length
+        guard selection.location != NSNotFound, selection.length == 0, selection.location >= length else { return nil }
+        let range = NSRange(location: selection.location - length, length: length)
+        guard client.attributedSubstring(from: range)?.string == text else { return nil }
+        return range
+    }
+
     /// sokkou が区別するキーにする。区別しないキーは nil
     static func key(for event: NSEvent) -> Key? {
         let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
@@ -220,7 +245,8 @@ final class SokkouInputController: IMKInputController {
         }
         if flags.contains(.command) || flags.contains(.option) { return nil }
         if flags.contains(.control) {
-            guard let letter = event.charactersIgnoringModifiers?.first, letter.isASCII, letter.isLetter else { return nil }
+            // 英字と、確定の取り消しの C-/
+            guard let letter = event.charactersIgnoringModifiers?.first, letter.isASCII, letter.isLetter || letter == "/" else { return nil }
             return .control(Character(flags.contains(.shift) ? letter.uppercased() : letter.lowercased()))
         }
         let shift = flags.contains(.shift)
@@ -262,6 +288,8 @@ final class SokkouInputController: IMKInputController {
             client.insertText(text, replacementRange: NSRange(location: NSNotFound, length: 0))
             showsMarkedText = false
         }
+        // 確定を取り消したら、入力欄の確定した文字列を未確定の文字列で置き換える
+        let replaced = composer.takeReplaced().flatMap { Self.range(before: $0, in: client) }
         let presentation = composer.presentation
         if !presentation.segments.isEmpty || showsMarkedText {
             let marked = markedText(presentation)
@@ -269,7 +297,7 @@ final class SokkouInputController: IMKInputController {
             client.setMarkedText(
                 marked,
                 selectionRange: NSRange(location: marked.length, length: 0),
-                replacementRange: NSRange(location: NSNotFound, length: 0)
+                replacementRange: replaced ?? NSRange(location: NSNotFound, length: 0)
             )
             showsMarkedText = marked.length > 0
         }
@@ -288,6 +316,10 @@ final class SokkouInputController: IMKInputController {
             if segment.style == .english {
                 attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue | NSUnderlineStyle.patternDot.rawValue
             }
+            if segment.style == .suggestion {
+                attributes[.foregroundColor] = NSColor.tertiaryLabelColor
+                attributes[.underlineStyle] = 0
+            }
             marked.append(NSAttributedString(string: segment.text, attributes: attributes))
         }
         return marked
@@ -298,7 +330,7 @@ final class SokkouInputController: IMKInputController {
         let kind = switch style {
         case .focused: kTSMHiliteSelectedConvertedText
         case .clause: kTSMHiliteConvertedText
-        case .japanese, .english, .raw, .manual: kTSMHiliteRawText
+        case .japanese, .english, .raw, .manual, .suggestion: kTSMHiliteRawText
         }
         let raw = mark(forStyle: kind, at: range) ?? [:]
         return Dictionary(uniqueKeysWithValues: raw.compactMap { key, value in
@@ -400,7 +432,7 @@ final class SokkouInputController: IMKInputController {
     @objc nonisolated func toggleLearning(_ sender: Any?) {
         onMain {
             Settings.learns.toggle()
-            composer.learns = Settings.learns
+            Self.apply(to: composer)
         }
     }
 }

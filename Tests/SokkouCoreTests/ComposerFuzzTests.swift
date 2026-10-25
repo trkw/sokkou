@@ -21,9 +21,9 @@ struct ComposerFuzzTests {
 
     /// 辞書の語になりやすい英字を多めにした、打つキーの袋
     static let keys: [Key] = {
-        var keys: [Key] = "kakuminosatehoe".map { .character($0) }
+        var keys: [Key] = "kakuminosatehoeqx".map { .character($0) }
         keys += "KS;;.,? -1".map { $0 == " " ? .space : .character($0) }
-        keys += "ghjkqlLnpfbmx".map { .control($0) }
+        keys += "ghjkqlLnpfbmx/".map { .control($0) }
         keys += [.control("j"), .control("j"), .space, .shiftSpace, .shiftSpace, .enter, .shiftEnter]
         keys += [.backspace, .escape, .left, .right, .up, .down, .shiftLeft, .shiftRight, .eisu, .kana]
         return keys
@@ -37,6 +37,10 @@ struct ComposerFuzzTests {
             let composer = Composer(engine: FakeEngine(), learning: learning)
             composer.learns = Bool.random(using: &random)
             composer.passesIdleControlK = Bool.random(using: &random)
+            composer.undoesCommit = Bool.random(using: &random)
+            composer.convertsWithQ = Bool.random(using: &random)
+            composer.usesSKKCandidateKeys = Bool.random(using: &random)
+            composer.commitsAtPunctuation = Bool.random(using: &random)
             var typed: [Key] = []
             for _ in 0..<Int.random(in: 1...40, using: &random) {
                 let key = Self.keys.randomElement(using: &random)!

@@ -141,6 +141,8 @@ bash install.sh "dist/sokkou Dev.app"        # 組み立てたものを入れる
 "dist/sokkou Dev.app/Contents/MacOS/sokkou" --snapshot snapshots   # 候補の窓とモードの札を画像に書き出す
 ```
 
+手元で組み立てたものは ad-hoc 署名になる。配る dmg の署名と公証は [docs/signing.md](docs/signing.md)。
+
 ## 構成
 
 | ターゲット | 役割 |
