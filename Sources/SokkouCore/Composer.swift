@@ -302,7 +302,10 @@ public final class Composer {
             typing.raw = true
         case .shiftSpace, .down, .up, .control("n"), .control("p"), .shiftLeft, .shiftRight:
             guard mode == .hiragana else { break }
-            phase = .selecting(startSelecting(typing.keys))
+            var selecting = startSelecting(typing.keys)
+            // 打った直後の Shift+← は、最後の文節を選ぶ（文節の移動は両端で反対の端へ回る）
+            if key == .shiftLeft { selecting.focus = max(selecting.list.clauses.count - 1, 0) }
+            phase = .selecting(selecting)
             return true
         case .left, .control("b"), .right, .control("f"):
             guard mode == .hiragana else { break }
@@ -497,12 +500,13 @@ public final class Composer {
             resize(&selecting, by: -1)
         case .shiftRight:
             selecting.list = Self.settled(selecting.list)
-            selecting.focus = min(selecting.focus + 1, count - 1)
+            // 両端では反対の端へ回る（tugime・Mozc と同じ）
+            selecting.focus = (selecting.focus + 1) % count
             selecting.window = false
             selecting.steps = 0
         case .shiftLeft:
             selecting.list = Self.settled(selecting.list)
-            selecting.focus = max(selecting.focus - 1, 0)
+            selecting.focus = (selecting.focus - 1 + count) % count
             selecting.window = false
             selecting.steps = 0
         case .enter, .control("m"), .control("j"):

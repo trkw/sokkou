@@ -117,6 +117,18 @@ struct ComposerTests {
         #expect(composer.presentation.text == " 紙")
     }
 
+    /// Shift+← → で選ぶ文節は両端で反対の端へ回る。打った直後の Shift+← は最後の文節を選ぶ
+    @Test func shiftArrowsWrapTheFocusAround() {
+        let composer = composer()
+        func focused() -> String? { composer.presentation.segments.first { $0.style == .focused }?.text }
+        type(composer, characters("kaku kami") + [.shiftLeft])
+        #expect(focused()?.hasSuffix("紙") == true, "\(composer.presentation.segments)")
+        type(composer, [.shiftRight])
+        #expect(focused() == "書く", "\(composer.presentation.segments)")
+        type(composer, [.shiftLeft])
+        #expect(focused()?.hasSuffix("紙") == true, "\(composer.presentation.segments)")
+    }
+
     @Test func typingAfterSelectingCommitsFirst() {
         let composer = composer()
         type(composer, characters("kaku") + [.control("n"), .control("n"), .character("k")])
