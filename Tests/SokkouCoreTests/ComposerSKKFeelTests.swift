@@ -57,6 +57,34 @@ struct ComposerSKKFeelTests {
         #expect(composer.takeCommitted() == "描く")
     }
 
+    @Test func undoReopensTheWordPickedFromTheWindow() {
+        let composer = composer()
+        // 窓で 核 を強調したまま a で 書く を選ぶ
+        type(composer, characters(";kaku ") + [.space, .space, .character("a")])
+        #expect(composer.takeCommitted() == "書く")
+        type(composer, [.control("/")])
+        #expect(composer.takeReplaced() == "書く")
+        #expect(composer.presentation.text == "▼書く")
+    }
+
+    @Test func undoReopensTheClausePickedFromTheWindow() {
+        let composer = composer()
+        type(composer, characters("kaku") + [.control("n"), .control("n"), .control("n"), .character("s")])
+        #expect(composer.takeCommitted() == "描く")
+        type(composer, [.control("/")])
+        #expect(composer.takeReplaced() == "描く")
+        #expect(composer.presentation.text == "描く")
+    }
+
+    @Test func undoAfterAWordAndPunctuationTakesBackOnlyThePunctuation() {
+        let composer = composer()
+        type(composer, characters(";kaku ") + [.space, .character(".")])
+        #expect(composer.takeCommitted() == "描く。")
+        type(composer, [.control("/")])
+        #expect(composer.takeReplaced() == "。")
+        #expect(composer.presentation.text == "。")
+    }
+
     @Test func undoOnlyRightAfterTheCommit() {
         let composer = composer()
         type(composer, characters("kaku") + [.enter])

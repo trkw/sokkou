@@ -36,8 +36,9 @@ public final class Composer {
     private var committed = ""
     /// 直前のキーで確定したもの。次のキーが `C-/` なら未確定に戻す
     private var recall: Recall?
-    /// 確定したところが、確定の取り消しで戻す状態をキーの前の状態と違うものにするとき
-    private var recallPhase: Phase?
+    /// 確定したところが、確定の取り消しで戻す状態と、その状態で確定した文字列の始まり（committed の文字数）を決めるとき。
+    /// 1 つのキーで 2 回確定したとき（▼ のあとの 。）は、あとの確定だけを取り消す
+    private var recallPhase: (phase: Phase, start: Int)?
     /// 確定の取り消しで未確定に戻した文字列。入力メソッドは入力欄のこの文字列を未確定の文字列で置き換える
     private var replaced: String?
 
@@ -131,8 +132,8 @@ public final class Composer {
         let start = committed.count
         let handled = handleKey(key, leading: current)
         if undoesCommit, mode == .hiragana, case .idle = phase, committed.count > start,
-           let back = recallPhase ?? Self.recallable(before) {
-            recall = Recall(text: String(committed.dropFirst(start)), phase: back, leading: leading)
+           let back = recallPhase ?? Self.recallable(before).map({ (phase: $0, start: start) }) {
+            recall = Recall(text: String(committed.dropFirst(back.start)), phase: back.phase, leading: leading)
         }
         recallPhase = nil
         return handled
@@ -466,7 +467,7 @@ public final class Composer {
         guard commitsAtPunctuation, mode == .hiragana, Self.sentenceMarks.contains(character),
               engine.live(typing.keys, leading: leading).last?.kind == .punctuation
         else { return false }
-        recallPhase = .typing(typing)
+        recallPhase = (phase: .typing(typing), start: committed.count)
         committed += typingText(typing)
         finish()
         return true
@@ -695,6 +696,8 @@ public final class Composer {
         selecting.window = false
         selecting.steps = 0
         guard selecting.focus + 1 < selecting.list.clauses.count else {
+            // 確定の取り消しでは、窓で選んだ候補に戻す
+            recallPhase = (phase: .selecting(selecting), start: committed.count)
             phase = .selecting(selecting)
             commitAll()
             return
@@ -1034,6 +1037,10 @@ public final class Composer {
     }
 
     private func commitChoice(_ manual: Manual, _ choice: Choice) {
+        // 確定の取り消しでは、確定した候補の ▼ に戻す
+        var chosen = manual
+        chosen.choice = choice
+        recallPhase = (phase: .manual(chosen), start: committed.count)
         if learns, let learning, choice.index != 0 {
             learning.record(reading: learningKey(manual), word: choice.words[choice.index])
         }
