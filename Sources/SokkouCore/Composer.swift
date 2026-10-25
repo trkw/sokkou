@@ -12,6 +12,21 @@ public final class Composer {
     /// 何も打っていないときの `C-k` をアプリに渡し、macOS の「行末まで削除」を残す。false ならカタカナモードに入る
     public var passesIdleControlK = true
 
+    // SKK の手触りの機能。入力メソッドは設定で切り替える。既定は使わない
+
+    /// 確定した直後の `C-/` で、確定した文字列を未確定に戻して選び直す（ddskk の確定の取り消し）
+    public var undoesCommit = false
+    /// ▽ の中の `q` で、読みをカタカナにして確定する
+    public var convertsWithQ = false
+    /// ▼ の `x` で前の候補。候補の窓では Space で次のページ、`x` で前のページ
+    public var usesSKKCandidateKeys = false
+    /// 打っている途中に 、。！？ を打ったら、そこまでを確定する
+    public var commitsAtPunctuation = false
+    /// ▽ で、登録した読みの続きを薄く見せる。Tab で採る
+    public var suggestsCompletion = false
+    /// 候補の窓に SKK 辞書の注釈を出す
+    public var showsAnnotations = false
+
     private let engine: any Engine
     private let learning: (any Learning)?
     private let lexicon: (any Lexicon)?
@@ -19,6 +34,12 @@ public final class Composer {
     private var leading: Leading = .start
     /// 確定して、入力メソッドがまだアプリに渡していない文字列
     private var committed = ""
+    /// 直前のキーで確定したもの。次のキーが `C-/` なら未確定に戻す
+    private var recall: Recall?
+    /// 確定したところが、確定の取り消しで戻す状態をキーの前の状態と違うものにするとき
+    private var recallPhase: Phase?
+    /// 確定の取り消しで未確定に戻した文字列。入力メソッドは入力欄のこの文字列を未確定の文字列で置き換える
+    private var replaced: String?
 
     public init(engine: any Engine, learning: (any Learning)? = nil, lexicon: (any Lexicon)? = nil) {
         self.engine = engine
@@ -39,6 +60,23 @@ public final class Composer {
         return committed
     }
 
+    /// `C-/` で取り消せる、直前に確定した文字列
+    public var undoableCommit: String? {
+        guard undoesCommit, case .idle = phase else { return nil }
+        return recall?.text
+    }
+
+    /// 確定を取り消せないことにする。入力欄の文字列が確定したものと合わないとき
+    public func forgetCommit() {
+        recall = nil
+    }
+
+    /// 確定の取り消しで未確定に戻した文字列を受け取る。受け取った分は消える
+    public func takeReplaced() -> String? {
+        defer { replaced = nil }
+        return replaced
+    }
+
     /// 入力ソースの切り替えなど、外からモードを変える。未確定の文字列は確定する
     public func select(mode next: InputMode) {
         commitAll()
@@ -47,6 +85,8 @@ public final class Composer {
 
     /// 未確定の文字列を、表示しているとおりに確定する
     public func commitAll() {
+        // 入力欄を離れたなど。カーソルが動いたかもしれないので、確定の取り消しはできなくする
+        recall = nil
         switch phase {
         case .idle:
             return
@@ -72,11 +112,33 @@ public final class Composer {
 
     /// 未確定の文字列を捨てる
     public func cancel() {
+        recall = nil
         finish()
     }
 
     /// キーを 1 つ処理する。false ならキーをアプリに渡す。leading は打ち始めにだけ呼ぶ
     public func handle(_ key: Key, leading current: () -> Leading) -> Bool {
+        if key == .control("/"), undoesCommit, case .idle = phase, let recall {
+            self.recall = nil
+            leading = recall.leading
+            phase = reopened(recall.phase)
+            replaced = recall.text
+            return true
+        }
+        recall = nil
+        recallPhase = nil
+        let before = phase
+        let start = committed.count
+        let handled = handleKey(key, leading: current)
+        if undoesCommit, mode == .hiragana, case .idle = phase, committed.count > start,
+           let back = recallPhase ?? Self.recallable(before) {
+            recall = Recall(text: String(committed.dropFirst(start)), phase: back, leading: leading)
+        }
+        recallPhase = nil
+        return handled
+    }
+
+    private func handleKey(_ key: Key, leading current: () -> Leading) -> Bool {
         if case .registering(let registering) = phase {
             return handleRegistering(key, registering)
         }
@@ -202,6 +264,51 @@ public final class Composer {
         var steps = 0
     }
 
+    private struct Recall {
+        /// 確定した文字列
+        var text: String
+        /// 確定する前の状態
+        var phase: Phase
+        var leading: Leading
+    }
+
+    /// 確定の取り消しで戻せる、確定する前の状態。戻しても何も無いなら nil
+    private static func recallable(_ phase: Phase) -> Phase? {
+        switch phase {
+        case .typing(let typing) where !typing.keys.isEmpty:
+            return phase
+        case .selecting:
+            return phase
+        case .manual(let manual) where !(manual.stem.isEmpty && manual.prefix.isEmpty):
+            return phase
+        default:
+            return nil
+        }
+    }
+
+    /// 確定を取り消して戻す状態。自動変換は文節選択に、▼ は窓を閉じた ▼ にして、すぐ選び直せるようにする
+    private func reopened(_ phase: Phase) -> Phase {
+        switch phase {
+        case .typing(let typing):
+            return .selecting(startSelecting(typing.keys))
+        case .selecting(var selecting):
+            selecting.list = Self.settled(selecting.list)
+            selecting.window = false
+            selecting.steps = 0
+            return .selecting(selecting)
+        case .manual(var manual):
+            if var choice = manual.choice {
+                choice.window = false
+                choice.steps = 0
+                manual.choice = choice
+            }
+            manual.completions = []
+            return .manual(manual)
+        default:
+            return phase
+        }
+    }
+
     private func finish() {
         phase = .idle
         engine.endComposition()
@@ -220,7 +327,9 @@ public final class Composer {
             if character == ";" && mode == .hiragana {
                 phase = .typing(Typing(keys: "", sticky: true))
             } else {
-                phase = .typing(Typing(keys: String(character)))
+                let typing = Typing(keys: String(character))
+                phase = .typing(typing)
+                commitIfSentenceMark(character, typing)
             }
             return true
         case .control("j"):
@@ -280,6 +389,7 @@ public final class Composer {
         case .character(let character):
             typing.keys.append(character)
             typing.raw = false
+            if commitIfSentenceMark(character, typing) { return true }
         case .space:
             typing.keys.append(" ")
             typing.raw = false
@@ -349,6 +459,21 @@ public final class Composer {
         phase = .typing(typing)
         return true
     }
+
+    /// 句読点で確定するとき、打った句読点が日本語の 、。！？ になったら、そこまでを確定する。確定したら true
+    @discardableResult
+    private func commitIfSentenceMark(_ character: Character, _ typing: Typing) -> Bool {
+        guard commitsAtPunctuation, mode == .hiragana, Self.sentenceMarks.contains(character),
+              engine.live(typing.keys, leading: leading).last?.kind == .punctuation
+        else { return false }
+        recallPhase = .typing(typing)
+        committed += typingText(typing)
+        finish()
+        return true
+    }
+
+    /// 句読点で確定するときの、文の区切りの打鍵
+    private static let sentenceMarks: Set<Character> = [",", ".", "!", "?"]
 
     /// 打っている途中の読みを補完する候補。空白や英語を含むときと、補完できないときは nil
     private func completions(of typing: Typing) -> [String]? {
@@ -487,6 +612,20 @@ public final class Composer {
             return true
         case .character("X") where selecting.window && lexicon != nil:
             removeCandidate(&selecting)
+        case .space where usesSKKCandidateKeys && selecting.window:
+            var clause = selecting.list.clauses[selecting.focus]
+            clause.selected = Self.nextPage(from: clause.selected, count: clause.candidates.count)
+            selecting.list.clauses[selecting.focus] = clause
+            selecting.chosen.insert(selecting.focus)
+        case .character("x") where usesSKKCandidateKeys && selecting.window:
+            var clause = selecting.list.clauses[selecting.focus]
+            if let index = Self.previousPage(from: clause.selected) {
+                clause.selected = index
+                selecting.list.clauses[selecting.focus] = clause
+                selecting.chosen.insert(selecting.focus)
+            } else {
+                selecting.window = false
+            }
         case .space, .shiftSpace, .down, .control("n"):
             step(&selecting, by: 1)
         case .up, .control("p"):
@@ -530,10 +669,22 @@ public final class Composer {
             phase = .selecting(selecting)
             commitAll()
             if case .control = key { return false }
-            return handle(key, leading: leadingProvider)
+            return handleKey(key, leading: leadingProvider)
         }
         phase = .selecting(selecting)
         return true
+    }
+
+    /// 候補の窓の次のページの先頭。最後のページなら最初のページに戻る
+    private static func nextPage(from index: Int, count: Int) -> Int {
+        let start = (index / labels.count + 1) * labels.count
+        return start < count ? start : 0
+    }
+
+    /// 候補の窓の前のページの先頭。最初のページなら nil
+    private static func previousPage(from index: Int) -> Int? {
+        let page = index / labels.count
+        return page > 0 ? (page - 1) * labels.count : nil
     }
 
     /// 窓で選んだ候補にして次の文節へ移る。最後の文節なら確定する
@@ -666,6 +817,11 @@ public final class Composer {
         case .character(";"):
             // ▽ の中の ; は、次の英字から送り仮名にする合図
             if manual.okuri == nil { manual.sticky = true }
+        case .character("q") where convertsWithQ && !manual.sticky:
+            // SKK と同じく、読みをカタカナにして確定する
+            committed += engine.convert(kana: manualKana(manual), to: .katakana)
+            finish()
+            return true
         case .character(let character):
             let letter = character.lowercased()
             if manual.sticky || (character.isUppercase && !(manual.stem.isEmpty && manual.prefix.isEmpty)) {
@@ -737,7 +893,7 @@ public final class Composer {
             committed += manualKana(manual)
             finish()
             if case .control = key { return false }
-            return handle(key, leading: leadingProvider)
+            return handleKey(key, leading: leadingProvider)
         }
         phase = .manual(manual)
         return true
@@ -761,7 +917,7 @@ public final class Composer {
             guard !manual.stem.isEmpty else {
                 committed += "/"
                 finish()
-                return handle(key, leading: leadingProvider)
+                return handleKey(key, leading: leadingProvider)
             }
             manual.choice = makeChoice(manual)
         case .enter, .control("m"):
@@ -780,7 +936,7 @@ public final class Composer {
         default:
             committed += literal
             finish()
-            return handle(key, leading: leadingProvider)
+            return handleKey(key, leading: leadingProvider)
         }
         phase = .manual(manual)
         return true
@@ -816,6 +972,24 @@ public final class Composer {
                 phase = .manual(manual)
                 return true
             }
+        case .space where usesSKKCandidateKeys && choice.window:
+            choice.index = Self.nextPage(from: choice.index, count: choice.words.count)
+        case .character("x") where usesSKKCandidateKeys:
+            if choice.window {
+                if let index = Self.previousPage(from: choice.index) {
+                    choice.index = index
+                } else {
+                    choice.window = false
+                }
+            } else if choice.index > 0 {
+                choice.index -= 1
+            } else {
+                // 最初の候補で x なら、SKK と同じく ▽ に戻る
+                manual.choice = nil
+                manual.okuri = nil
+                phase = .manual(manual)
+                return true
+            }
         case .space, .control("n"), .down:
             if !choice.window {
                 if choice.steps >= 1 { choice.window = true }
@@ -841,7 +1015,7 @@ public final class Composer {
         default:
             commitChoice(manual, choice)
             if case .control = key { return false }
-            return handle(key, leading: leadingProvider)
+            return handleKey(key, leading: leadingProvider)
         }
         manual.choice = choice
         phase = .manual(manual)
@@ -1068,12 +1242,23 @@ public final class Composer {
                 MarkedSegment(text: clause.output, style: index == selecting.focus ? .focused : .clause)
             }
             let clause = selecting.list.clauses[selecting.focus]
-            let window = selecting.window ? Self.window(reading: clause.reading, words: clause.candidates, index: clause.selected) : nil
+            var window: CandidateWindow?
+            if selecting.window {
+                window = candidateWindow(reading: clause.reading, words: clause.candidates, index: clause.selected, annotation: { word in
+                    clause.kind == .japanese ? self.lexicon?.annotation(of: word, reading: clause.reading, okuri: nil) : nil
+                })
+            }
             return Presentation(segments: segments, window: window)
         case .manual(let manual):
             if let choice = manual.choice {
                 let reading = manual.abbrev ? manual.stem : manualKana(manual)
-                let window = choice.window ? Self.window(reading: reading, words: choice.words, index: choice.index) : nil
+                let heading = manualHeading(manual)
+                var window: CandidateWindow?
+                if choice.window {
+                    window = candidateWindow(reading: reading, words: choice.words, index: choice.index, annotation: { word in
+                        self.lexicon?.annotation(of: Self.stripping(heading.okuriKana, from: word), reading: heading.reading, okuri: heading.okuri)
+                    })
+                }
                 return Presentation(segments: [MarkedSegment(text: "▼" + choice.words[choice.index], style: .manual)], window: window)
             }
             if manual.abbrev {
@@ -1083,7 +1268,11 @@ public final class Composer {
             if manual.okuri != nil || manual.sticky {
                 text += "*" + reading(manual.okuri ?? "", shown: true)
             }
-            return Presentation(segments: [MarkedSegment(text: text, style: .manual)])
+            var segments = [MarkedSegment(text: text, style: .manual)]
+            if let rest = suggestion(manual) {
+                segments.append(MarkedSegment(text: rest, style: .suggestion))
+            }
+            return Presentation(segments: segments)
         case .registering(let registering):
             let okuri = registering.okuriKana.isEmpty ? "" : "*" + registering.okuriKana
             var segments = [MarkedSegment(text: "［登録 " + registering.reading + okuri + "］", style: .manual)]
@@ -1095,18 +1284,33 @@ public final class Composer {
         }
     }
 
-    private static func window(reading: String, words: [String], index: Int) -> CandidateWindow {
-        let size = labels.count
+    /// ▽ の読みに続く、登録した読みの残り。Tab で 1 つ目の補完を採ると、この読みになる
+    private func suggestion(_ manual: Manual) -> String? {
+        guard suggestsCompletion, let lexicon, manual.okuri == nil, !manual.sticky, manual.completions.isEmpty else { return nil }
+        let typed = manual.prefix + reading(manual.stem, shown: true)
+        // 読み切れていない綴りが残っているうちは出さない
+        guard let last = typed.last, !(last.isASCII && last.isLetter),
+              let first = lexicon.completions(of: typed).first
+        else { return nil }
+        return String(first.dropFirst(typed.count))
+    }
+
+    /// 候補の窓。注釈を出すなら、annotation で候補の注釈を引く
+    private func candidateWindow(reading: String, words: [String], index: Int, annotation: (String) -> String?) -> CandidateWindow {
+        let size = Self.labels.count
         let page = index / size
         let start = page * size
         let items = Array(words[start..<min(start + size, words.count)])
+        var annotations: [String?] = showsAnnotations ? items.map(annotation) : []
+        if annotations.allSatisfy({ $0 == nil }) { annotations = [] }
         return CandidateWindow(
             reading: reading,
             items: items,
-            labels: Array(labels.prefix(items.count)),
+            labels: Array(Self.labels.prefix(items.count)),
             highlighted: index - start,
             page: page,
-            pageCount: (words.count + size - 1) / size
+            pageCount: (words.count + size - 1) / size,
+            annotations: annotations
         )
     }
 

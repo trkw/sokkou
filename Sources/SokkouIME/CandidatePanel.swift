@@ -57,7 +57,7 @@ struct CandidateList: View {
             header
             VStack(spacing: 1) {
                 ForEach(Array(window.items.enumerated()), id: \.offset) { index, item in
-                    row(label: window.labels[index], item: item, highlighted: index == window.highlighted)
+                    row(label: window.labels[index], item: item, annotation: window.annotation(at: index), highlighted: index == window.highlighted)
                 }
             }
             .padding(.horizontal, 6)
@@ -86,7 +86,7 @@ struct CandidateList: View {
         .padding(.bottom, 6)
     }
 
-    private func row(label: Character, item: String, highlighted: Bool) -> some View {
+    private func row(label: Character, item: String, annotation: String?, highlighted: Bool) -> some View {
         HStack(spacing: 0) {
             Text(String(label).uppercased())
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -96,6 +96,15 @@ struct CandidateList: View {
                 .font(.system(size: 16, weight: highlighted ? .medium : .regular))
                 .foregroundStyle(highlighted ? Theme.onAccent : Theme.ink)
                 .lineLimit(1)
+                .layoutPriority(1)
+            // SKK 辞書の注釈。候補より小さく薄く、あふれたら注釈の方を省く
+            if let annotation {
+                Text(annotation)
+                    .font(.system(size: 11))
+                    .foregroundStyle(highlighted ? Theme.onAccent.opacity(0.7) : Theme.quiet)
+                    .lineLimit(1)
+                    .padding(.leading, 10)
+            }
             Spacer(minLength: 16)
         }
         .frame(height: 30)

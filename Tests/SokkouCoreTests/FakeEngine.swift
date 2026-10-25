@@ -22,21 +22,32 @@ final class FakeEngine: Engine {
     var resizeCalls = 0
     var endCompositionCalls = 0
 
+    /// 日本語の後ろで日本語の記号にする句読点。英語の後ろでは打ったまま
+    static let punctuation: [String: String] = [",": "、", ".": "。", "!": "！", "?": "？"]
+
     func live(_ keys: String, leading: Leading) -> [Span] {
-        tokens(keys).map { token in
-            if token == " " || Self.english.contains(token) {
-                return Span(kind: .english, text: token, reading: token)
+        var spans: [Span] = []
+        for token in tokens(keys) {
+            if let mark = Self.punctuation[token] {
+                let afterEnglish = spans.last.map { $0.kind == .english } ?? (leading == .afterEnglish)
+                spans.append(afterEnglish ? Span(kind: .english, text: token, reading: token) : Span(kind: .punctuation, text: mark, reading: mark))
+            } else if token == " " || Self.english.contains(token) {
+                spans.append(Span(kind: .english, text: token, reading: token))
+            } else {
+                let reading = kana(token).kana + kana(token).rest
+                spans.append(Span(kind: .japanese, text: Self.dictionary[reading]?.first ?? reading, reading: reading))
             }
-            let reading = kana(token).kana + kana(token).rest
-            return Span(kind: .japanese, text: Self.dictionary[reading]?.first ?? reading, reading: reading)
         }
+        return spans
     }
 
     func clauses(_ keys: String, leading: Leading) -> ClauseList {
         let clauses = live(keys, leading: leading).map { span in
-            span.kind == .english
-                ? Clause(kind: .english, reading: span.reading, candidates: [span.text])
-                : Clause(kind: .japanese, reading: span.reading, candidates: (Self.dictionary[span.reading] ?? []) + [span.reading])
+            switch span.kind {
+            case .english: Clause(kind: .english, reading: span.reading, candidates: [span.text])
+            case .punctuation: Clause(kind: .punctuation, reading: span.reading, candidates: [span.text])
+            case .japanese: Clause(kind: .japanese, reading: span.reading, candidates: (Self.dictionary[span.reading] ?? []) + [span.reading])
+            }
         }
         return ClauseList(clauses: clauses, payload: tokens(keys))
     }
@@ -101,14 +112,14 @@ final class FakeEngine: Engine {
         endCompositionCalls += 1
     }
 
-    /// 空白を 1 つの語として残して区切る
+    /// 空白と句読点を 1 つの語として残して区切る
     private func tokens(_ keys: String) -> [String] {
         var tokens: [String] = []
         var word = ""
         for character in keys {
-            if character == " " {
+            if character == " " || Self.punctuation[String(character)] != nil {
                 if !word.isEmpty { tokens.append(word) }
-                tokens.append(" ")
+                tokens.append(String(character))
                 word = ""
             } else {
                 word.append(character)
