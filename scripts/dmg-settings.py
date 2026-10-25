@@ -13,7 +13,8 @@ icon_locations = {
     os.path.basename(app): (200, 190),
     os.path.basename(guide): (440, 190),
 }
-hide_extensions = [os.path.basename(app), os.path.basename(guide)]
+# .app の拡張子は Finder が最初から隠す。app に隠す印（FinderInfo）を付けると codesign --verify --strict が通らない
+hide_extensions = [os.path.basename(guide)]
 
 background = defines["background"]
 window_rect = ((200, 160), (640, 400))

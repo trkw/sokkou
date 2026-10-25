@@ -77,4 +77,14 @@ rm -f "$dmg"
     -D app="$app" -D guide="$guide" -D background="$background" \
     "sokkou" "$dmg"
 hdiutil verify "$dmg"
+# 更新（install.sh）と同じ確かめ方で、dmg の中の app の署名が通るかを見る。通らない dmg はリリースしない
+mount="$stage/mount"
+mkdir -p "$mount"
+hdiutil attach -quiet -nobrowse -readonly -noautoopen -mountpoint "$mount" "$dmg"
+if ! codesign --verify --strict "$mount/sokkou.app"; then
+    hdiutil detach -quiet "$mount" || true
+    echo "dmg の中の sokkou.app が codesign --verify --strict を通らない" >&2
+    exit 1
+fi
+hdiutil detach -quiet "$mount"
 echo "== 作成 $dmg"
