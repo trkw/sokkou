@@ -444,6 +444,14 @@ private struct DictionaryPage: View {
     @Bindable var model: SettingsModel
 
     var body: some View {
+        // 辞書を多く足して窓に収まらなくなったときだけ流す。収まるあいだは ScrollView を使わず、画像にも書き出せるようにする
+        ViewThatFits(in: .vertical) {
+            content
+            ScrollView { content }
+        }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 20) {
             SettingsSection(title: "引く辞書") {
                 SettingsRow(title: "いつもの辞書", detail: "azooKey の辞書と、英単語のカタカナ", first: true) {
