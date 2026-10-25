@@ -153,8 +153,10 @@ jobs:
             echo "nix/release.json は v${VERSION} のまま"
             exit 0
           fi
-          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-            commit --quiet -am "Nix: v${VERSION} を指す"
+          # 積み直す rebase も commit を作るので、このリポジトリの設定にしておく
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --quiet -am "Nix: v${VERSION} を指す"
           # 組み立てている間に main が進んでいたら、その上に積み直す
           for attempt in 1 2 3; do
             git push --quiet origin HEAD:main && exit 0
