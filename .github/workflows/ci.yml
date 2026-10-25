@@ -1,0 +1,268 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# macOS のジョブが使う Xcode。ランナーのイメージ（macos-26）とともに版を固定する
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - name: Test
+        run: swift test
+
+  # flake のパッケージと、nix-darwin・home-manager のモジュールを評価できるか（Linux で aarch64-darwin を評価だけする）
+  nix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - name: Install Nix
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/install-nix" https://releases.nixos.org/nix/nix-2.34.6/install
+          echo "bf6d12da4aeaae38ab509dc736df648597bcdee051046ea76d3d53d5b18fa54a  $RUNNER_TEMP/install-nix" | sha256sum -c -
+          mkdir -p ~/.config/nix
+          echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
+          sh "$RUNNER_TEMP/install-nix" --no-daemon
+          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
+
+      - name: Evaluate
+        run: nix eval --json --no-write-lock-file ./nix/test#tests --override-input sokkou "path:$PWD"
+
+  app:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      # PR のビルドは pr-<番号> のプレリリースに置き、install.sh --pr <番号> と入力メニューから入れられるようにする
+      - name: Build .app
+        env:
+          SOKKOU_BUILD_LABEL: "${{ github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || 'main' }}"
+          SOKKOU_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: SOKKOU_BUILD_CHANNEL=stable scripts/build-app.sh
+
+      - name: Check .app
+        run: scripts/check-app.sh dist/sokkou.app
+
+      # 打鍵ごとの時間とメモリ。MacBook Neo（8GB）でも軽いかの目安にする
+      - name: Bench
+        run: dist/sokkou.app/Contents/MacOS/sokkou --bench | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # dmg を作れるかと、dmg の外（dist）から --install で入れられるか
+      - name: Make dmg
+        run: scripts/make-dmg.sh
+
+      # install.sh で最新のリリースを取って入れられるか（SHA-256 の突き合わせ、署名、--check）
+      - name: Install the latest release with install.sh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash install.sh
+
+      # 組み立てたものに入れ替え、もう一度入れ替えて、前の版が取っておかれるか
+      - name: Install from .app with install.sh
+        run: |
+          set -euo pipefail
+          bash install.sh dist/sokkou.app
+          bash install.sh dist/sokkou.app
+          test -d "$HOME/Library/Application Support/sokkou/previous/sokkou.app"
+          "$HOME/Library/Input Methods/sokkou.app/Contents/MacOS/sokkou" --version
+
+      - name: Uninstall
+        run: |
+          set -euo pipefail
+          "$HOME/Library/Input Methods/sokkou.app/Contents/MacOS/sokkou" --uninstall --purge
+          test ! -e "$HOME/Library/Input Methods/sokkou.app"
+          test ! -e "$HOME/Library/Application Support/sokkou"
+
+      # Nix のストアのような読み取り専用の場所から入れても、次の版で入れ替えられるか
+      - name: Install from a read-only copy
+        run: |
+          set -euo pipefail
+          ro="$RUNNER_TEMP/store/sokkou.app"
+          mkdir -p "$(dirname "$ro")"
+          ditto dist/sokkou.app "$ro"
+          chmod -R a-w "$ro"
+          "$ro/Contents/MacOS/sokkou" --install
+          dist/sokkou.app/Contents/MacOS/sokkou --install
+
+      # release.yml が trkw/homebrew-tap に書く cask で、組み立てた dmg を入れて消せるか
+      - name: Install with Homebrew
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: |
+          set -euo pipefail
+          version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" dist/sokkou.app/Contents/Info.plist)
+          sha=$(shasum -a 256 dist/sokkou-macos-arm64.dmg | cut -d' ' -f1)
+          brew tap-new --no-git local/sokkou
+          casks="$(brew --repository local/sokkou)/Casks"
+          mkdir -p "$casks"
+          scripts/make-cask.sh "$version" "$sha" > "$casks/sokkou.rb"
+          brew style --cask local/sokkou/sokkou
+          # リリースの URL の代わりに、いま組み立てた dmg を使う
+          sed -i '' "s|^  url .*|  url \"file://$PWD/dist/sokkou-macos-arm64.dmg\"|" "$casks/sokkou.rb"
+          brew install --cask local/sokkou/sokkou
+          test -x "$HOME/Library/Input Methods/sokkou.app/Contents/MacOS/sokkou"
+          brew uninstall --cask local/sokkou/sokkou
+          test ! -e "$HOME/Library/Input Methods/sokkou.app"
+
+      # 次の手順の --snapshot のため、もう一度入れる
+      - name: Install from .app
+        run: dist/sokkou.app/Contents/MacOS/sokkou --install
+
+      # 署名と公証は鍵を持たせた sign ジョブでする。.app をそのまま渡す（zip にしないとフレームワークのリンクが崩れる）
+      - name: Pack .app
+        if: github.event_name == 'pull_request'
+        run: ditto -c -k --keepParent dist/sokkou.app dist/sokkou-app.zip
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name == 'pull_request'
+        with:
+          name: sokkou-app
+          path: dist/sokkou-app.zip
+          if-no-files-found: error
+          retention-days: 1
+
+      # 候補の窓とモードの札の見た目を画像に書き出す
+      - name: Snapshot UI
+        run: |
+          set -euo pipefail
+          dist/sokkou.app/Contents/MacOS/sokkou --snapshot snapshots
+          swift scripts/make-dmg-background.swift snapshots/dmg-background.tiff
+          sips -s format png snapshots/dmg-background.tiff --out snapshots/dmg-background.png
+          rm snapshots/dmg-background.tiff
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ui-snapshots
+          path: snapshots
+          if-no-files-found: error
+          retention-days: 7
+
+  # 書き出した画像を ui-snapshots ブランチに置き、ブラウザや git から見られるようにする。
+  # 外部のパッケージを組み立てるジョブとは分け、書き込みの権限はここにだけ持たせる
+  snapshots:
+    needs: app
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ui-snapshots
+          path: snapshots
+
+      - name: Push to ui-snapshots
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          cd snapshots
+          git init -q -b ui-snapshots
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "UI snapshots for ${SHA}"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ui-snapshots
+
+  # PR の .app を Developer ID で署名して公証を受け、dmg にする（docs/signing.md）。
+  # 外部のパッケージを組み立てる app ジョブには鍵を渡さず、組み上がった .app だけをここで受け取る。
+  # fork からの PR には鍵が渡らないので、このジョブ自体を動かさない
+  sign:
+    needs: app
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sokkou-app
+          path: dist
+
+      - name: Unpack .app
+        run: ditto -x -k dist/sokkou-app.zip dist && rm dist/sokkou-app.zip
+
+      - name: Sign, notarize and make dmg
+        env:
+          APPLE_DEVELOPER_ID_P12: ${{ secrets.APPLE_DEVELOPER_ID_P12 }}
+          APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+          APPLE_NOTARY_KEY: ${{ secrets.APPLE_NOTARY_KEY }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: scripts/sign-and-notarize.sh
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sokkou-macos-arm64
+          path: dist/sokkou-macos-arm64.dmg
+          if-no-files-found: error
+          retention-days: 1
+
+  # PR の dmg を pr-<番号> のプレリリースに置く。push のたびに置き直し、PR を閉じたら pr-build-cleanup.yml が消す
+  pr-build:
+    needs: sign
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: read
+    env:
+      TAG: pr-${{ github.event.pull_request.number }}
+      NUMBER: ${{ github.event.pull_request.number }}
+      SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sokkou-macos-arm64
+          path: dist
+
+      - name: Publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # 組み立てている間に PR が閉じられていたら置かない。置くと pr-build-cleanup.yml が先に済んでいて消えずに残る
+          state=$(gh pr view "${NUMBER}" --repo "${GITHUB_REPOSITORY}" --json state --jq .state)
+          if [[ "${state}" != "OPEN" ]]; then
+            echo "PR #${NUMBER} は ${state} なので置かない"
+            exit 0
+          fi
+          gh release delete "${TAG}" --repo "${GITHUB_REPOSITORY}" --cleanup-tag --yes 2>/dev/null || true
+          gh release create "${TAG}" --repo "${GITHUB_REPOSITORY}" --prerelease --latest=false --target "${SHA}" \
+            --title "PR #${NUMBER} のビルド" \
+            --notes "PR #${NUMBER} の ${SHA:0:7} を組み立てたもの。入れるには入力メニューの「PR の版を入れる…」か、install.sh --pr ${NUMBER}" \
+            dist/sokkou-macos-arm64.dmg

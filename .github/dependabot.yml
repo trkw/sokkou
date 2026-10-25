@@ -1,0 +1,12 @@
+# GitHub Actions の版（SHA で固定）を週に 1 度上げる。
+# Swift のパッケージ（azooKey）は revision で固定しているので Dependabot では追えず、
+# .github/workflows/upstream-watch.yml が issue で知らせる
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

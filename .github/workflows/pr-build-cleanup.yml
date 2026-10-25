@@ -1,0 +1,21 @@
+# PR を閉じたら、ci.yml の pr-build が置いた pr-<番号> のプレリリースとタグを消す
+name: pr-build-cleanup
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Delete prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: pr-${{ github.event.pull_request.number }}
+        run: gh release delete "${TAG}" --repo "${GITHUB_REPOSITORY}" --cleanup-tag --yes || true

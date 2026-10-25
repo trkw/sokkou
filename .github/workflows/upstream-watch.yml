@@ -1,0 +1,28 @@
+# sokkou が追う上流（tugime・AzooKeyKanaKanjiConverter・azooKey-Desktop・Meltype）を毎日見て、
+# 新しいコミットやリリースがあれば upstream ラベルの issue で知らせる。
+# tugime（取り込んだ版）と azooKey は revision で比べるので Dependabot では追えない。同じ相手の issue は 1 つにまとめて書き直す
+name: upstream-watch
+
+on:
+  schedule:
+    - cron: "17 21 * * *" # 毎朝 6:17（日本時間）
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - name: Check upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/upstream-watch.sh
