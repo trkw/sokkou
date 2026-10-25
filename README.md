@@ -55,13 +55,6 @@ programs.sokkou.autoUpdate = false;
 
 main に入るたびに CI が dmg を組み立ててリリースに置き、Homebrew の cask（[trkw/homebrew-tap](https://github.com/trkw/homebrew-tap)）と Nix の版（`nix/release.json`）も書き換える。仕組みは [docs/distribution.md](docs/distribution.md)。
 
-### 「開けません」「開発元を確認できません」と出たとき
-
-sokkou は Apple の公証を受けていないので、dmg から開くと最初の 1 回だけ macOS が止める。
-
-- **macOS 15 以降**: いったん閉じて、システム設定 → プライバシーとセキュリティ の下のほうにある「このまま開く」を押し、もう一度 sokkou を開いて「このまま開く」を選ぶ
-- **macOS 14**: sokkou を右クリック（Control + クリック）して「開く」を選び、出てきた窓で「開く」を押す
-
 ### 取り除き方
 
 入力メニューの「sokkou を取り除く…」を選ぶ。入力ソースから外し、`~/Library/Input Methods/sokkou.app` と取っておいた前の版を消す。覚えた候補と設定も消すかを選べる。ターミナルからなら:

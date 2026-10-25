@@ -51,12 +51,11 @@ func render(scale: CGFloat) -> NSBitmapImageRep {
     draw("開くと入ります", x: 200, top: 292, font: font(12, .semibold), color: vermilion)
     draw("困ったときに", x: 440, top: 292, font: font(12, .regular), color: muted)
 
-    // 下の帯: 公証していないので最初の 1 回だけ要る手順
+    // 下の帯: 入れたあとのこと
     rule.setFill()
     NSRect(x: 40, y: 84, width: size.width - 80, height: 1).fill()
-    draw("「開けません」と出たら", x: size.width / 2, top: 330, font: font(11, .semibold), color: ink)
-    draw("システム設定 → プライバシーとセキュリティ → 下の「このまま開く」を押して、もう一度開く",
-         x: size.width / 2, top: 350, font: font(11, .regular), color: muted)
+    draw("入れたあとは、打っていないときに新しい版へ自動で入れ替わります",
+         x: size.width / 2, top: 340, font: font(11, .regular), color: muted)
     NSGraphicsContext.restoreGraphicsState()
     return rep
 }

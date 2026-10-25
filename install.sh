@@ -9,13 +9,15 @@
 #
 # 入力メニューの「最新版に更新」「PR の版を入れる…」と自動の更新も、.app に入れたこのスクリプトを --notify 付きで動かす。
 #
-# 取ってきた dmg は、GitHub がリリースの資産ごとに出す SHA-256 と突き合わせ、中の .app の署名とバンドル ID を確かめ、
+# 取ってきた dmg は、GitHub がリリースの資産ごとに出す SHA-256 と突き合わせ、中の .app が sokkou の Developer ID で署名されていることとバンドル ID を確かめ、
 # その .app が辞書を読んで変換できるか（--check）を試してから入れる。入れ替えでしくじったら sokkou が前の版に戻す
 set -euo pipefail
 
 repo="trkw/sokkou"
 asset="sokkou-macos-arm64.dmg"
 bundle_id="io.github.trkw.inputmethod.sokkou"
+# 配る dmg の sokkou は trkw の Developer ID で署名して公証を受けている（docs/signing.md）
+team_id="BCA6Z83Q5N"
 notify=false
 tag=""
 src=""
@@ -157,7 +159,14 @@ build=$(/usr/libexec/PlistBuddy -c "Print :SokkouBuild" "$plist" 2>/dev/null || 
 if [[ -n "$work" && "$id" != "$bundle_id" ]]; then
     fail "dmg の中身が sokkou ではない（${id}）"
 fi
-codesign --verify --strict "$src" || fail "$name の署名が壊れている"
+if [[ -n "$work" ]]; then
+    # 取ってきたものは、Apple が発行した sokkou の Developer ID（Team ID ${team_id}）の署名に限る。
+    # ad-hoc 署名のビルド（fork からの PR、署名の鍵を入れていないリポジトリ）はここで止まる
+    codesign --verify --strict -R="anchor apple generic and certificate leaf[subject.OU] = \"${team_id}\"" "$src" \
+        || fail "${name} の署名が sokkou の Developer ID（${team_id}）のものではないか、壊れている"
+else
+    codesign --verify --strict "$src" || fail "${name} の署名が壊れている"
+fi
 # 辞書と語表を読んで 1 文を変換できるかを、入れ替える前に試す。読めない版を入れて打てなくならないように
 "$src/Contents/MacOS/sokkou" --check >/dev/null || fail "$build が変換を試せない（辞書を読めない）"
 log "== 確かめた $name $build"
