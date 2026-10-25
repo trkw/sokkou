@@ -75,6 +75,8 @@ final class SettingsModel {
     }
     /// 有効になっている sokkou の入力ソース
     var enabled: Set<InputSourceRow> = []
+    /// macOS が知っている sokkou の入力ソース。入れ替えで増えた入力ソースは、ログインし直すまで macOS に知られない
+    var installed: Set<InputSourceRow> = []
     var forgotten = false
 
     func refresh() {
@@ -82,6 +84,7 @@ final class SettingsModel {
         autoUpdates = Settings.autoUpdates
         features = Set(SKKFeature.allCases.filter(\.isOn))
         enabled = InputSourceRow.enabled()
+        installed = InputSourceRow.installed()
     }
 
     func isOn(_ feature: SKKFeature) -> Binding<Bool> {
@@ -125,6 +128,10 @@ enum InputSourceRow: String, CaseIterable {
         Set(sources().compactMap { row, source in
             property(source, kTISPropertyInputSourceIsEnabled) as? Bool == true ? row : nil
         })
+    }
+
+    static func installed() -> Set<InputSourceRow> {
+        Set(sources().map(\.row))
     }
 
     /// 日本語か英数のどちらかが有効なら、足りないほうも有効にする。
@@ -284,7 +291,11 @@ private struct GeneralPage: View {
                         SourceStatus(added: model.enabled.contains(row))
                     }
                 }
-                if model.enabled.count < InputSourceRow.allCases.count {
+                if model.installed.count < InputSourceRow.allCases.count {
+                    SettingsRow(title: "ログインし直してください", detail: "入れ替えで足した入力ソースは、macOS がログインし直したときに読み込みます") {
+                        EmptyView()
+                    }
+                } else if model.enabled.count < InputSourceRow.allCases.count {
                     if model.enabled.isEmpty {
                         SettingsRow(title: "キーボードの設定で足す", detail: "入力ソース → 編集 → ＋ → 日本語 から、2 つとも選びます") {
                             Button("開く") { InputSourceRow.openKeyboardSettings() }
