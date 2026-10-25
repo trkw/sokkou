@@ -41,7 +41,7 @@ import SokkouCore
 
     @Test func appendsAfterTheDictionaryCandidates() {
         var clause = Clause(kind: .japanese, reading: "きょう", candidates: ["今日", "きょう"], selected: 0)
-        TugimeEngine.append(["今日", "2026年10月25日"], to: &clause)
+        AzooKeyEngine.append(["今日", "2026年10月25日"], to: &clause)
         #expect(clause.candidates == ["今日", "きょう", "2026年10月25日"])
         #expect(clause.output == "今日")
     }

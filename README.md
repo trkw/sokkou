@@ -2,7 +2,7 @@
 
 SKK の手触りで、打てばそのまま変換される、自分用の macOS 日本語入力。
 
-- 普段は Shift を押さずにローマ字を打つだけで、日本語と英語を判定して自動で変換する（meltype、tugime の流れ）
+- 普段は Shift を押さずにローマ字を打つだけで、日本語と英語を判定して自動で変換する（meltype の流れ）
 - ローマ字は訓令式もヘボン式も読む（zi shi chi tsu fu sha cha jya zya）。綴りの表は `Sources/SokkouEngine/Resources/romaji.tsv`
 - 英語と判定した語も、候補の窓や `C-k` でカタカナにできる（test → テスト、online game → オンラインゲーム）。表は azooKey の辞書と JMdict から `scripts/make-loanwords.py` で作った `Sources/SokkouEngine/Resources/loanwords.tsv`（約 1 万 5 千語）
 - `kyou` `ima` `nau`（きょう・いま・なう）を候補の窓に出すと、辞書の候補の後ろに今日の日付や今の時刻が並ぶ（2026年10月25日(日)、17:05 など。きのう・あした・あさって・おとといも。Meltype の動きにならった）
@@ -103,19 +103,24 @@ bash install.sh "dist/sokkou Dev.app"        # 組み立てたものを入れる
 | ターゲット | 役割 |
 | --- | --- |
 | `SokkouCore` | キー操作の状態（打っている途中・文節選択・▽ ▼）と表示。変換エンジンには `Engine` の形でだけ触る |
-| `SokkouEngine` | tugime の `TugimeCore`（日英判定と azooKey の変換）を `Engine` につなぐ |
+| `SokkouConverter` | 日英の区切り（英語の語表と綴りらしさ）と、azooKey のかな漢字変換 |
+| `SokkouEngine` | `SokkouConverter` を `Engine` につなぐ。ローマ字の綴りの表と英単語のカタカナ読み |
 | `SokkouIME` | InputMethodKit の入力コントローラ、候補の窓、モードの印 |
 
 ## 上流を追う
 
-tugime と、tugime が固定している AzooKeyKanaKanjiConverter は revision で固定している。`upstream-watch` のワークフローが毎朝、tugime・azooKey・azooKey-Desktop・Meltype の新しいコミットやリリースを見て、`upstream` ラベルの issue で知らせる。上げるときは `Package.swift` の tugime の revision を書き換える（azooKey は tugime を通して上がる）。Meltype は GPL-3.0 なので、取り込むのは考え方と動きだけで、コードは写さない。
+AzooKeyKanaKanjiConverter は revision で固定している。`upstream-watch` のワークフローが毎朝、azooKey・azooKey-Desktop・Meltype などの新しいコミットやリリースを見て、`upstream` ラベルの issue で知らせる。上げるときは `Package.swift` の azooKey の revision を書き換える。Meltype は GPL-3.0 なので、取り込むのは考え方と動きだけで、コードは写さない。
 
 ## 謝辞
 
-- 日英判定と変換は [tugime](https://github.com/miyaoka/tugime)（miyaoka さん）の `TugimeCore` をそのまま使っている。入力メソッドの組み立ての手順も tugime を手本にした。tugime のリポジトリには今のところ LICENSE が無いので、公開して配る前に miyaoka さんと扱いを決める
 - かな漢字変換は [AzooKeyKanaKanjiConverter](https://github.com/azooKey/AzooKeyKanaKanjiConverter)
+- 英語の語の頻度は [wordfreq](https://github.com/rspeer/wordfreq)（CC BY-SA 4.0）、英語の綴りらしさの語表は Webster's Second International（1934 年、著作権切れ）
 - キー操作は [macSKK](https://github.com/mtgto/macSKK)、自動変換の手軽さは meltype を参考にした
 
 ## 辞書のクレジット
 
 英単語のカタカナ読みの表（`Sources/SokkouEngine/Resources/loanwords.tsv`）は、[azooKey の辞書](https://github.com/ensan-hcl/azooKey_dictionary_storage)（Apache License 2.0）と、[Electronic Dictionary Research and Development Group](https://www.edrdg.org/) の [JMdict](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project)（[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)）から作っている。この表も CC BY-SA 4.0 で使える。
+
+## ライセンス
+
+sokkou のコードは [MIT](LICENSE)。ただし `Sources/SokkouEngine/Resources/loanwords.tsv`（JMdict を含む）と `Sources/SokkouConverter/Resources/english-frequency.tsv`（wordfreq から作った）は CC BY-SA 4.0。アプリに入っている第三者のソフトウェアとデータのライセンスは [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) にまとめた（アプリの中にも入れている）。

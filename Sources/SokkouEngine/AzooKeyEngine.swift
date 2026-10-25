@@ -1,9 +1,9 @@
 import Foundation
 import SokkouCore
-import TugimeCore
+import SokkouConverter
 
-/// tugime の日英判定と、tugime が使う azooKey のかな漢字変換を sokkou につなぐ
-public final class TugimeEngine: Engine {
+/// SokkouConverter の日英判定と azooKey のかな漢字変換を sokkou につなぐ
+public final class AzooKeyEngine: Engine {
     private let table: RomajiTable
     private let converter: any JapaneseConverting
     private let segmenter: Segmenter
@@ -21,18 +21,17 @@ public final class TugimeEngine: Engine {
     }
 
     /// 英語として扱う語の頻度の下限。これより少なく、ローマ字で読める短い綴り（nai ine uso iku など）は、
-    /// tugime の語表ではローマ字書きの日本語が拾われたもので、英語の語として扱わない
+    /// 語表ではローマ字書きの日本語が拾われたもので、英語の語として扱わない
     static let minShortReadableZipf = 3.0
-    /// 「短い綴り」の長さ。2 文字以下は tugime が元から日本語を優先する
+    /// 「短い綴り」の長さ。2 文字以下は Segmenter が元から日本語を優先する
     static let maxShortReadableLength = 3
 
-    /// tugime の英語の語表から、ローマ字で読める短くて少ない語を除いたもの。
+    /// 英語の語表から、ローマ字で読める短くて少ない語を除いたもの。
     /// 除かないと、naine の ine が英語の語として残り「なってなine」になる
     public static func englishModel(table: RomajiTable) throws -> EnglishModel {
-        let resources = try tugimeResources()
-        let spellings = try String(contentsOf: resources.appendingPathComponent("english-words.txt"), encoding: .utf8)
+        let spellings = try EnglishModel.resource("english-words", "txt")
         var zipf: [String: Double] = [:]
-        let frequency = try String(contentsOf: resources.appendingPathComponent("english-frequency.tsv"), encoding: .utf8)
+        let frequency = try EnglishModel.resource("english-frequency", "tsv")
         for (index, line) in frequency.split(separator: "\n").enumerated() {
             let fields = line.split(separator: "\t")
             guard fields.count == 2, let value = Double(fields[1]) else {
@@ -45,20 +44,7 @@ public final class TugimeEngine: Engine {
         return EnglishModel(spellings: spellings.split(separator: "\n"), zipf: zipf)
     }
 
-    /// tugime の語表がある Resources。tugime のリソースのバンドルは、sokkou のリソースのバンドルと同じところに置かれる
-    /// （.app では Contents/Resources、swift test では組み立てたディレクトリ）
-    private static func tugimeResources() throws -> URL {
-        let directory = Bundle.module.bundleURL.deletingLastPathComponent()
-        let bundles = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
-        for url in bundles where url.pathExtension == "bundle" {
-            if let file = Bundle(url: url)?.url(forResource: "english-frequency", withExtension: "tsv", subdirectory: "Resources") {
-                return file.deletingLastPathComponent()
-            }
-        }
-        throw EnglishModel.LoadError.missingResource("english-frequency.tsv")
-    }
-
-    /// sokkou の綴りの表。tugime の既定の表は使わない（zi や shi を読まないので、その綴りから先が英語になる）
+    /// sokkou の綴りの表
     public static func romajiTable() throws -> RomajiTable {
         guard let url = Bundle.module.url(forResource: "romaji", withExtension: "tsv", subdirectory: "Resources") else {
             throw RomajiTable.ParseError.missingResource
@@ -69,8 +55,8 @@ public final class TugimeEngine: Engine {
     public func live(_ keys: String, leading: Leading) -> [Span] {
         // 表示と確定で同じ打鍵列を続けて読むので、最後の 1 つを覚えておく
         if let last = lastLive, last.keys == keys, last.leading == leading { return last.spans }
-        let segments = segmenter.segment(keys, leading: leading.tugime)
-        let text = readsDisplayFromSegments ? Self.liveText(of: segments) : segmenter.liveText(keys, leading: leading.tugime)
+        let segments = segmenter.segment(keys, leading: leading.forConverter)
+        let text = readsDisplayFromSegments ? Self.liveText(of: segments) : segmenter.liveText(keys, leading: leading.forConverter)
         let spans = Self.spans(of: segments, in: text)
         lastLive = (keys, leading, spans)
         return spans
@@ -78,11 +64,11 @@ public final class TugimeEngine: Engine {
 
     private var lastLive: (keys: String, leading: Leading, spans: [Span])?
 
-    /// Zenzai を使わないときは、表示の変換は区切りの採点の変換と同じになる。そのときは tugime の liveText に
+    /// Zenzai を使わないときは、表示の変換は区切りの採点の変換と同じになる。そのときは Segmenter の liveText に
     /// 区切りをもう一度作らせず、区切りの結果から表示を作る。区切りは打鍵列の長さの 2 乗で重くなるので、長く打つほど効く
     var readsDisplayFromSegments: Bool
 
-    /// tugime の Segmenter.liveConversionMinLength。これより短い日本語区間はかなのまま見せる
+    /// Segmenter.liveConversionMinLength。これより短い日本語区間はかなのまま見せる
     static let liveConversionMinLength = 4
 
     /// Segmenter.liveText と同じ文字列を、区切りの結果から作る。Zenzai を使わないときだけ同じになる
@@ -93,21 +79,21 @@ public final class TugimeEngine: Engine {
     }
 
     public func clauses(_ keys: String, leading: Leading) -> ClauseList {
-        withExtraCandidates(segmenter.clauses(keys, leading: leading.tugime))
+        withExtraCandidates(segmenter.clauses(keys, leading: leading.forConverter))
     }
 
     public func resize(_ list: ClauseList, at index: Int, by delta: Int, leading: Leading) -> ClauseList {
-        withExtraCandidates(segmenter.resize(Self.tugime(list), at: index, by: delta, leading: leading.tugime))
+        withExtraCandidates(segmenter.resize(Self.converted(list), at: index, by: delta, leading: leading.forConverter))
     }
 
     public func commit(_ list: ClauseList, through index: Int) -> (text: String, rest: ClauseList, keys: String)? {
-        guard let result = segmenter.commit(Self.tugime(list), through: index) else { return nil }
+        guard let result = segmenter.commit(Self.converted(list), through: index) else { return nil }
         return (result.text, withExtraCandidates(result.rest), result.keys)
     }
 
     public func whole(_ keys: String, form: SokkouCore.CharacterForm, leading: Leading) -> ClauseList {
         guard form == .katakana || form == .halfwidthKatakana else {
-            return Self.list([segmenter.wholeClause(keys, to: form.tugime, leading: leading.tugime)])
+            return Self.list([segmenter.wholeClause(keys, to: form.forConverter, leading: leading.forConverter)])
         }
         return Self.list([katakanaWhole(keys, form: form, leading: leading)])
     }
@@ -118,7 +104,7 @@ public final class TugimeEngine: Engine {
            let katakana = loanwords.katakana(of: clause.reading).first {
             return convert(kana: katakana, to: form)
         }
-        return segmenter.convertClause(Self.tugime(list), at: index, to: form.tugime)
+        return segmenter.convertClause(Self.converted(list), at: index, to: form.forConverter)
     }
 
     public func kana(_ romaji: String) -> (kana: String, rest: String) {
@@ -167,7 +153,7 @@ public final class TugimeEngine: Engine {
     // MARK: 足す候補
 
     /// 英語の文節に test → テスト のようなカタカナ読みを、きょう・いま の文節に日付と時刻を候補として足す
-    private func withExtraCandidates(_ clauses: [TugimeCore.Clause]) -> ClauseList {
+    private func withExtraCandidates(_ clauses: [SokkouConverter.Clause]) -> ClauseList {
         var list = Self.list(clauses)
         for index in list.clauses.indices {
             switch list.clauses[index].kind {
@@ -182,11 +168,11 @@ public final class TugimeEngine: Engine {
         return list
     }
 
-    /// 全体をカタカナ・半角カナにした 1 文節。tugime の `wholeClause` と同じく日本語区間は読み、
+    /// 全体をカタカナ・半角カナにした 1 文節。Segmenter の `wholeClause` と同じく日本語区間は読み、
     /// 英語区間は綴りの表で読めた読みにするが、表にある英単語は先にその読みにする（test → テスト）。
     /// 表を使わない形も、違えば次の候補に置く
-    private func katakanaWhole(_ keys: String, form: SokkouCore.CharacterForm, leading: Leading) -> TugimeCore.Clause {
-        let segments = segmenter.segment(keys, leading: leading.tugime)
+    private func katakanaWhole(_ keys: String, form: SokkouCore.CharacterForm, leading: Leading) -> SokkouConverter.Clause {
+        let segments = segmenter.segment(keys, leading: leading.forConverter)
         let parts = segments.map { segment in
             segment.kind == .english ? englishReading(of: segment.source) ?? segment.source : segment.reading
         }
@@ -198,10 +184,10 @@ public final class TugimeEngine: Engine {
         let plain = convert(kana: reading, to: form)
         if plain != candidates[0] { candidates.append(plain) }
         let span = ClauseSpan(index: 0, source: keys, reading: reading, context: leading == .start ? .start : .afterCaret)
-        return TugimeCore.Clause(kind: .whole, reading: reading, candidates: candidates, selected: 0, span: span)
+        return SokkouConverter.Clause(kind: .whole, reading: reading, candidates: candidates, selected: 0, span: span)
     }
 
-    /// tugime の `englishReading` と同じく、英語区間を空白で区切った語ごとに綴りの表で読む。1 語も読めなければ nil
+    /// Segmenter の `englishReading` と同じく、英語区間を空白で区切った語ごとに綴りの表で読む。1 語も読めなければ nil
     private func englishReading(of source: String) -> String? {
         var readAny = false
         let words = source.split(separator: " ", omittingEmptySubsequences: false).map { word in
@@ -266,11 +252,11 @@ public final class TugimeEngine: Engine {
         [Span(kind: .japanese, text: text, reading: segments.map(\.reading).joined())]
     }
 
-    private static func list(_ clauses: [TugimeCore.Clause]) -> ClauseList {
+    private static func list(_ clauses: [SokkouConverter.Clause]) -> ClauseList {
         ClauseList(clauses: clauses.map(clause), payload: clauses)
     }
 
-    private static func clause(_ clause: TugimeCore.Clause) -> SokkouCore.Clause {
+    private static func clause(_ clause: SokkouConverter.Clause) -> SokkouCore.Clause {
         let kind: SokkouCore.Clause.Kind = switch clause.kind {
         case .japanese: .japanese
         case .english: .english
@@ -280,10 +266,10 @@ public final class TugimeEngine: Engine {
         return SokkouCore.Clause(kind: kind, reading: clause.reading, candidates: clause.candidates, selected: clause.selected)
     }
 
-    /// sokkou が選び直した候補を、tugime の文節に書き戻す
-    private static func tugime(_ list: ClauseList) -> [TugimeCore.Clause] {
-        guard var clauses = list.payload as? [TugimeCore.Clause], clauses.count == list.clauses.count else {
-            preconditionFailure("tugime の文節と sokkou の文節の数が合わない")
+    /// sokkou が選び直した候補を、SokkouConverter の文節に書き戻す
+    private static func converted(_ list: ClauseList) -> [SokkouConverter.Clause] {
+        guard var clauses = list.payload as? [SokkouConverter.Clause], clauses.count == list.clauses.count else {
+            preconditionFailure("SokkouConverter の文節と sokkou の文節の数が合わない")
         }
         for index in clauses.indices {
             clauses[index].candidates = list.clauses[index].candidates
@@ -294,7 +280,7 @@ public final class TugimeEngine: Engine {
 }
 
 extension Leading {
-    var tugime: Segmenter.Leading {
+    var forConverter: Segmenter.Leading {
         switch self {
         case .start: .start
         case .afterJapanese: .afterJapanese
@@ -304,7 +290,7 @@ extension Leading {
 }
 
 extension SokkouCore.CharacterForm {
-    var tugime: TugimeCore.CharacterForm {
+    var forConverter: SokkouConverter.CharacterForm {
         switch self {
         case .hiragana: .hiragana
         case .katakana: .katakana

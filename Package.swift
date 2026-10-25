@@ -2,7 +2,7 @@
 
 import PackageDescription
 
-// tugime の変換は azooKey と C++ の llama.cpp を使うので、TugimeCore の型を見るターゲットは C++ の相互運用を有効にする
+// azooKey の Zenzai は C++ の llama.cpp を使うので、SokkouConverter の型を見るターゲットは C++ の相互運用を有効にする
 let cxx: SwiftSetting = .interoperabilityMode(.Cxx)
 
 let package = Package(
@@ -13,17 +13,31 @@ let package = Package(
         .executable(name: "sokkou", targets: ["SokkouIME"]),
     ],
     dependencies: [
-        // tugime はまだ版を切っていないので revision で固定する
-        .package(url: "https://github.com/miyaoka/tugime", revision: "407ea0da9417c24e989d549edd3a28741f791bd0"),
+        // 1.0 まではマイナー版でも破壊的変更があるため revision で固定する
+        .package(
+            url: "https://github.com/azooKey/AzooKeyKanaKanjiConverter",
+            revision: "04ce2ec3afe2bd6f92fcae1dc15a2357d332c27a",
+            traits: ["Zenzai"]
+        ),
     ],
     targets: [
         // キー操作の状態と表示。変換エンジンに頼らないので Linux でもテストできる
         .target(name: "SokkouCore"),
-        // tugime の日英判定と azooKey の変換を SokkouCore につなぐ
+        // 日英の区切りと azooKey のかな漢字変換。llama.cpp（import llama）は azooKey が trait Zenzai で載せる binaryTarget を使う
+        .target(
+            name: "SokkouConverter",
+            dependencies: [
+                .product(name: "KanaKanjiConverterModuleWithDefaultDictionary", package: "AzooKeyKanaKanjiConverter"),
+            ],
+            // 英語の語表と語の頻度
+            resources: [.copy("Resources")],
+            swiftSettings: [cxx]
+        ),
+        // SokkouConverter を SokkouCore の Engine につなぐ
         .target(
             name: "SokkouEngine",
-            dependencies: ["SokkouCore", .product(name: "TugimeCore", package: "tugime")],
-            // sokkou の綴りの表。tugime の表に zi shi chi tsu fu などの綴りを足したもの
+            dependencies: ["SokkouCore", "SokkouConverter"],
+            // sokkou の綴りの表（訓令式とヘボン式の綴りを読む）
             resources: [.copy("Resources")],
             swiftSettings: [cxx]
         ),
@@ -38,7 +52,7 @@ let package = Package(
         // 本物の綴りの表と azooKey の辞書を通すテスト。macOS でだけ組み立てられる
         .testTarget(
             name: "SokkouEngineTests",
-            dependencies: ["SokkouCore", "SokkouEngine", .product(name: "TugimeCore", package: "tugime")],
+            dependencies: ["SokkouCore", "SokkouEngine", "SokkouConverter"],
             // テストは 1 つの本物の変換エンジンを共有するので、同時に使わないようメインアクターで動かす
             swiftSettings: [.defaultIsolation(MainActor.self), cxx]
         ),

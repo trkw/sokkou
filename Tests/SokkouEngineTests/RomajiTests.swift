@@ -1,17 +1,17 @@
 import Testing
 import SokkouCore
 import SokkouEngine
-import TugimeCore
+import SokkouConverter
 
 /// 本物の綴りの表と変換エンジン。作るたびに辞書と語表を読むので、全テストで共有する
 enum Shared {
-    static let table = Result { try TugimeEngine.romajiTable() }
-    static let engine = Result { try TugimeEngine() }
+    static let table = Result { try AzooKeyEngine.romajiTable() }
+    static let engine = Result { try AzooKeyEngine() }
 }
 
 @Suite struct RomajiTests {
     @Test(arguments: [
-        // tugime の綴り
+        // 元からの綴り
         ("sitituhuji", "しちつふじ"),
         ("syatyaja", "しゃちゃじゃ"),
         // 訓令式とヘボン式の別の綴り
