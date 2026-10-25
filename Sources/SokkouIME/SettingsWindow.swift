@@ -11,6 +11,8 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
     private let model = SettingsModel()
     private var window: NSWindow?
 
+    var isOpen: Bool { window?.isVisible == true }
+
     func show(_ tab: SettingsTab = .general) {
         model.tab = tab
         model.refresh()
@@ -54,6 +56,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     case general = "一般"
     case appearance = "見た目"
     case skk = "SKK"
+    case dictionaries = "辞書"
     case keys = "キー"
     case about = "情報"
 
@@ -83,6 +86,8 @@ final class SettingsModel {
     /// macOS が知っている sokkou の入力ソース。入れ替えで増えた入力ソースは、ログインし直すまで macOS に知られない
     var installed: Set<InputSourceRow> = []
     var forgotten = false
+    /// 追加の SKK 辞書のファイルの名前
+    var dictionaries: [String] = []
 
     func refresh() {
         learns = Settings.learns
@@ -91,6 +96,7 @@ final class SettingsModel {
         features = Set(SKKFeature.allCases.filter(\.isOn))
         enabled = InputSourceRow.enabled()
         installed = InputSourceRow.installed()
+        dictionaries = Dictionaries.installed()
     }
 
     func isOn(_ feature: SKKFeature) -> Binding<Bool> {
@@ -179,29 +185,43 @@ enum InputSourceRow: String, CaseIterable {
 // MARK: 窓の中身
 
 struct SettingsView: View {
-    static let size = NSSize(width: 620, height: 580)
+    static let size = NSSize(width: 800, height: 580)
+    static let sidebarWidth: CGFloat = 172
 
     @Bindable var model: SettingsModel
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 4) {
+        HStack(spacing: 0) {
+            // 左に縦のならび。窓の上の信号の分だけ下げて始める
+            VStack(alignment: .leading, spacing: 2) {
                 ForEach(SettingsTab.allCases) { tab in
-                    TabPill(title: tab.rawValue, selected: model.tab == tab) { model.tab = tab }
+                    SidebarItem(title: tab.rawValue, selected: model.tab == tab) { model.tab = tab }
                 }
+                Spacer(minLength: 0)
+                Text(Updater.build)
+                    .font(.system(size: 10.5).monospacedDigit())
+                    .foregroundStyle(Theme.quiet)
+                    .lineLimit(1)
+                    .padding(.horizontal, 12)
             }
-            .padding(.top, 14)
-            .padding(.bottom, 12)
-            Rectangle().fill(Theme.rule).frame(height: 0.5)
+            .padding(.top, 52)
+            .padding(.bottom, 18)
+            .padding(.horizontal, 12)
+            .frame(width: Self.sidebarWidth)
+            .frame(maxHeight: .infinity)
+            .background(Theme.ink.opacity(0.03))
+            Rectangle().fill(Theme.rule).frame(width: 0.5)
             Group {
                 switch model.tab {
                 case .general: GeneralPage(model: model)
                 case .appearance: AppearancePage(model: model)
                 case .skk: SKKPage(model: model)
+                case .dictionaries: DictionaryPage(model: model)
                 case .keys: KeysPage()
                 case .about: AboutPage()
                 }
             }
+            .padding(.top, 18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .frame(width: Self.size.width, height: Self.size.height)
@@ -210,7 +230,8 @@ struct SettingsView: View {
     }
 }
 
-private struct TabPill: View {
+/// 左のならびの 1 行。選んでいる行は薄い朱の地に、左に朱の印
+private struct SidebarItem: View {
     let title: String
     let selected: Bool
     let action: () -> Void
@@ -218,20 +239,24 @@ private struct TabPill: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 12.5, weight: selected ? .semibold : .regular))
-                .foregroundStyle(selected ? Theme.ink : Theme.quiet)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 5)
+                .font(.system(size: 13, weight: selected ? .semibold : .regular))
+                .foregroundStyle(Theme.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .frame(height: 32)
                 .background {
                     if selected {
-                        Capsule().fill(Theme.surface)
-                            .overlay(Capsule().strokeBorder(Theme.border, lineWidth: 0.5))
-                            .shadow(color: .black.opacity(0.06), radius: 2, y: 1)
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(Theme.accent.opacity(0.12))
+                            .overlay(alignment: .leading) {
+                                Capsule().fill(Theme.accent).frame(width: 2.5).padding(.vertical, 9)
+                            }
                     }
                 }
-                .contentShape(Capsule())
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
@@ -411,6 +436,63 @@ private struct Choice: View {
         }
         .frame(width: 18, height: 18)
         .animation(Theme.move, value: selected)
+    }
+}
+
+/// 辞書の出し入れ。入力メニューにも同じものがある
+private struct DictionaryPage: View {
+    @Bindable var model: SettingsModel
+
+    var body: some View {
+        // 辞書を多く足して窓に収まらなくなったときだけ流す。収まるあいだは ScrollView を使わず、画像にも書き出せるようにする
+        ViewThatFits(in: .vertical) {
+            content
+            ScrollView { content }
+        }
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            SettingsSection(title: "引く辞書") {
+                SettingsRow(title: "いつもの辞書", detail: "azooKey の辞書と、英単語のカタカナ", first: true) {
+                    Text("入っています")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(Theme.ink)
+                }
+                if !model.dictionaries.contains(Dictionaries.largeName) {
+                    SettingsRow(title: Dictionaries.largeName, detail: "大きな SKK 辞書。▽ と文節選択の候補の後ろに足す") {
+                        Button("入れる") { Dictionaries.downloadLarge() }
+                            .buttonStyle(PaperButtonStyle(prominent: true))
+                    }
+                }
+                ForEach(model.dictionaries, id: \.self) { name in
+                    SettingsRow(title: name, detail: "足した SKK 辞書") {
+                        Text("入っています")
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(Theme.ink)
+                    }
+                }
+                SettingsRow(title: "SKK 辞書を足す", detail: "SKK-JISYO.jinmei など。UTF-8 か EUC-JP") {
+                    Button("選ぶ…") {
+                        Dictionaries.add()
+                        model.refresh()
+                    }
+                        .buttonStyle(PaperButtonStyle())
+                }
+            }
+            SettingsSection(title: "自分の単語") {
+                SettingsRow(title: "ほかの SKK のユーザー辞書を取り込む", detail: "~/.skk-jisyo や macSKK の skk-jisyo.utf8 の語を足す", first: true) {
+                    Button("取り込む…") { Dictionaries.importUserDictionary() }
+                        .buttonStyle(PaperButtonStyle())
+                }
+                SettingsRow(title: "辞書のフォルダ", detail: "~/Library/Application Support/sokkou") {
+                    Button("開く") { Dictionaries.openFolder() }
+                        .buttonStyle(PaperButtonStyle())
+                }
+            }
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 22)
     }
 }
 

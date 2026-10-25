@@ -1,6 +1,6 @@
 // dmg の窓の背景を作る。引数は出力先（.tiff）。1 倍と 2 倍の画素を 1 つの TIFF にまとめる。
-// 窓は 640×400pt。左に sokkou、右に「はじめに」を置き（scripts/dmg-settings.py の icon_locations と合わせる）、
-// 地は紙の色、差し色は朱一色（Theme と同じ）
+// 窓は 640×400pt。真ん中に sokkou だけを置き（scripts/dmg-settings.py の icon_locations と合わせる）、
+// その下に「ダブルクリックで、入ります」と添える。地は紙の色、線画は罫の色（デザイン案 v2）
 import AppKit
 
 guard CommandLine.arguments.count == 2 else {
@@ -10,11 +10,10 @@ guard CommandLine.arguments.count == 2 else {
 let output = URL(fileURLWithPath: CommandLine.arguments[1])
 
 let size = NSSize(width: 640, height: 400)
-let paper = NSColor(srgbRed: 0xF5 / 255, green: 0xF4 / 255, blue: 0xF0 / 255, alpha: 1)
-let ink = NSColor(srgbRed: 0x1C / 255, green: 0x19 / 255, blue: 0x17 / 255, alpha: 1)
-let muted = NSColor(srgbRed: 0x78 / 255, green: 0x71 / 255, blue: 0x6C / 255, alpha: 1)
-let rule = NSColor(srgbRed: 0xE7 / 255, green: 0xE5 / 255, blue: 0xE4 / 255, alpha: 1)
-let vermilion = NSColor(srgbRed: 0xC2 / 255, green: 0x41 / 255, blue: 0x0C / 255, alpha: 1)
+let paper = NSColor(srgbRed: 0xF6 / 255, green: 0xF4 / 255, blue: 0xEF / 255, alpha: 1)
+let ink = NSColor(srgbRed: 0x1E / 255, green: 0x1C / 255, blue: 0x19 / 255, alpha: 1)
+let muted = NSColor(srgbRed: 0x6B / 255, green: 0x67 / 255, blue: 0x5F / 255, alpha: 1)
+let rule = NSColor(srgbRed: 0xE2 / 255, green: 0xDE / 255, blue: 0xD3 / 255, alpha: 1)
 
 func font(_ size: CGFloat, _ weight: NSFont.Weight) -> NSFont {
     let name = weight == .regular ? "HiraginoSans-W3" : "HiraginoSans-W6"
@@ -40,22 +39,29 @@ func render(scale: CGFloat) -> NSBitmapImageRep {
     paper.setFill()
     NSRect(origin: .zero, size: size).fill()
 
-    // 見出し: 名前と一言
-    draw("sokkou", x: size.width / 2, top: 44, font: font(22, .semibold), color: ink, kern: 1.5)
-    draw("即効 — SKK の手触りで、打てばそのまま変換", x: size.width / 2, top: 78, font: font(12, .regular), color: muted)
+    // 下のほうに、ゆるい線画。上端からの距離で書くため、y は size.height から引く
+    let wave = NSBezierPath()
+    wave.move(to: NSPoint(x: 40, y: size.height - 352))
+    wave.curve(to: NSPoint(x: 210, y: size.height - 320), controlPoint1: NSPoint(x: 120, y: size.height - 352), controlPoint2: NSPoint(x: 150, y: size.height - 320))
+    wave.curve(to: NSPoint(x: 370, y: size.height - 344), controlPoint1: NSPoint(x: 270, y: size.height - 320), controlPoint2: NSPoint(x: 300, y: size.height - 350))
+    wave.curve(to: NSPoint(x: 600, y: size.height - 318), controlPoint1: NSPoint(x: 450, y: size.height - 336), controlPoint2: NSPoint(x: 520, y: size.height - 300))
+    wave.lineWidth = 1.5
+    wave.lineCapStyle = .round
+    rule.setStroke()
+    wave.stroke()
+    for (x, y, width) in [(100.0, 366.0, 40.0), (510.0, 360.0, 30.0)] {
+        let dash = NSBezierPath()
+        dash.move(to: NSPoint(x: x, y: size.height - y))
+        dash.line(to: NSPoint(x: x + width, y: size.height - y))
+        dash.lineWidth = 1.5
+        dash.lineCapStyle = .round
+        dash.stroke()
+    }
 
-    // アイコンの下の名前は Finder が書く。アイコンは中心 (200, 190) と (440, 190)、112pt
-    // 左のアイコンの下に朱の短い線を引き、ここを開くと示す
-    vermilion.setFill()
-    NSBezierPath(roundedRect: NSRect(x: 200 - 18, y: size.height - 282, width: 36, height: 3), xRadius: 1.5, yRadius: 1.5).fill()
-    draw("開くと入ります", x: 200, top: 292, font: font(12, .semibold), color: vermilion)
-    draw("困ったときに", x: 440, top: 292, font: font(12, .regular), color: muted)
-
-    // 下の帯: 入れたあとのこと
-    rule.setFill()
-    NSRect(x: 40, y: 84, width: size.width - 80, height: 1).fill()
-    draw("入れたあとは、打っていないときに新しい版へ自動で入れ替わります",
-         x: size.width / 2, top: 340, font: font(11, .regular), color: muted)
+    // アイコンは中心 (320, 160)、128pt。その下の名前は Finder が書く
+    draw("ダブルクリックで、入ります", x: size.width / 2, top: 262, font: font(16, .semibold), color: ink, kern: 0.6)
+    draw("アプリケーションに移さなくて大丈夫。入れたら、この窓は閉じてください",
+         x: size.width / 2, top: 292, font: font(11.5, .regular), color: muted)
     NSGraphicsContext.restoreGraphicsState()
     return rep
 }
