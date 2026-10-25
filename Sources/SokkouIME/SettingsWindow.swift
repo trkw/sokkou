@@ -515,8 +515,10 @@ private struct ColorsPage: View {
                             AccentColorPanel.shared.open(current: model.customAccent) { model.customAccent = $0 }
                         }
                         .buttonStyle(PaperButtonStyle())
+                        .fixedSize()
                         .padding(.leading, 4)
                     }
+                    .layoutPriority(1)
                 }
             }
         }
@@ -581,10 +583,12 @@ private struct PaletteChip: View {
 private struct AccentDot: View {
     let hex: UInt32
     let selected: Bool
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
+        // 暗い外観では、差し色として使うときと同じく少し明るくして見せる
         Circle()
-            .fill(Color(nsColor: ThemeRole.srgb(hex)))
+            .fill(Color(nsColor: ThemeRole.custom(hex, onAccent: false, dark: scheme == .dark)))
             .overlay(Circle().strokeBorder(Theme.border, lineWidth: 0.5))
             .frame(width: 16, height: 16)
             .padding(3)

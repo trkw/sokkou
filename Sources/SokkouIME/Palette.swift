@@ -191,7 +191,7 @@ nonisolated enum ThemeRole: Sendable {
     }
 
     /// 自分で選んだ差し色。暗い外観では少し明るくし、上に載せる字は明るさで白か墨に決める
-    private static func custom(_ hex: UInt32, onAccent: Bool, dark: Bool) -> NSColor {
+    static func custom(_ hex: UInt32, onAccent: Bool, dark: Bool) -> NSColor {
         var color = srgb(hex)
         if dark {
             color = color.blended(withFraction: 0.28, of: .white) ?? color
