@@ -61,6 +61,18 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     case about = "情報"
 
     var id: Self { self }
+
+    /// ページの上に出す一言。情報のページは中身が名前そのものなので出さない
+    var lead: String? {
+        switch self {
+        case .general: "ふだんの使い心地。変えるとすぐに効きます"
+        case .appearance: "候補の窓の形を選びます。次に候補を出したときから変わります"
+        case .skk: "自動変換と ; の ▽ はそのままに、SKK の手ざわりを足します"
+        case .dictionaries: "変換に使う辞書と、自分の単語"
+        case .keys: "覚えておくと楽なキー"
+        case .about: nil
+        }
+    }
 }
 
 @Observable
@@ -129,7 +141,7 @@ enum InputSourceRow: String, CaseIterable {
     var detail: String {
         switch self {
         case .japanese: "ひらがな・カタカナ・自動変換"
-        case .roman: "C-l で入り、C-j で日本語に戻る"
+        case .roman: "⌃L で入り、⌃J で日本語にもどる"
         }
     }
 
@@ -211,15 +223,23 @@ struct SettingsView: View {
             .frame(maxHeight: .infinity)
             .background(Theme.ink.opacity(0.03))
             Rectangle().fill(Theme.rule).frame(width: 0.5)
-            Group {
-                switch model.tab {
-                case .general: GeneralPage(model: model)
-                case .appearance: AppearancePage(model: model)
-                case .skk: SKKPage(model: model)
-                case .dictionaries: DictionaryPage(model: model)
-                case .keys: KeysPage()
-                case .about: AboutPage()
+            VStack(alignment: .leading, spacing: 0) {
+                if let lead = model.tab.lead {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(model.tab.rawValue)
+                            .font(.system(size: 19, weight: .bold))
+                            .tracking(0.4)
+                            .foregroundStyle(Theme.ink)
+                        Text(lead)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Theme.quiet)
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.top, 16)
+                    .transition(.opacity)
+                    .id(model.tab)
                 }
+                page
             }
             .padding(.top, 18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -227,6 +247,17 @@ struct SettingsView: View {
         .frame(width: Self.size.width, height: Self.size.height)
         .background(Theme.ground)
         .animation(Theme.move, value: model.tab)
+    }
+
+    @ViewBuilder private var page: some View {
+        switch model.tab {
+        case .general: GeneralPage(model: model)
+        case .appearance: AppearancePage(model: model)
+        case .skk: SKKPage(model: model)
+        case .dictionaries: DictionaryPage(model: model)
+        case .keys: KeysPage()
+        case .about: AboutPage()
+        }
     }
 }
 
@@ -345,10 +376,10 @@ private struct GeneralPage: View {
                 }
             }
             SettingsSection(title: "変換") {
-                SettingsRow(title: "選んだ候補を覚える", detail: "次に同じ読みを打ったとき、C-n 1 回で出す", first: true) {
+                SettingsRow(title: "選んだ候補を覚える", detail: "次に同じ読みを打ったとき、先に出します", first: true) {
                     Toggle("", isOn: $model.learns).toggleStyle(PaperToggleStyle())
                 }
-                SettingsRow(title: "覚えた候補を忘れる", detail: model.forgotten ? "忘れました" : "覚えた読みと候補をすべて消す") {
+                SettingsRow(title: "覚えた候補を忘れる", detail: model.forgotten ? "忘れました" : "覚えた読みと候補を、ぜんぶ消します") {
                     Button("忘れる") { model.forget() }
                         .buttonStyle(PaperButtonStyle())
                         .disabled(model.forgotten)
@@ -356,7 +387,7 @@ private struct GeneralPage: View {
             }
             if Updater.isAvailable {
                 SettingsSection(title: "更新") {
-                    SettingsRow(title: "新しいリリースを自動で入れる", detail: "2 分打たなかったときに入れ替える", first: true) {
+                    SettingsRow(title: "新しいリリースを自動で入れる", detail: "2 分打たなかったときに、そっと入れ替えます", first: true) {
                         Toggle("", isOn: $model.autoUpdates).toggleStyle(PaperToggleStyle())
                     }
                     SettingsRow(title: "いまの版", detail: Updater.build) {
@@ -413,10 +444,6 @@ private struct AppearancePage: View {
                     .frame(maxWidth: .infinity)
                     .animation(Theme.move, value: model.candidateStyle)
             }
-            Text("変えると、次に候補を出したときから効きます")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.quiet)
-                .padding(.leading, 4)
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 22)
@@ -509,10 +536,6 @@ private struct SKKPage: View {
                     }
                 }
             }
-            Text("自動変換と ; の ▽ はそのままに、SKK の操作を足します。切り替えはすぐに効きます")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.quiet)
-                .padding(.leading, 4)
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 22)

@@ -11,7 +11,9 @@ enum Theme {
     static let quiet = dynamic(light: 0x6B675F, dark: 0xA29D93)
     static let rule = dynamic(light: 0xE5E1D7, dark: 0x34312C)
     /// 朱。選んでいる候補とひらがなの印に使う
-    static let accent = dynamic(light: 0xC23B12, dark: 0xF0663C)
+    static let accent = Color(nsColor: vermilion)
+    /// 朱の NSColor。入力欄の、選んでいる文節の下線の色に使う
+    static let vermilion = dynamicNSColor(light: 0xC23B12, dark: 0xF0663C)
     /// 朱の上に載せる文字
     static let onAccent = dynamic(light: 0xFFFFFF, dark: 0x1A0D07)
 
@@ -22,10 +24,14 @@ enum Theme {
     static let move = Animation.spring(response: 0.2, dampingFraction: 0.86)
 
     private static func dynamic(light: UInt32, dark: UInt32) -> Color {
-        Color(nsColor: NSColor(name: nil) { appearance in
+        Color(nsColor: dynamicNSColor(light: light, dark: dark))
+    }
+
+    private static func dynamicNSColor(light: UInt32, dark: UInt32) -> NSColor {
+        NSColor(name: nil) { appearance in
             let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
             return color(isDark ? dark : light)
-        })
+        }
     }
 
     private static func color(_ hex: UInt32) -> NSColor {
@@ -129,7 +135,7 @@ final class FloatingPanel: NSPanel {
         alphaValue = 0
         orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.12
+            context.duration = 0.09
             animator().alphaValue = 1
         }
     }
