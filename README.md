@@ -34,6 +34,22 @@ curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash
 
 main に入るたびに CI が dmg を組み立ててリリースに置く。
 
+## 設定
+
+入力メニューの「設定…」で設定の窓が開く。
+
+- **一般**: 「sokkou (日本語)」と「sokkou (英数)」を入力ソースに足してあるかが分かる。足していなければ「開く」でキーボードの設定に飛べる。選んだ候補を覚えるか、覚えた候補を忘れる、新しいリリースを自動で入れるか、いまの版
+- **キー**: よく使うキーの早見表
+- **情報**: 版と、GitHub・不具合の報告への入口
+
+## 軽さ
+
+MacBook Neo（メモリ 8GB）でも気持ちよく打てることを目安にしている。CI は毎回 `sokkou --bench` で、本物の辞書を使って数文を 1 打鍵ずつ打ち、1 打鍵にかかる時間とメモリの最大を測ってジョブのまとめに載せる。遅かった打鍵も、そこまでに打ったものと一緒に出す。
+
+```sh
+"dist/sokkou Dev.app/Contents/MacOS/sokkou" --bench
+```
+
 ## ターミナルで使う
 
 WezTerm は既定では Ctrl 付きのキーを IME に渡さないので、`~/.wezterm.lua` に次を足す。足さないと `C-j` `C-l` が sokkou に届かない。
