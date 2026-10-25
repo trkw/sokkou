@@ -173,6 +173,10 @@ public final class Composer {
             case .character(let character):
                 committed += Self.fullwidth(character)
                 return true
+            case .space:
+                // SKK の全英と同じく、空白も全角にする
+                committed += "\u{3000}"
+                return true
             default:
                 return false
             }

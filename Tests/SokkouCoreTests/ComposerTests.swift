@@ -248,6 +248,12 @@ struct ComposerTests {
         #expect(composer.mode == .ascii)
     }
 
+    @Test func fullwidthRomanTypesAFullwidthSpace() {
+        let composer = composer()
+        type(composer, [.control("L"), .character("a"), .space, .character("b")])
+        #expect(composer.takeCommitted() == "ａ\u{3000}ｂ")
+    }
+
     @Test func controlLWhileTypingCommitsLettersAndEntersAscii() {
         let composer = composer()
         type(composer, characters("kaku") + [.control("l")])
