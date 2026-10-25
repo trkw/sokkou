@@ -17,3 +17,10 @@ let sharedLearning: FileLearning = {
     let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
     return FileLearning(url: support.appendingPathComponent("sokkou/learning.json"))
 }()
+
+/// 自分で登録した語と、追加した SKK 辞書。追加の辞書は大きいので、初めて使うときに別のスレッドで読む
+let sharedLexicon: SKKLexicon = {
+    let lexicon = SKKLexicon(user: UserDictionary(url: Dictionaries.userURL))
+    Dictionaries.reload()
+    return lexicon
+}()

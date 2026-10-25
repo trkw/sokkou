@@ -5,12 +5,15 @@ SKK の手触りで、打てばそのまま変換される、自分用の macOS 
 - 普段は Shift を押さずにローマ字を打つだけで、日本語と英語を判定して自動で変換する（meltype の流れ）
 - ローマ字は訓令式もヘボン式も読む（zi shi chi tsu fu sha cha jya zya）。綴りの表は `Sources/SokkouEngine/Resources/romaji.tsv`
 - 英語と判定した語も、候補の窓や `C-k` でカタカナにできる（test → テスト、online game → オンラインゲーム）。表は azooKey の辞書と JMdict から `scripts/make-loanwords.py` で作った `Sources/SokkouEngine/Resources/loanwords.tsv`（約 1 万 5 千語）
+- `kyou` `ima` `nau`（きょう・いま・なう）を候補の窓に出すと、辞書の候補の後ろに今日の日付や今の時刻が並ぶ（2026年10月25日(日)、17:05 など。きのう・あした・あさって・おとといも。Meltype の動きにならった）
 - モードは Ctrl で切り替える。`C-j` ひらがな、`C-q` 半角カナ、`C-l` 英数、`C-L` 全角英数（macSKK の流れ）
 - 入力ソースは「sokkou (英数)」と「sokkou (日本語)」の 2 つ。`C-l` `C-j` でも Ctrl-Space（macOS の入力ソースの切り替え）でも行き来でき、macOS の札とメニューバーのアイコンで今どちらか分かる。カタカナ・半角カナ・全角英数は日本語の中のモードで、切り替えると sokkou の札が出る
-- モードはアプリごとに覚える。ターミナル（Terminal、iTerm、WezTerm、Ghostty、kitty、Alacritty、Warp）は英数から始まる
+- モードはアプリごとに覚える（更新や再起動のあとも）。ターミナル（Terminal、iTerm、WezTerm、Ghostty、kitty、Alacritty、Warp）は英数から始まる
 - 自分で区切りたいときは `;` で ▽ を始める。送り仮名も `;` か大文字で区切る
 - 変換中は Emacs のキーで操作する。何も打っていないときの Ctrl キーはアプリに渡す
 - 選んだ候補だけを控えめに覚える。入力メニューから切れる
+- SKK のように、候補の最後の「登録…」から単語を登録でき、`X` で候補を消せる。ユーザー辞書は SKK 形式で、`~/.skk-jisyo` や macSKK の辞書を取り込める
+- SKK 辞書（SKK-JISYO.L など）を追加の候補元にできる。ほかに abbrev（`/`）、数値変換、Tab での読みの補完
 - 軽さを優先し、既定は azooKey の辞書だけで変換する（Zenzai は使わない）
 
 キーの全体は [docs/keys.md](docs/keys.md)。
@@ -32,6 +35,28 @@ curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash
 ```
 
 main に入るたびに CI が dmg を組み立ててリリースに置く。
+
+## 辞書
+
+- **ユーザー辞書**: `~/Library/Application Support/sokkou/skk-jisyo.utf8`（SKK 形式、UTF-8）。候補の「登録…」で登録した語が入る。`X` で消した語は隣の `ignored.tsv` に残り、変換エンジンの候補からも外れる
+- **取り込み**: 入力メニューの「SKK のユーザー辞書を取り込む…」で `~/.skk-jisyo` や macSKK の `skk-jisyo.utf8` を選ぶと、無い語だけを足す（UTF-8 と EUC-JP を読む）
+- **SKK 辞書**: 入力メニューの「SKK-JISYO.L を入れる」で [skk-dev/dict](https://github.com/skk-dev/dict) から取ってくる。「SKK 辞書を追加…」でほかの辞書（人名、地名など）も足せる。辞書は `~/Library/Application Support/sokkou/Dictionaries/` に置かれ、中のファイルはすべて読む。SKK 辞書の語は ▽ の候補と文節選択の候補の後ろに出る
+
+## 設定
+
+入力メニューの「設定…」で設定の窓が開く。
+
+- **一般**: 「sokkou (日本語)」と「sokkou (英数)」を入力ソースに足してあるかが分かる。足していなければ「開く」でキーボードの設定に飛べる。選んだ候補を覚えるか、覚えた候補を忘れる、新しいリリースを自動で入れるか、いまの版
+- **キー**: よく使うキーの早見表
+- **情報**: 版と、GitHub・不具合の報告への入口
+
+## 軽さ
+
+MacBook Neo（メモリ 8GB）でも気持ちよく打てることを目安にしている。CI は毎回 `sokkou --bench` で、本物の辞書を使って数文を 1 打鍵ずつ打ち、1 打鍵にかかる時間とメモリの最大を測ってジョブのまとめに載せる。遅かった打鍵も、そこまでに打ったものと一緒に出す。
+
+```sh
+"dist/sokkou Dev.app/Contents/MacOS/sokkou" --bench
+```
 
 ## ターミナルで使う
 
