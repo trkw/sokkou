@@ -63,8 +63,11 @@ enum Shared {
         #expect(spans.allSatisfy { $0.kind == .japanese }, "\(spans)")
     }
 
-    /// よく使う英語の語は、日本語の中でも英語のまま
-    @Test(arguments: [("kyouhagithubdekensaku", "github"), ("yahoodesirabeta", "yahoo")])
+    /// よく使う英語の語は、日本語の中でも英語のまま。1 文字の英字とかなに割らない（vnode → vので、state → s縦 にしない）
+    @Test(arguments: [
+        ("kyouhagithubdekensaku", "github"), ("yahoodesirabeta", "yahoo"),
+        ("vnodewotukuru", "vnode"), ("statewokaeru", "state"),
+    ])
     func commonEnglishWordsStayEnglish(input: String, word: String) throws {
         let spans = try Shared.engine.get().live(input, leading: .start)
         #expect(spans.contains { $0.kind == .english && $0.text.contains(word) }, "\(spans)")
