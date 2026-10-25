@@ -69,3 +69,36 @@ enum SKKFeature: String, CaseIterable, Identifiable {
         nonmutating set { UserDefaults.standard.set(newValue, forKey: key) }
     }
 }
+
+/// 候補の窓の形。設定の「見た目」で選ぶ。既定は縦に並べる A
+enum CandidateStyle: String, CaseIterable, Identifiable {
+    /// 案A 縦に並べ、選んでいる候補に朱の印をつける
+    case list
+    /// 案B 横一行に並べ、選んでいる候補に朱の下線を引く。いちばん場所を取らない
+    case strip
+    /// 案C 明朝で縦に並べ、右に選んでいる候補と注釈を大きく出す
+    case card
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .list: "A　縦に並べる"
+        case .strip: "B　横一行"
+        case .card: "C　札（明朝と注釈）"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .list: "選んでいる候補に朱の印。いつもの形"
+        case .strip: "入力欄のすぐ下に細く出る。場所を取らない"
+        case .card: "選んだ字と注釈を大きく見せる。辞書を引くように"
+        }
+    }
+
+    static var current: CandidateStyle {
+        get { UserDefaults.standard.string(forKey: "candidateStyle").flatMap(CandidateStyle.init(rawValue:)) ?? .list }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "candidateStyle") }
+    }
+}

@@ -51,6 +51,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
 
 enum SettingsTab: String, CaseIterable, Identifiable {
     case general = "一般"
+    case appearance = "見た目"
     case skk = "SKK"
     case keys = "キー"
     case about = "情報"
@@ -67,6 +68,9 @@ final class SettingsModel {
     var autoUpdates = Settings.autoUpdates {
         didSet { Settings.autoUpdates = autoUpdates }
     }
+    var candidateStyle = CandidateStyle.current {
+        didSet { CandidateStyle.current = candidateStyle }
+    }
     /// 使っている SKK の手触りの機能
     var features = Set(SKKFeature.allCases.filter(\.isOn)) {
         didSet {
@@ -82,6 +86,7 @@ final class SettingsModel {
     func refresh() {
         learns = Settings.learns
         autoUpdates = Settings.autoUpdates
+        candidateStyle = CandidateStyle.current
         features = Set(SKKFeature.allCases.filter(\.isOn))
         enabled = InputSourceRow.enabled()
         installed = InputSourceRow.installed()
@@ -190,6 +195,7 @@ struct SettingsView: View {
             Group {
                 switch model.tab {
                 case .general: GeneralPage(model: model)
+                case .appearance: AppearancePage(model: model)
                 case .skk: SKKPage(model: model)
                 case .keys: KeysPage()
                 case .about: AboutPage()
@@ -336,6 +342,74 @@ private struct GeneralPage: View {
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 22)
+    }
+}
+
+/// 候補の窓の形を選ぶ。下に選んだ形の見本を出す
+private struct AppearancePage: View {
+    @Bindable var model: SettingsModel
+
+    /// 窓に収まるよう、候補を 4 つにした見本
+    static let sample = CandidateWindow(
+        reading: "かく",
+        items: ["書く", "描く", "核", "角"],
+        labels: Array("asdf"),
+        highlighted: 2,
+        page: 0,
+        pageCount: 3,
+        annotations: [nil, "絵や図をかく", "ものごとの中心", nil]
+    )
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            SettingsSection(title: "候補の窓") {
+                ForEach(Array(CandidateStyle.allCases.enumerated()), id: \.element) { index, style in
+                    Button {
+                        model.candidateStyle = style
+                    } label: {
+                        SettingsRow(title: style.title, detail: style.detail, first: index == 0) {
+                            Choice(selected: model.candidateStyle == style)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(model.candidateStyle == style ? .isSelected : [])
+                }
+            }
+            VStack(alignment: .leading, spacing: 7) {
+                Text("見本")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.quiet)
+                    .padding(.leading, 4)
+                StyledCandidates(style: model.candidateStyle, window: Self.sample)
+                    .background(PaperPlate(radius: Theme.windowRadius))
+                    .padding(.top, 4)
+                    .frame(maxWidth: .infinity)
+                    .animation(Theme.move, value: model.candidateStyle)
+            }
+            Text("変えると、次に候補を出したときから効きます")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.quiet)
+                .padding(.leading, 4)
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 22)
+    }
+}
+
+/// 選べるものの印。選んでいれば朱の丸
+private struct Choice: View {
+    let selected: Bool
+
+    var body: some View {
+        ZStack {
+            Circle().strokeBorder(selected ? Theme.accent : Theme.quiet.opacity(0.4), lineWidth: 1.5)
+            if selected {
+                Circle().fill(Theme.accent).padding(4.5)
+            }
+        }
+        .frame(width: 18, height: 18)
+        .animation(Theme.move, value: selected)
     }
 }
 
