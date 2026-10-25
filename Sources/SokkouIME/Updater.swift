@@ -42,7 +42,8 @@ enum Updater {
         runScript(["--notify", Installer.previous.path], reason: "前の版に戻す")
     }
 
-    private static func runScript(_ arguments: [String], reason: String) {
+    /// quiet なら、しくじっても窓を出さない（自動の更新。ログには残り、次に確かめたときにまた試す）
+    private static func runScript(_ arguments: [String], reason: String, quiet: Bool = false) {
         guard let script = Bundle.main.url(forResource: "update", withExtension: "sh") else { return }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
@@ -55,7 +56,7 @@ enum Updater {
         // 入れ替えられたらこのプロセスは止められ、新しい版が updated.txt を読んで知らせる。
         // 入れられなかったときはこのプロセスが残るので、ここで知らせる（通知は許可が無いと出ないため）
         process.terminationHandler = { finished in
-            guard finished.terminationStatus != 0 else { return }
+            guard finished.terminationStatus != 0, !quiet else { return }
             Task { @MainActor in reportFailure() }
         }
         do {
@@ -112,7 +113,7 @@ enum Updater {
 
     private static func alert(_ title: String, _ message: String) {
         Installer.alert(title, message)
-        NSApplication.shared.setActivationPolicy(.prohibited)
+        Installer.stepBack()
     }
 
     /// PR の番号を尋ねてから入れる
@@ -129,7 +130,7 @@ enum Updater {
         alert.addButton(withTitle: "やめる")
         alert.window.initialFirstResponder = field
         let response = alert.runModal()
-        NSApplication.shared.setActivationPolicy(.prohibited)
+        Installer.stepBack()
         let text = field.stringValue.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         guard response == .alertFirstButtonReturn, let pr = Int(text), pr > 0 else { return }
         install(pr: pr)
@@ -149,7 +150,7 @@ enum Updater {
         alert.addButton(withTitle: "やめる")
         alert.alertStyle = .warning
         let response = alert.runModal()
-        NSApplication.shared.setActivationPolicy(.prohibited)
+        Installer.stepBack()
         guard response == .alertFirstButtonReturn else { return }
         exit(Installer.uninstall(purge: purge.state == .on))
     }
@@ -194,7 +195,7 @@ enum Updater {
         if let tag = pending {
             if Date().timeIntervalSince(lastKey) >= idleInterval {
                 pending = nil
-                runScript(["--notify"], reason: "自動で \(tag) に更新")
+                runScript(["--notify"], reason: "自動で \(tag) に更新", quiet: true)
             }
         } else if Date().timeIntervalSince(lastCheck) >= checkInterval {
             lastCheck = Date()

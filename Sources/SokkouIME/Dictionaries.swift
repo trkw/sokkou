@@ -95,7 +95,7 @@ enum Dictionaries {
     private static func choose(_ message: String, multiple: Bool, in start: URL? = nil) -> [URL]? {
         NSApplication.shared.setActivationPolicy(.accessory)
         NSApplication.shared.activate(ignoringOtherApps: true)
-        defer { stepBack() }
+        defer { Installer.stepBack() }
         let panel = NSOpenPanel()
         panel.message = message
         panel.allowsMultipleSelection = multiple
@@ -113,12 +113,6 @@ enum Dictionaries {
         alert.messageText = title
         alert.informativeText = text
         alert.runModal()
-        stepBack()
-    }
-
-    /// 前に出ていたのをやめる。設定の窓から呼んだときは、窓が開いている間は前に出たままにする
-    private static func stepBack() {
-        guard !SettingsWindow.shared.isOpen else { return }
-        NSApplication.shared.setActivationPolicy(.prohibited)
+        Installer.stepBack()
     }
 }

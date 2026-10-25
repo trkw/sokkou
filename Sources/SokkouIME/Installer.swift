@@ -305,6 +305,12 @@ enum Installer {
         }
         return alert.runModal()
     }
+
+    /// 窓を閉じたあと、前に出ていたのをやめる。設定の窓が開いている間は、窓が消えないよう前に出たままにする
+    static func stepBack() {
+        guard !SettingsWindow.shared.isOpen else { return }
+        NSApplication.shared.setActivationPolicy(.prohibited)
+    }
 }
 
 struct InstallError: LocalizedError {
