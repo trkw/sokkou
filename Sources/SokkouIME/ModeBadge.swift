@@ -12,7 +12,7 @@ final class ModeBadge {
     init() {
         host = NSHostingView(rootView: BadgeView(model: model))
         host.sizingOptions = [.intrinsicContentSize]
-        panel.setGlassContent(host, cornerRadius: BadgeView.height / 2)
+        panel.setGlassContent(host, cornerRadius: BadgeView.radius)
     }
 
     func show(_ mode: InputMode, near line: NSRect) {
@@ -55,47 +55,46 @@ final class BadgeModel {
 struct BadgeView: View {
     let model: BadgeModel
 
-    static let height: CGFloat = 30
+    /// 札の一辺。字だけの小さな四角にする
+    static let height: CGFloat = 28
+    static let radius: CGFloat = 8
 
     var body: some View {
-        ModeChip(mode: model.mode)
-            .padding(.leading, 5)
-            .padding(.trailing, 11)
-            .frame(height: Self.height)
+        ModeGlyph(mode: model.mode)
             .fixedSize()
             .animation(Theme.move, value: model.mode)
     }
 }
 
-/// モードの字と名前。ひらがなは朱で塗り、カタカナは朱の枠。英数は墨の枠、全角英数は墨で塗る
-struct ModeChip: View {
+/// モードの字だけの四角。ひらがなは朱で塗り、カタカナは朱の枠、半角カナは朱の点線の枠。英数は墨の枠、全角英数は墨で塗る
+struct ModeGlyph: View {
     let mode: InputMode
 
     var body: some View {
         let look = Self.look(mode)
-        let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
-        HStack(spacing: 7) {
-            Text(look.glyph)
-                .font(.system(size: 12.5, weight: .bold))
-                .foregroundStyle(look.filled ? Theme.onAccent : look.color)
-                .frame(width: 21, height: 21)
-                .background(look.filled ? look.color : .clear, in: shape)
-                .overlay(shape.strokeBorder(look.color, lineWidth: look.filled ? 0 : 1.4))
-                .contentTransition(.opacity)
-            Text(look.name)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Theme.ink)
-                .contentTransition(.opacity)
-        }
+        let shape = RoundedRectangle(cornerRadius: BadgeView.radius, style: .continuous)
+        Text(look.glyph)
+            .font(.system(size: 14, weight: .bold))
+            .foregroundStyle(look.filled ? look.onFill : look.color)
+            .frame(width: BadgeView.height, height: BadgeView.height)
+            .background(look.filled ? look.color : .clear, in: shape)
+            .overlay(
+                shape.inset(by: 0.75).stroke(
+                    look.filled ? Color.clear : look.color,
+                    style: StrokeStyle(lineWidth: 1.5, dash: look.dashed ? [2.5, 2] : [])
+                )
+            )
+            .contentTransition(.opacity)
+            .accessibilityLabel(look.name)
     }
 
-    static func look(_ mode: InputMode) -> (glyph: String, name: String, filled: Bool, color: Color) {
+    static func look(_ mode: InputMode) -> (glyph: String, name: String, filled: Bool, dashed: Bool, color: Color, onFill: Color) {
         switch mode {
-        case .hiragana: ("あ", "ひらがな", true, Theme.accent)
-        case .katakana: ("ア", "カタカナ", false, Theme.accent)
-        case .halfwidthKatakana: ("ｱ", "半角カナ", false, Theme.accent)
-        case .ascii: ("A", "英数", false, Theme.ink)
-        case .fullwidthRoman: ("Ａ", "全角英数", true, Theme.ink)
+        case .hiragana: ("あ", "ひらがな", true, false, Theme.accent, Theme.onAccent)
+        case .katakana: ("ア", "カタカナ", false, false, Theme.accent, Theme.onAccent)
+        case .halfwidthKatakana: ("ｱ", "半角カナ", false, true, Theme.accent, Theme.onAccent)
+        case .ascii: ("A", "英数", false, false, Theme.ink, Theme.ground)
+        case .fullwidthRoman: ("Ａ", "全角英数", true, false, Theme.ink, Theme.ground)
         }
     }
 }

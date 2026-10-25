@@ -50,44 +50,40 @@ enum Snapshot {
         try png.write(to: file)
     }
 
-    /// 入力欄の 1 行、その下の候補の窓、モードの札を並べた見本
+    /// 入力欄の 1 行とその下の候補の窓を、候補の窓の形ごとに並べ、横にアイコンとモードの札を置いた見本
     struct Board: View {
-        let window = CandidateWindow(
-            reading: "かく",
-            items: ["書く", "描く", "核", "角", "格", "閣", "欠く"],
-            labels: Array("asdfjkl"),
-            highlighted: 2,
-            page: 0,
-            pageCount: 2,
-            annotations: [nil, "絵や図をかく", nil, nil, nil, nil, "不足する"]
-        )
+        let window = CandidateWindow.sample
 
         var body: some View {
-            HStack(alignment: .top, spacing: 40) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 0) {
-                        Text("今日は ").foregroundStyle(Theme.ink)
-                        Text("GitHub").underline(pattern: .dot).foregroundStyle(Theme.ink)
-                        Text(" で").underline().foregroundStyle(Theme.ink)
-                        Text("核").underline().fontWeight(.semibold).foregroundStyle(Theme.ink)
-                            .background(Theme.accent.opacity(0.15))
+            HStack(alignment: .top, spacing: 48) {
+                ForEach(CandidateStyle.allCases) { style in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(style.title)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Theme.quiet)
+                            .padding(.bottom, 8)
+                        HStack(spacing: 0) {
+                            Text("今日は ").foregroundStyle(Theme.ink)
+                            Text("GitHub").underline(pattern: .dot).foregroundStyle(Theme.ink)
+                            Text(" で").underline().foregroundStyle(Theme.ink)
+                            Text("核").underline(color: Theme.accent).fontWeight(.semibold).foregroundStyle(Theme.ink)
+                        }
+                        .font(.system(size: 17))
+                        StyledCandidates(style: style, window: window)
+                            .background(glass(radius: Theme.windowRadius))
+                            .padding(.leading, 70 - style.textInset)
                     }
-                    .font(.system(size: 17))
-                    CandidateList(window: window)
-                        .background(glass(radius: Theme.windowRadius))
-                        .padding(.leading, 70)
                 }
                 VStack(alignment: .leading, spacing: 12) {
                     // アプリのアイコン。Finder・dmg・通知に出る
                     Image(nsImage: Bundle.main.image(forResource: "AppIcon") ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath))
                         .resizable()
                         .frame(width: 128, height: 128)
-                    ForEach([InputMode.hiragana, .katakana, .halfwidthKatakana, .ascii, .fullwidthRoman], id: \.self) { mode in
-                        ModeChip(mode: mode)
-                            .padding(.leading, 5)
-                            .padding(.trailing, 11)
-                            .frame(height: BadgeView.height)
-                            .background(glass(radius: BadgeView.height / 2))
+                    HStack(spacing: 10) {
+                        ForEach([InputMode.hiragana, .katakana, .halfwidthKatakana, .ascii, .fullwidthRoman], id: \.self) { mode in
+                            ModeGlyph(mode: mode)
+                                .background(glass(radius: BadgeView.radius))
+                        }
                     }
                 }
             }
@@ -96,10 +92,7 @@ enum Snapshot {
         }
 
         private func glass(radius: CGFloat) -> some View {
-            RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .fill(Theme.surface.opacity(0.92))
-                .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Theme.border, lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.12), radius: 14, y: 6)
+            PaperPlate(radius: radius)
         }
     }
 }

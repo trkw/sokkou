@@ -3,16 +3,17 @@ import SwiftUI
 
 /// 候補の窓とモードの印の色。明るい外観と暗い外観で切り替わる
 enum Theme {
-    static let ground = dynamic(light: 0xF5F4F0, dark: 0x141416)
-    static let surface = dynamic(light: 0xFFFFFF, dark: 0x1F1F22)
-    static let border = dynamic(light: 0xE4E2DC, dark: 0x2E2E33)
-    static let ink = dynamic(light: 0x1C1C1E, dark: 0xF2F2F0)
-    static let quiet = dynamic(light: 0x6B6B70, dark: 0xA1A1A8)
-    static let rule = dynamic(light: 0xE9E6DF, dark: 0x34343A)
+    // デザイン案 v2 の色。紙の地に墨、差し色は朱ひと色
+    static let ground = dynamic(light: 0xF4F2EC, dark: 0x141311)
+    static let surface = dynamic(light: 0xFCFBF8, dark: 0x22201D)
+    static let border = dynamic(light: 0xE5E1D7, dark: 0x34312C)
+    static let ink = dynamic(light: 0x1E1C19, dark: 0xEEEAE2)
+    static let quiet = dynamic(light: 0x6B675F, dark: 0xA29D93)
+    static let rule = dynamic(light: 0xE5E1D7, dark: 0x34312C)
     /// 朱。選んでいる候補とひらがなの印に使う
-    static let accent = dynamic(light: 0xC2410C, dark: 0xFB923C)
+    static let accent = dynamic(light: 0xC23B12, dark: 0xF0663C)
     /// 朱の上に載せる文字
-    static let onAccent = dynamic(light: 0xFFFFFF, dark: 0x1A0E08)
+    static let onAccent = dynamic(light: 0xFFFFFF, dark: 0x1A0D07)
 
     static let windowRadius: CGFloat = 14
     static let rowRadius: CGFloat = 8
@@ -56,6 +57,18 @@ struct Keycap: View {
                 RoundedRectangle(cornerRadius: 4.5)
                     .strokeBorder(inverted ? Color.white.opacity(0.35) : Theme.quiet.opacity(0.22), lineWidth: 0.5)
             )
+    }
+}
+
+/// ガラスの代わりに敷く紙の板。ガラスは画像にならないので、設定の見本とスナップショットで使う
+struct PaperPlate: View {
+    let radius: CGFloat
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
+            .fill(Theme.surface.opacity(0.92))
+            .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Theme.border, lineWidth: 0.5))
+            .shadow(color: .black.opacity(0.12), radius: 14, y: 6)
     }
 }
 

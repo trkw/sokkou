@@ -1,5 +1,5 @@
 // アプリのアイコン（AppIcon.icns）を作る。引数は出力先ディレクトリ。
-// 紙の地に墨の「そ」、その下に朱の実線。日本語の文節に引く実線を、そのまま印にした
+// 紙の地に墨の「そ」、その下に朱の実線。日本語の文節に引く実線を、そのまま印にした（デザイン案 v2 の A）
 import AppKit
 
 guard CommandLine.arguments.count == 2 else {
@@ -17,10 +17,11 @@ func color(_ hex: UInt32, alpha: CGFloat = 1) -> NSColor {
     )
 }
 
-let paperTop = color(0xFBFAF6)
-let paperBottom = color(0xEEEBE3)
-let ink = color(0x1C1C1E)
-let vermilion = color(0xC2410C)
+let paperTop = color(0xFCFBF8)
+let paperBottom = color(0xF4F2EC)
+let rule = color(0xE5E1D7)
+let ink = color(0x1E1C19)
+let vermilion = color(0xC23B12)
 
 /// 1024 の画布に描く。macOS のアイコンの格子どおり、824 四方の角丸の板を真ん中に置き、下に影を落とす
 func draw(in canvas: CGFloat) {
@@ -46,15 +47,16 @@ func draw(in canvas: CGFloat) {
     NSGradient(starting: paperTop, ending: paperBottom)!.draw(in: shape, angle: -90)
     NSGraphicsContext.saveGraphicsState()
     shape.addClip()
-    // 縁の内側にごく薄い線を引き、紙の厚みにする
-    let rim = NSBezierPath(roundedRect: plate.insetBy(dx: 1.5 * unit, dy: 1.5 * unit), xRadius: radius - 1.5 * unit, yRadius: radius - 1.5 * unit)
-    rim.lineWidth = 3 * unit
-    NSColor.white.withAlphaComponent(0.7).setStroke()
+    // 縁の内側に罫の色の細い線を引き、紙の縁にする
+    let rim = NSBezierPath(roundedRect: plate.insetBy(dx: 2 * unit, dy: 2 * unit), xRadius: radius - 2 * unit, yRadius: radius - 2 * unit)
+    rim.lineWidth = max(1, 4 * unit)
+    rule.setStroke()
     rim.stroke()
     NSGraphicsContext.restoreGraphicsState()
 
-    // 墨の「そ」。明朝の太字があればそれを、無ければ system の太字を使う
-    let font = NSFont(name: "HiraMinProN-W6", size: 100) ?? NSFont.systemFont(ofSize: 100, weight: .semibold)
+    // 墨の「そ」。ヒラギノ角ゴの W5、小さいときは潰れないよう W6。無ければ system の字を使う
+    let small = canvas <= 32
+    let font = NSFont(name: small ? "HiraginoSans-W6" : "HiraginoSans-W5", size: 100) ?? NSFont.systemFont(ofSize: 100, weight: small ? .semibold : .medium)
     func glyph(_ size: CGFloat) -> NSAttributedString {
         NSAttributedString(string: "そ", attributes: [.font: font.withSize(size), .foregroundColor: ink])
     }
@@ -66,7 +68,8 @@ func draw(in canvas: CGFloat) {
     let center = NSPoint(x: plate.midX, y: plate.minY + plate.height * 0.56)
     text.draw(with: NSRect(origin: NSPoint(x: center.x - shapeRect.midX, y: center.y - shapeRect.midY), size: .zero), options: [])
 
-    // 朱の実線。字の下に、字より少し広く引く
+    // 朱の実線。字の下に、字より少し広く引く。16 画素では線が字に潰れるので、字だけにする
+    guard canvas > 16 else { return }
     let lineWidth = max(plate.width * 0.44, shapeRect.width * 1.1)
     let thickness = max(2, 32 * unit)
     let line = NSRect(
