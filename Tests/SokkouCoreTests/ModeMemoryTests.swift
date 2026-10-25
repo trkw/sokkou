@@ -51,4 +51,13 @@ struct ModeMemoryTests {
         #expect(ModeChangeReaction(from: .katakana, to: .hiragana) == .showBadge)
         #expect(ModeChangeReaction(from: .hiragana, to: .fullwidthRoman) == .showBadge)
     }
+
+    @Test func savedModesSurviveARestart() {
+        let memory = ModeMemory()
+        memory.remember(.ascii, for: editor)
+        #expect(memory.saved == [editor: "ascii"])
+        let restarted = ModeMemory(saved: memory.saved.merging(["broken": "nope"]) { $1 })
+        #expect(restarted.mode(for: editor) == .ascii)
+        #expect(restarted.mode(for: "broken") == .hiragana)
+    }
 }
