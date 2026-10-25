@@ -76,5 +76,15 @@ if ! codesign --verify --strict "$mount/sokkou.app"; then
     echo "dmg の中の sokkou.app が codesign --verify --strict を通らない" >&2
     exit 1
 fi
+# 窓に出るのは sokkou と「はじめに」だけ。ほかの隠しファイルは dmg-settings.py で窓の外に置いている。
+# 置き場所を決めていないものが増えたら、隠しファイルを表示している Finder で sokkou に重なるので止める。
+# 「はじめに」は *.txt で見る（HFS+ は濁点を分けて持つので、名前をそのまま比べると合わない）
+unexpected=$(cd "$mount" && find . -mindepth 1 -maxdepth 1 ! -name sokkou.app ! -name '*.txt' \
+    ! -name .background.tiff ! -name .VolumeIcon.icns ! -name .fseventsd ! -name .Trashes ! -name .DS_Store)
 hdiutil detach -quiet "$mount"
+if [[ -n "$unexpected" ]]; then
+    echo "dmg に置き場所を決めていないものがある（scripts/dmg-settings.py の icon_locations に足す）:" >&2
+    echo "$unexpected" >&2
+    exit 1
+fi
 echo "== 作成 $dmg"

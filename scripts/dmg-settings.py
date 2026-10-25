@@ -9,9 +9,17 @@ guide = defines["guide"]
 format = "UDZO"
 filesystem = "HFS+"
 files = [app, guide]
+# dmgbuild が置く隠しファイル（背景、ボリュームのアイコン）と macOS が作る隠しフォルダは、窓の外の下に置く。
+# Finder で隠しファイルを表示していても（⌘⇧.）窓の中に出ず、sokkou と「はじめに」に重ならない
+offscreen = (320, 1000)
 icon_locations = {
     os.path.basename(app): (200, 190),
     os.path.basename(guide): (440, 190),
+    ".background.tiff": offscreen,
+    ".VolumeIcon.icns": offscreen,
+    ".fseventsd": offscreen,
+    ".Trashes": offscreen,
+    ".DS_Store": offscreen,
 }
 # .app の拡張子は Finder が最初から隠す。app に隠す印（FinderInfo）を付けると codesign --verify --strict が通らない
 hide_extensions = [os.path.basename(guide)]
