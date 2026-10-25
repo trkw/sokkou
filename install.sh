@@ -139,10 +139,10 @@ if [[ -z "$src" ]]; then
     fi
     actual="sha256:$(shasum -a 256 "$work/$asset" | cut -d ' ' -f 1)"
     if [[ -n "$digest" ]]; then
-        [[ "$actual" == "$digest" ]] || fail "dmg の SHA-256 が合わない（取得 $actual、GitHub $digest）"
+        [[ "$actual" == "$digest" ]] || fail "dmg の SHA-256 が合わない（取得 ${actual}、GitHub ${digest}）"
         log "== SHA-256 一致 $actual"
     else
-        log "== SHA-256 を突き合わせずに進める（$actual）"
+        log "== SHA-256 を突き合わせずに進める（${actual}）"
     fi
     mkdir -p "$work/mount"
     hdiutil attach -quiet -nobrowse -readonly -noautoopen -mountpoint "$work/mount" "$work/$asset" || fail "dmg を開けない"
@@ -155,7 +155,7 @@ id=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$plist")
 build=$(/usr/libexec/PlistBuddy -c "Print :SokkouBuild" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$plist")
 # 取ってきたものは普段使いの sokkou に限る。手元で組み立てた開発版（.dev）は引数で渡したときだけ入れる
 if [[ -n "$work" && "$id" != "$bundle_id" ]]; then
-    fail "dmg の中身が sokkou ではない（$id）"
+    fail "dmg の中身が sokkou ではない（${id}）"
 fi
 codesign --verify --strict "$src" || fail "$name の署名が壊れている"
 # 辞書と語表を読んで 1 文を変換できるかを、入れ替える前に試す。読めない版を入れて打てなくならないように
