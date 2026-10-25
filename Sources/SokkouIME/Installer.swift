@@ -170,8 +170,13 @@ enum Installer {
 
     /// source の中身を destination に置いて、入力ソースとして登録する
     private static func place(_ source: URL, at destination: URL) throws {
+        // Nix のストアから入れると読み取り専用のまま写るので、前後で書けるようにする。でないと次の更新で入れ替えられない
+        if FileManager.default.fileExists(atPath: destination.path) {
+            try run("/bin/chmod", ["-R", "u+w", destination.path])
+        }
         // バンドルを消さずに中身を入れ替える。バンドルが無い瞬間に macOS が入力ソースの一覧を作り直すと登録が消えるため
         try run("/usr/bin/rsync", ["-a", "--delete", source.path + "/", destination.path + "/"])
+        try run("/bin/chmod", ["-R", "u+w", destination.path])
         // ダウンロードした dmg から入れたときの隔離の属性を外す。ad-hoc 署名なので、付いたままだと入力メソッドとして起動できない
         try? run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", destination.path])
         try run(lsregister, ["-f", destination.path])

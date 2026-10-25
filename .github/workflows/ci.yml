@@ -28,6 +28,29 @@ jobs:
       - name: Test
         run: swift test
 
+  # flake のパッケージと、nix-darwin・home-manager のモジュールを評価できるか（Linux で aarch64-darwin を評価だけする）
+  nix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - name: Install Nix
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/install-nix" https://releases.nixos.org/nix/nix-2.34.6/install
+          echo "bf6d12da4aeaae38ab509dc736df648597bcdee051046ea76d3d53d5b18fa54a  $RUNNER_TEMP/install-nix" | sha256sum -c -
+          mkdir -p ~/.config/nix
+          echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
+          sh "$RUNNER_TEMP/install-nix" --no-daemon
+          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
+
+      - name: Evaluate
+        run: nix eval --json --no-write-lock-file ./nix/test#tests --override-input sokkou "path:$PWD"
+
   app:
     runs-on: macos-26
     timeout-minutes: 40
@@ -76,6 +99,37 @@ jobs:
           "$HOME/Library/Input Methods/sokkou.app/Contents/MacOS/sokkou" --uninstall --purge
           test ! -e "$HOME/Library/Input Methods/sokkou.app"
           test ! -e "$HOME/Library/Application Support/sokkou"
+
+      # Nix のストアのような読み取り専用の場所から入れても、次の版で入れ替えられるか
+      - name: Install from a read-only copy
+        run: |
+          set -euo pipefail
+          ro="$RUNNER_TEMP/store/sokkou.app"
+          mkdir -p "$(dirname "$ro")"
+          ditto dist/sokkou.app "$ro"
+          chmod -R a-w "$ro"
+          "$ro/Contents/MacOS/sokkou" --install
+          dist/sokkou.app/Contents/MacOS/sokkou --install
+
+      # release.yml が trkw/homebrew-tap に書く cask で、組み立てた dmg を入れて消せるか
+      - name: Install with Homebrew
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: |
+          set -euo pipefail
+          version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" dist/sokkou.app/Contents/Info.plist)
+          sha=$(shasum -a 256 dist/sokkou-macos-arm64.dmg | cut -d' ' -f1)
+          brew tap-new --no-git local/sokkou
+          casks="$(brew --repository local/sokkou)/Casks"
+          mkdir -p "$casks"
+          scripts/make-cask.sh "$version" "$sha" > "$casks/sokkou.rb"
+          brew style --cask local/sokkou/sokkou
+          # リリースの URL の代わりに、いま組み立てた dmg を使う
+          sed -i '' "s|^  url .*|  url \"file://$PWD/dist/sokkou-macos-arm64.dmg\"|" "$casks/sokkou.rb"
+          brew install --cask local/sokkou/sokkou
+          test -x "$HOME/Library/Input Methods/sokkou.app/Contents/MacOS/sokkou"
+          brew uninstall --cask local/sokkou/sokkou
+          test ! -e "$HOME/Library/Input Methods/sokkou.app"
 
       # 次の手順の --snapshot のため、もう一度入れる
       - name: Install from .app

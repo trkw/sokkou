@@ -32,6 +32,29 @@ Apple シリコンの macOS 14 以降で動く。
 curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash
 ```
 
+Homebrew なら cask で入る。sokkou は自分で新しい版に入れ替わるので、`brew upgrade` を待たなくてよい。
+
+```sh
+brew install --cask trkw/tap/sokkou
+```
+
+Nix なら flake を使う。nix-darwin でも home-manager でも、`programs.sokkou.enable = true;` で `~/Library/Input Methods` に入って登録される。
+
+```nix
+# flake.nix の inputs
+sokkou.url = "github:trkw/sokkou";
+sokkou.inputs.nixpkgs.follows = "nixpkgs";
+
+# nix-darwin なら modules に sokkou.darwinModules.default、home-manager なら sokkou.homeManagerModules.default を足して
+programs.sokkou.enable = true;
+# 版を flake.lock に固定して自動更新を切るなら
+programs.sokkou.autoUpdate = false;
+```
+
+`autoUpdate` は既定で `true`（入力メニューの「新しいリリースを自動で入れる」と同じ）。そのときは、自動更新が入れた新しい版を Nix が古い版に戻すことはしない。どの経路で入れても、初めてのときは入力ソースに「sokkou (日本語)」と「sokkou (英数)」が足される。一覧に出ないときだけ、ログインし直す。
+
+main に入るたびに CI が dmg を組み立ててリリースに置き、Homebrew の cask（[trkw/homebrew-tap](https://github.com/trkw/homebrew-tap)）と Nix の版（`nix/release.json`）も書き換える。仕組みは [docs/distribution.md](docs/distribution.md)。
+
 ### 「開けません」「開発元を確認できません」と出たとき
 
 sokkou は Apple の公証を受けていないので、dmg から開くと最初の 1 回だけ macOS が止める。
