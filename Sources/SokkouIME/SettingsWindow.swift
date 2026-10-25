@@ -118,15 +118,44 @@ enum InputSourceRow: String, CaseIterable {
         }
     }
 
+    /// sokkou の入力ソースのうち、macOS で有効になっているもの。
+    /// TISCreateInputSourceList の「有効なものだけ」は入力メソッドのモードを有効でなくても返すことがあるので、
+    /// 入れてあるものをすべて取り、1 つずつ有効かを確かめる
     static func enabled() -> Set<InputSourceRow> {
+        Set(sources().compactMap { row, source in
+            property(source, kTISPropertyInputSourceIsEnabled) as? Bool == true ? row : nil
+        })
+    }
+
+    /// 日本語か英数のどちらかが有効なら、足りないほうも有効にする。
+    /// 入力ソースを 1 つにまとめていた版から入れ替えると、英数が入力メニューに出ないまま残るため。起動時と設定の窓から呼ぶ
+    @discardableResult
+    static func enableMissing() -> Bool {
+        let all = sources()
+        guard all.contains(where: { property($0.source, kTISPropertyInputSourceIsEnabled) as? Bool == true }) else { return false }
+        var changed = false
+        for (_, source) in all where property(source, kTISPropertyInputSourceIsEnabled) as? Bool != true {
+            changed = TISEnableInputSource(source) == noErr || changed
+        }
+        return changed
+    }
+
+    /// 入れてある sokkou の入力ソース。有効でないものも含む
+    private static func sources() -> [(row: InputSourceRow, source: TISInputSource)] {
         guard let bundleID = Bundle.main.bundleIdentifier else { return [] }
         let filter = [kTISPropertyBundleID as String: bundleID] as CFDictionary
-        guard let list = TISCreateInputSourceList(filter, false)?.takeRetainedValue() as? [TISInputSource] else { return [] }
-        return Set(list.compactMap { source in
-            guard let raw = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else { return nil }
-            let id = Unmanaged<CFString>.fromOpaque(raw).takeUnretainedValue() as String
-            return allCases.first { id == "\(bundleID).\($0.rawValue)" }
-        })
+        guard let list = TISCreateInputSourceList(filter, true)?.takeRetainedValue() as? [TISInputSource] else { return [] }
+        return list.compactMap { source in
+            guard let id = property(source, kTISPropertyInputSourceID) as? String,
+                  let row = allCases.first(where: { id == "\(bundleID).\($0.rawValue)" })
+            else { return nil }
+            return (row, source)
+        }
+    }
+
+    private static func property(_ source: TISInputSource, _ key: CFString) -> Any? {
+        guard let raw = TISGetInputSourceProperty(source, key) else { return nil }
+        return Unmanaged<AnyObject>.fromOpaque(raw).takeUnretainedValue()
     }
 
     static func openKeyboardSettings() {
@@ -256,9 +285,19 @@ private struct GeneralPage: View {
                     }
                 }
                 if model.enabled.count < InputSourceRow.allCases.count {
-                    SettingsRow(title: "キーボードの設定で足す", detail: "入力ソース → 編集 → ＋ → 日本語 から、2 つとも選びます") {
-                        Button("開く") { InputSourceRow.openKeyboardSettings() }
+                    if model.enabled.isEmpty {
+                        SettingsRow(title: "キーボードの設定で足す", detail: "入力ソース → 編集 → ＋ → 日本語 から、2 つとも選びます") {
+                            Button("開く") { InputSourceRow.openKeyboardSettings() }
+                                .buttonStyle(PaperButtonStyle(prominent: true))
+                        }
+                    } else {
+                        SettingsRow(title: "足りない入力ソースを足す", detail: "英数と日本語の両方を入力メニューに出します") {
+                            Button("足す") {
+                                InputSourceRow.enableMissing()
+                                model.refresh()
+                            }
                             .buttonStyle(PaperButtonStyle(prominent: true))
+                        }
                     }
                 }
             }
