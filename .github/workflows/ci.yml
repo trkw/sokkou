@@ -57,6 +57,8 @@ jobs:
 
       # install.sh で最新のリリースを取って入れられるか（SHA-256 の突き合わせ、署名、--check）
       - name: Install the latest release with install.sh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: bash install.sh
 
       # 組み立てたものに入れ替え、もう一度入れ替えて、前の版が取っておかれるか

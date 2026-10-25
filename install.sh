@@ -101,34 +101,48 @@ if [[ -z "$src" ]]; then
         api="https://api.github.com/repos/$repo/releases/latest"
         log "== 最新のリリースを入れる"
     fi
-    # 資産の URL と SHA-256 を同じ答えから取る。latest の付け替えと取得の間でずれないように
-    if ! curl -fsSL --retry 2 -H "Accept: application/vnd.github+json" -o "$work/release.json" "$api"; then
+    # 資産の URL と SHA-256 を同じ答えから取る。latest の付け替えと取得の間でずれないように。
+    # GITHUB_TOKEN があれば使う（CI のように多くの人と同じ IP から引くと、認証なしの API は 403 になる）
+    auth=()
+    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+        auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
+    fi
+    url=""
+    digest=""
+    if curl -fsSL --retry 2 -H "Accept: application/vnd.github+json" ${auth[@]+"${auth[@]}"} -o "$work/release.json" "$api"; then
+        release=$(json_value "$work/release.json" "tag_name")
+        for i in $(seq 0 20); do
+            name=$(json_value "$work/release.json" "assets.$i.name")
+            [[ -n "$name" ]] || break
+            if [[ "$name" == "$asset" ]]; then
+                url=$(json_value "$work/release.json" "assets.$i.browser_download_url")
+                digest=$(json_value "$work/release.json" "assets.$i.digest")
+                break
+            fi
+        done
+        [[ -n "$url" ]] || fail "$release に $asset が無い"
+    else
+        # API の上限に当たっても入れられるよう、資産を直接取る。このときは SHA-256 を突き合わせられない
+        log "== リリースの情報を API から取れないので、dmg を直接取る（SHA-256 は突き合わせない）"
+        if [[ -n "$tag" ]]; then
+            url="https://github.com/$repo/releases/download/$tag/$asset"
+        else
+            url="https://github.com/$repo/releases/latest/download/$asset"
+        fi
+    fi
+    log "== 取得 $url"
+    if ! curl -fsSL --retry 3 -o "$work/$asset" "$url"; then
         if [[ -n "$tag" ]]; then
             fail "PR #${tag#pr-} のビルドがまだ無い。PR の CI（app と pr-build）が終わるまで数分待ってからもう一度。マージした PR、閉じた PR、fork からの PR のビルドは無い"
         fi
-        fail "リリースの情報を GitHub から取れない（ネットワークか、1 時間に 60 回までの API の上限）"
+        fail "dmg を取れない: $url"
     fi
-    release=$(json_value "$work/release.json" "tag_name")
-    url=""
-    digest=""
-    for i in $(seq 0 20); do
-        name=$(json_value "$work/release.json" "assets.$i.name")
-        [[ -n "$name" ]] || break
-        if [[ "$name" == "$asset" ]]; then
-            url=$(json_value "$work/release.json" "assets.$i.browser_download_url")
-            digest=$(json_value "$work/release.json" "assets.$i.digest")
-            break
-        fi
-    done
-    [[ -n "$url" ]] || fail "$release に $asset が無い"
-    log "== 取得 $url"
-    curl -fsSL --retry 3 -o "$work/$asset" "$url" || fail "dmg を取れない: $url"
     actual="sha256:$(shasum -a 256 "$work/$asset" | cut -d ' ' -f 1)"
     if [[ -n "$digest" ]]; then
         [[ "$actual" == "$digest" ]] || fail "dmg の SHA-256 が合わない（取得 $actual、GitHub $digest）"
         log "== SHA-256 一致 $actual"
     else
-        log "== GitHub が SHA-256 を出していないので突き合わせない（$actual）"
+        log "== SHA-256 を突き合わせずに進める（$actual）"
     fi
     mkdir -p "$work/mount"
     hdiutil attach -quiet -nobrowse -readonly -noautoopen -mountpoint "$work/mount" "$work/$asset" || fail "dmg を開けない"
