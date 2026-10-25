@@ -106,6 +106,12 @@ notarize "$dmg"
 xcrun stapler staple "$dmg"
 xcrun stapler validate "$dmg"
 
+# dmg に入れた .app の署名が崩れていないか（Finder の情報などが付くと install.sh の確認で落ちる）
+mkdir "$work/mount"
+hdiutil attach -quiet -nobrowse -readonly -noautoopen -mountpoint "$work/mount" "$dmg"
+codesign --verify --deep --strict --verbose=2 "$work/mount/sokkou.app"
+hdiutil detach -quiet "$work/mount"
+
 # Gatekeeper が利用者の Mac と同じように判断して通すか
 spctl --assess --type execute --verbose=4 "$app"
 spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg"
