@@ -16,6 +16,12 @@ enum Settings {
         set { defaults.set(newValue, forKey: "autoUpdates") }
     }
 
+    /// 「前の版に戻す」で戻した版。自動の更新はこの版をもう一度は入れない
+    static var skippedRelease: String? {
+        get { defaults.string(forKey: "skippedRelease") }
+        set { defaults.set(newValue, forKey: "skippedRelease") }
+    }
+
     /// アプリごとに最後に使ったモード。バンドル ID とモードの生の値
     static var appModes: [String: String] {
         get { defaults.dictionary(forKey: "appModes") as? [String: String] ?? [:] }

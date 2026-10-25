@@ -54,6 +54,8 @@ case "--version":
     exit(0)
 case "--install":
     exit(Installer.run(interactive: false))
+case "--uninstall":
+    exit(Installer.uninstall(purge: CommandLine.arguments.contains("--purge")))
 case "--bench":
     exit(Bench.run())
 case "--snapshot":
@@ -79,4 +81,6 @@ _ = sharedEngine
 _ = sharedLexicon
 // リリースの版で動いていれば、新しいリリースを確かめて、打っていないときに入れ替える
 Updater.startAutoUpdate()
+// 入れ替えた直後なら、どの版になったかを知らせる
+Updater.reportUpdate()
 NSApplication.shared.run()
