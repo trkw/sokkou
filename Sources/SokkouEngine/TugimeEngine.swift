@@ -8,6 +8,7 @@ public final class TugimeEngine: Engine {
     private let converter: any JapaneseConverting
     private let segmenter: Segmenter
     private let loanwords: Loanwords
+    private let dateWords: DateWords
 
     /// method は既定で azooKey の辞書だけを使う。Zenzai（言語モデル）は軽さを測ってから入れる
     public init(method: ConversionMethod = .azooKey) throws {
@@ -16,6 +17,7 @@ public final class TugimeEngine: Engine {
         converter = method.make()
         segmenter = Segmenter(table: table, english: try Self.englishModel(table: table), japanese: converter)
         loanwords = try Loanwords.bundled()
+        dateWords = DateWords()
     }
 
     /// 英語として扱う語の頻度の下限。これより少なく、ローマ字で読める短い綴り（nai ine uso iku など）は、
@@ -91,16 +93,16 @@ public final class TugimeEngine: Engine {
     }
 
     public func clauses(_ keys: String, leading: Leading) -> ClauseList {
-        withLoanwords(segmenter.clauses(keys, leading: leading.tugime))
+        withExtraCandidates(segmenter.clauses(keys, leading: leading.tugime))
     }
 
     public func resize(_ list: ClauseList, at index: Int, by delta: Int, leading: Leading) -> ClauseList {
-        withLoanwords(segmenter.resize(Self.tugime(list), at: index, by: delta, leading: leading.tugime))
+        withExtraCandidates(segmenter.resize(Self.tugime(list), at: index, by: delta, leading: leading.tugime))
     }
 
     public func commit(_ list: ClauseList, through index: Int) -> (text: String, rest: ClauseList, keys: String)? {
         guard let result = segmenter.commit(Self.tugime(list), through: index) else { return nil }
-        return (result.text, withLoanwords(result.rest), result.keys)
+        return (result.text, withExtraCandidates(result.rest), result.keys)
     }
 
     public func whole(_ keys: String, form: SokkouCore.CharacterForm, leading: Leading) -> ClauseList {
@@ -162,13 +164,20 @@ public final class TugimeEngine: Engine {
         segmenter.endComposition()
     }
 
-    // MARK: 英単語のカタカナ読み
+    // MARK: 足す候補
 
-    /// 英語の文節に、test → テスト のようなカタカナ読みを候補として足す
-    private func withLoanwords(_ clauses: [TugimeCore.Clause]) -> ClauseList {
+    /// 英語の文節に test → テスト のようなカタカナ読みを、きょう・いま の文節に日付と時刻を候補として足す
+    private func withExtraCandidates(_ clauses: [TugimeCore.Clause]) -> ClauseList {
         var list = Self.list(clauses)
-        for index in list.clauses.indices where list.clauses[index].kind == .english {
-            Self.offer(loanwords.katakana(of: list.clauses[index].reading), in: &list.clauses[index])
+        for index in list.clauses.indices {
+            switch list.clauses[index].kind {
+            case .english:
+                Self.offer(loanwords.katakana(of: list.clauses[index].reading), in: &list.clauses[index])
+            case .japanese:
+                Self.append(dateWords.candidates(for: list.clauses[index].reading), to: &list.clauses[index])
+            default:
+                break
+            }
         }
         return list
     }
@@ -201,6 +210,13 @@ public final class TugimeEngine: Engine {
             return kana
         }
         return readAny ? words.joined(separator: " ") : nil
+    }
+
+    /// 候補の一覧の後ろに足す。すでにある候補は足さない
+    static func append(_ words: [String], to clause: inout SokkouCore.Clause) {
+        for word in words where !clause.candidates.contains(word) {
+            clause.candidates.append(word)
+        }
     }
 
     /// 英語の綴りのすぐ次に、よく使う読みから置く。すでにある候補は足さず、選んでいる候補は変えない
