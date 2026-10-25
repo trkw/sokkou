@@ -352,8 +352,13 @@ public final class Segmenter {
         return Segment(kind: .japanese, source: source, reading: kana, output: reading.text, score: score, context: reading.context)
     }
 
+    /// 英字が 1 文字だけの英語の区間で、さらに引く値。引かないと vnode が v + ので、state が s + 縦 に割れる
+    /// （tugime の 2113cc9 と同じ値。日本語の技術文書の英単語の区切りで確かめられたもの）
+    static let singleLetterEnglishPenalty = 3.0
+
     private func englishSegment(_ source: String, context: JapaneseContext) -> Segment {
-        let score = weights.english * english.logProbability(source) - weights.englishSpanPenalty
+        let singleLetter = source.filter(\.isLetter).count == 1 ? Self.singleLetterEnglishPenalty : 0
+        let score = weights.english * english.logProbability(source) - weights.englishSpanPenalty - singleLetter
         return Segment(kind: .english, source: source, reading: source, output: source, score: score, context: context)
     }
 
