@@ -58,11 +58,16 @@ jobs:
       - name: Install from .app
         run: dist/sokkou.app/Contents/MacOS/sokkou --install
 
+      # 署名と公証は鍵を持たせた sign ジョブでする。.app をそのまま渡す（zip にしないとフレームワークのリンクが崩れる）
+      - name: Pack .app
+        if: github.event_name == 'pull_request'
+        run: ditto -c -k --keepParent dist/sokkou.app dist/sokkou-app.zip
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: github.event_name == 'pull_request'
         with:
-          name: sokkou-macos-arm64
-          path: dist/sokkou-macos-arm64.dmg
+          name: sokkou-app
+          path: dist/sokkou-app.zip
           if-no-files-found: error
           retention-days: 1
 
@@ -106,9 +111,47 @@ jobs:
           git commit -q -m "UI snapshots for ${SHA}"
           git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ui-snapshots
 
+  # PR の .app を Developer ID で署名して公証を受け、dmg にする（docs/signing.md）。
+  # 外部のパッケージを組み立てる app ジョブには鍵を渡さず、組み上がった .app だけをここで受け取る。
+  # fork からの PR には鍵が渡らないので、このジョブ自体を動かさない
+  sign:
+    needs: app
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sokkou-app
+          path: dist
+
+      - name: Unpack .app
+        run: ditto -x -k dist/sokkou-app.zip dist && rm dist/sokkou-app.zip
+
+      - name: Sign, notarize and make dmg
+        env:
+          APPLE_DEVELOPER_ID_P12: ${{ secrets.APPLE_DEVELOPER_ID_P12 }}
+          APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+          APPLE_NOTARY_KEY: ${{ secrets.APPLE_NOTARY_KEY }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: scripts/sign-and-notarize.sh
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sokkou-macos-arm64
+          path: dist/sokkou-macos-arm64.dmg
+          if-no-files-found: error
+          retention-days: 1
+
   # PR の dmg を pr-<番号> のプレリリースに置く。push のたびに置き直し、PR を閉じたら pr-build-cleanup.yml が消す
   pr-build:
-    needs: app
+    needs: sign
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 10
