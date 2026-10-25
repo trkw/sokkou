@@ -13,12 +13,17 @@ gh auth status > /dev/null 2>&1 || { echo "gh にログインしていない: gh
 
 read -r -s -p ".p12 のパスワード: " password
 echo
-# ファイル名の AuthKey_<キー ID>.p8 からキー ID を取る
+# ファイル名の AuthKey_<キー ID>.p8 からキー ID を取る。取れたら画面には出さない
 key_id=$(basename "$p8" .p8)
-key_id=${key_id#AuthKey_}
-read -r -p "キー ID [$key_id]: " input
-key_id=${input:-$key_id}
-read -r -p "Issuer ID: " issuer
+if [[ "$key_id" =~ ^AuthKey_([A-Z0-9]+)$ ]]; then
+    key_id=${BASH_REMATCH[1]}
+    echo "キー ID はファイル名から取った"
+else
+    read -r -s -p "キー ID: " key_id
+    echo
+fi
+read -r -s -p "Issuer ID: " issuer
+echo
 [[ -n "$key_id" && -n "$issuer" ]] || { echo "キー ID と Issuer ID が要る" >&2; exit 1; }
 
 base64 -i "$p12" | gh secret set APPLE_DEVELOPER_ID_P12 -R "$repo"

@@ -39,7 +39,7 @@ Xcode → Settings… → Accounts → 自分の Apple ID → チーム → Mana
 scripts/set-signing-secrets.sh ~/Desktop/developer-id.p12 ~/Downloads/AuthKey_XXXXXXXXXX.p8
 ```
 
-.p12 のパスワードと Issuer ID を尋ねられる（キー ID はファイル名から取る）。手で入れるなら（ファイルの場所は自分のものにする）:
+.p12 のパスワードと Issuer ID を尋ねられる（どちらも画面には出ない。キー ID はファイル名から取る）。手で入れるなら（ファイルの場所は自分のものにする）:
 
 ```sh
 repo=trkw/sokkou
