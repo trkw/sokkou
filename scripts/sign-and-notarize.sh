@@ -117,4 +117,4 @@ spctl --assess --type execute --verbose=4 "$app"
 spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg"
 
 team=$(codesign -dv "$app" 2>&1 | awk -F= '/^TeamIdentifier=/ { print $2 }')
-summary "署名: $identity（Team ID ${team}）、公証済み・ステープル済み"
+summary "署名: ${identity}（Team ID ${team}）、公証済み・ステープル済み"
