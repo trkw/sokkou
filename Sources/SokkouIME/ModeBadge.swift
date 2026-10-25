@@ -17,6 +17,7 @@ final class ModeBadge {
 
     func show(_ mode: InputMode, near line: NSRect) {
         model.mode = mode
+        model.colors = Palette.key
         fade?.cancel()
         host.layoutSubtreeIfNeeded()
         panel.place(size: host.fittingSize, below: line, gap: 8)
@@ -50,6 +51,8 @@ final class ModeBadge {
 @Observable
 final class BadgeModel {
     var mode: InputMode = .hiragana
+    /// 色の組。変わったら描き直す
+    var colors = Palette.key
 }
 
 struct BadgeView: View {
@@ -63,10 +66,11 @@ struct BadgeView: View {
         ModeGlyph(mode: model.mode)
             .fixedSize()
             .animation(Theme.move, value: model.mode)
+            .id(model.colors)
     }
 }
 
-/// モードの字だけの四角。ひらがなは朱で塗り、カタカナは朱の枠、半角カナは朱の点線の枠。英数は墨の枠、全角英数は墨で塗る
+/// モードの字だけの四角。ひらがなは差し色で塗り、カタカナは差し色の枠、半角カナは差し色の点線の枠。英数は墨の枠、全角英数は墨で塗る
 struct ModeGlyph: View {
     let mode: InputMode
 

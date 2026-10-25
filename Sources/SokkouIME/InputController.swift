@@ -313,9 +313,9 @@ final class SokkouInputController: IMKInputController {
         for segment in presentation.segments {
             let range = NSRange(location: marked.length, length: (segment.text as NSString).length)
             var attributes = highlight(for: segment.style, at: range)
-            // 選んでいる文節の下線は朱にする。候補の窓の印と同じ色で、どこを直しているかを示す
+            // 選んでいる文節の下線は差し色にする。候補の窓の印と同じ色で、どこを直しているかを示す
             if segment.style == .focused {
-                attributes[.underlineColor] = Theme.vermilion
+                attributes[.underlineColor] = Theme.accentNSColor
             }
             if segment.style == .english {
                 attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue | NSUnderlineStyle.patternDot.rawValue

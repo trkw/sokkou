@@ -3,19 +3,19 @@ import SwiftUI
 
 /// 候補の窓とモードの印の色。明るい外観と暗い外観で切り替わる
 enum Theme {
-    // デザイン案 v2 の色。紙の地に墨、差し色は朱ひと色
-    static let ground = dynamic(light: 0xF4F2EC, dark: 0x141311)
-    static let surface = dynamic(light: 0xFCFBF8, dark: 0x22201D)
-    static let border = dynamic(light: 0xE5E1D7, dark: 0x34312C)
-    static let ink = dynamic(light: 0x1E1C19, dark: 0xEEEAE2)
-    static let quiet = dynamic(light: 0x6B675F, dark: 0xA29D93)
-    static let rule = dynamic(light: 0xE5E1D7, dark: 0x34312C)
-    /// 朱。選んでいる候補とひらがなの印に使う
-    static let accent = Color(nsColor: vermilion)
-    /// 朱の NSColor。入力欄の、選んでいる文節の下線の色に使う
-    static let vermilion = dynamicNSColor(light: 0xC23B12, dark: 0xF0663C)
-    /// 朱の上に載せる文字
-    static let onAccent = dynamic(light: 0xFFFFFF, dark: 0x1A0D07)
+    // 色は設定の「色」で選んだ組から、描くときに引く。はじめは紙の地に墨、差し色は朱ひと色
+    static let ground = dynamic(.ground)
+    static let surface = dynamic(.surface)
+    static let border = dynamic(.rule)
+    static let ink = dynamic(.ink)
+    static let quiet = dynamic(.quiet)
+    static let rule = dynamic(.rule)
+    /// 差し色。選んでいる候補とひらがなの印に使う
+    static let accent = Color(nsColor: accentNSColor)
+    /// 差し色の NSColor。入力欄の、選んでいる文節の下線の色に使う
+    static let accentNSColor = dynamicNSColor(.accent)
+    /// 差し色の上に載せる文字
+    static let onAccent = dynamic(.onAccent)
 
     static let windowRadius: CGFloat = 14
     static let rowRadius: CGFloat = 8
@@ -23,24 +23,14 @@ enum Theme {
     /// 選ぶ候補が移るときの動き。速く、跳ねすぎない
     static let move = Animation.spring(response: 0.2, dampingFraction: 0.86)
 
-    private static func dynamic(light: UInt32, dark: UInt32) -> Color {
-        Color(nsColor: dynamicNSColor(light: light, dark: dark))
+    private static func dynamic(_ role: ThemeRole) -> Color {
+        Color(nsColor: dynamicNSColor(role))
     }
 
-    private static func dynamicNSColor(light: UInt32, dark: UInt32) -> NSColor {
+    private static func dynamicNSColor(_ role: ThemeRole) -> NSColor {
         NSColor(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            return color(isDark ? dark : light)
+            role.color(dark: appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua)
         }
-    }
-
-    private static func color(_ hex: UInt32) -> NSColor {
-        NSColor(
-            srgbRed: CGFloat((hex >> 16) & 0xFF) / 255,
-            green: CGFloat((hex >> 8) & 0xFF) / 255,
-            blue: CGFloat(hex & 0xFF) / 255,
-            alpha: 1
-        )
     }
 }
 
