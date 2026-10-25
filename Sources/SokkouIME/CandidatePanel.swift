@@ -18,6 +18,7 @@ final class CandidatePanel {
         // 設定の窓で形を変えたら、次に出すときから効かせる
         let style = CandidateStyle.current
         model.style = style
+        model.colors = Palette.key
         model.window = window
         host.layoutSubtreeIfNeeded()
         // 候補の文字の左端を、選んでいる文節の左端にそろえる
@@ -34,6 +35,8 @@ final class CandidatePanel {
 final class CandidateModel {
     var style = CandidateStyle.list
     var window: CandidateWindow?
+    /// 色の組。変わったら描き直す
+    var colors = Palette.key
 }
 
 struct CandidateView: View {
@@ -42,6 +45,7 @@ struct CandidateView: View {
     var body: some View {
         if let window = model.window {
             StyledCandidates(style: model.style, window: window)
+                .id(model.colors)
         }
     }
 }
@@ -96,7 +100,7 @@ private func keyLabel(_ label: Character) -> String {
 
 // MARK: 案A 縦に並べる
 
-/// 読み、候補、操作の案内を縦に並べる。選んでいる候補は薄い朱の地に、左に朱の印
+/// 読み、候補、操作の案内を縦に並べる。選んでいる候補は薄い差し色の地に、左に差し色の印
 struct CandidateList: View {
     static let maxWidth: CGFloat = 420
     /// 外の余白 6、行の内の余白 10、キーの字 14、間 10
@@ -209,7 +213,7 @@ struct CandidateList: View {
 
 // MARK: 案B 横一行
 
-/// 候補を横一行に並べる。選んでいる候補には、文節と同じ朱の下線を引く。注釈は選んでいる候補の分だけ下に出す
+/// 候補を横一行に並べる。選んでいる候補には、文節と同じ差し色の下線を引く。注釈は選んでいる候補の分だけ下に出す
 struct CandidateStrip: View {
     static let maxWidth: CGFloat = 640
     /// 外の余白 6、候補の内の余白 9、キーの字 9、間 5

@@ -72,9 +72,9 @@ enum SKKFeature: String, CaseIterable, Identifiable {
 
 /// 候補の窓の形。設定の「見た目」で選ぶ。既定は縦に並べる A
 enum CandidateStyle: String, CaseIterable, Identifiable {
-    /// 案A 縦に並べ、選んでいる候補に朱の印をつける
+    /// 案A 縦に並べ、選んでいる候補に差し色の印をつける
     case list
-    /// 案B 横一行に並べ、選んでいる候補に朱の下線を引く。いちばん場所を取らない
+    /// 案B 横一行に並べ、選んでいる候補に差し色の下線を引く。いちばん場所を取らない
     case strip
     /// 案C 明朝で縦に並べ、右に選んでいる候補と注釈を大きく出す
     case card
@@ -91,7 +91,7 @@ enum CandidateStyle: String, CaseIterable, Identifiable {
 
     var detail: String {
         switch self {
-        case .list: "選んでいる候補に朱の印。いつもの形"
+        case .list: "選んでいる候補に印をつける。いつもの形"
         case .strip: "入力欄のすぐ下に細く出る。場所を取らない"
         case .card: "選んだ字と注釈を大きく見せる。辞書を引くように"
         }

@@ -55,6 +55,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate {
 enum SettingsTab: String, CaseIterable, Identifiable {
     case general = "一般"
     case appearance = "見た目"
+    case colors = "色"
     case skk = "SKK"
     case dictionaries = "辞書"
     case keys = "キー"
@@ -67,6 +68,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         switch self {
         case .general: "ふだんの使い心地。変えるとすぐに効きます"
         case .appearance: "候補の窓の形を選びます。次に候補を出したときから変わります"
+        case .colors: "地の色と差し色を選びます。候補の窓も札も、この窓も同じ色になります"
         case .skk: "自動変換と ; の ▽ はそのままに、SKK の手ざわりを足します"
         case .dictionaries: "変換に使う辞書と、自分の単語"
         case .keys: "覚えておくと楽なキー"
@@ -87,6 +89,15 @@ final class SettingsModel {
     var candidateStyle = CandidateStyle.current {
         didSet { CandidateStyle.current = candidateStyle }
     }
+    var palette = Palette.current {
+        didSet { Palette.current = palette }
+    }
+    /// 自分で選んだ差し色。nil なら色の組の差し色
+    var customAccent = Palette.customAccent {
+        didSet { Palette.customAccent = customAccent }
+    }
+    /// 色が変わったら設定の窓を描き直す目印
+    var colorKey: String { "\(palette.rawValue)-\(customAccent.map { String($0) } ?? "")" }
     /// 使っている SKK の手触りの機能
     var features = Set(SKKFeature.allCases.filter(\.isOn)) {
         didSet {
@@ -105,6 +116,8 @@ final class SettingsModel {
         learns = Settings.learns
         autoUpdates = Settings.autoUpdates
         candidateStyle = CandidateStyle.current
+        palette = Palette.current
+        customAccent = Palette.customAccent
         features = Set(SKKFeature.allCases.filter(\.isOn))
         enabled = InputSourceRow.enabled()
         installed = InputSourceRow.installed()
@@ -247,12 +260,15 @@ struct SettingsView: View {
         .frame(width: Self.size.width, height: Self.size.height)
         .background(Theme.ground)
         .animation(Theme.move, value: model.tab)
+        // 色は描くときに引くので、色を変えたら窓の中をまるごと描き直す
+        .id(model.colorKey)
     }
 
     @ViewBuilder private var page: some View {
         switch model.tab {
         case .general: GeneralPage(model: model)
         case .appearance: AppearancePage(model: model)
+        case .colors: ColorsPage(model: model)
         case .skk: SKKPage(model: model)
         case .dictionaries: DictionaryPage(model: model)
         case .keys: KeysPage()
@@ -261,7 +277,7 @@ struct SettingsView: View {
     }
 }
 
-/// 左のならびの 1 行。選んでいる行は薄い朱の地に、左に朱の印
+/// 左のならびの 1 行。選んでいる行は薄い差し色の地に、左に差し色の印
 private struct SidebarItem: View {
     let title: String
     let selected: Bool
@@ -450,7 +466,155 @@ private struct AppearancePage: View {
     }
 }
 
-/// 選べるものの印。選んでいれば朱の丸
+private struct ColorsPage: View {
+    @Bindable var model: SettingsModel
+
+    /// 差し色だけを変えるときの色。明るい外観の色で、暗い外観では少し明るくして使う
+    static let accents: [(name: String, hex: UInt32)] = [
+        ("朱", 0xC23B12), ("紅", 0xB7282E), ("橙", 0xD9730D), ("山吹", 0xA8730A),
+        ("若草", 0x55822B), ("青磁", 0x2F7A6E), ("藍", 0x2E4C8F), ("空", 0x2F6BEA),
+        ("藤", 0x7253B0), ("桜", 0xC2456E), ("墨", 0x2A2A2A),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text("色の組")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.quiet)
+                    .padding(.leading, 4)
+                // LazyVGrid は画像に書き出せないので、4 つずつの行に分けて並べる
+                Grid(horizontalSpacing: 10, verticalSpacing: 10) {
+                    ForEach(0 ..< (Palette.allCases.count + 3) / 4, id: \.self) { row in
+                        GridRow {
+                            ForEach(Palette.allCases.dropFirst(row * 4).prefix(4)) { palette in
+                                PaletteChip(palette: palette, selected: model.palette == palette) {
+                                    model.palette = palette
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            SettingsSection(title: "差し色") {
+                SettingsRow(title: "色の組の差し色を使う", detail: "選んだ組に合わせた差し色", first: true) {
+                    Button { model.customAccent = nil } label: { Choice(selected: model.customAccent == nil) }
+                        .buttonStyle(.plain)
+                }
+                SettingsRow(title: "自分で選ぶ", detail: "差し色だけ変えます") {
+                    HStack(spacing: 6) {
+                        ForEach(Self.accents, id: \.hex) { accent in
+                            Button { model.customAccent = accent.hex } label: {
+                                AccentDot(hex: accent.hex, selected: model.customAccent == accent.hex)
+                            }
+                            .buttonStyle(.plain)
+                            .help(accent.name)
+                            .accessibilityLabel(accent.name)
+                        }
+                        Button("ほかの色…") {
+                            AccentColorPanel.shared.open(current: model.customAccent) { model.customAccent = $0 }
+                        }
+                        .buttonStyle(PaperButtonStyle())
+                        .padding(.leading, 4)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 22)
+    }
+}
+
+/// 色の組の見本。その組の地と板に、墨の字と差し色の札を置く。選んでいる組は差し色の輪で囲む
+private struct PaletteChip: View {
+    let palette: Palette
+    let selected: Bool
+    let action: () -> Void
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 6) {
+                ZStack(alignment: .topLeading) {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous).fill(color(.ground))
+                    HStack(spacing: 7) {
+                        Text("あ")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(color(.onAccent))
+                            .frame(width: 20, height: 20)
+                            .background(color(.accent), in: RoundedRectangle(cornerRadius: 5.5, style: .continuous))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Capsule().fill(color(.ink)).frame(width: 42, height: 3.5)
+                            Capsule().fill(color(.quiet)).frame(width: 28, height: 3)
+                        }
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(color(.surface), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(color(.rule), lineWidth: 0.5))
+                    .padding(9)
+                }
+                .frame(height: 54)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .strokeBorder(selected ? Theme.accent : Theme.border, lineWidth: selected ? 2 : 0.5)
+                )
+                Text(palette.title)
+                    .font(.system(size: 11.5, weight: selected ? .semibold : .regular))
+                    .foregroundStyle(Theme.ink)
+                    .lineLimit(1)
+                    .padding(.leading, 2)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(palette.title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func color(_ role: ThemeRole) -> Color {
+        Color(nsColor: palette.color(role, dark: scheme == .dark))
+    }
+}
+
+/// 差し色の丸。選んでいれば外に輪をつける
+private struct AccentDot: View {
+    let hex: UInt32
+    let selected: Bool
+
+    var body: some View {
+        Circle()
+            .fill(Color(nsColor: ThemeRole.srgb(hex)))
+            .overlay(Circle().strokeBorder(Theme.border, lineWidth: 0.5))
+            .frame(width: 16, height: 16)
+            .padding(3)
+            .overlay(Circle().strokeBorder(selected ? Theme.ink : .clear, lineWidth: 1.5))
+            .contentShape(Circle())
+    }
+}
+
+/// macOS の色を選ぶ窓で差し色を選ぶ。選んでいる間も、すぐに色を変える
+final class AccentColorPanel: NSObject {
+    static let shared = AccentColorPanel()
+    private var onChange: ((UInt32) -> Void)?
+
+    func open(current: UInt32?, onChange: @escaping (UInt32) -> Void) {
+        self.onChange = onChange
+        let panel = NSColorPanel.shared
+        panel.showsAlpha = false
+        panel.isContinuous = true
+        panel.color = ThemeRole.srgb(current ?? 0xC23B12)
+        panel.setTarget(self)
+        panel.setAction(#selector(changed(_:)))
+        panel.orderFront(nil)
+    }
+
+    @objc private func changed(_ sender: NSColorPanel) {
+        if let hex = ThemeRole.hex(sender.color) { onChange?(hex) }
+    }
+}
+
+/// 選べるものの印。選んでいれば差し色の丸
 private struct Choice: View {
     let selected: Bool
 
@@ -542,7 +706,7 @@ private struct SKKPage: View {
     }
 }
 
-/// 入力ソースを足してあるか。足してあれば朱の印、まだなら薄い文字
+/// 入力ソースを足してあるか。足してあれば差し色の印、まだなら薄い文字
 private struct SourceStatus: View {
     let added: Bool
 
@@ -679,7 +843,7 @@ private struct AboutPage: View {
 
 // MARK: 部品
 
-/// 朱のスイッチ。AppKit の部品を使わないので、画像にも書き出せる
+/// 差し色のスイッチ。AppKit の部品を使わないので、画像にも書き出せる
 struct PaperToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         Capsule()
@@ -699,7 +863,7 @@ struct PaperToggleStyle: ToggleStyle {
     }
 }
 
-/// 紙の上のボタン。prominent は朱で塗る
+/// 紙の上のボタン。prominent は差し色で塗る
 struct PaperButtonStyle: ButtonStyle {
     var prominent = false
     @Environment(\.isEnabled) private var isEnabled
