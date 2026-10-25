@@ -33,7 +33,13 @@ Xcode → Settings… → Accounts → 自分の Apple ID → チーム → Mana
 
 ### 4. GitHub の Secrets に入れる
 
-[gh](https://cli.github.com/) にログインした手元のターミナルで（ファイルの場所は自分のものにする）:
+このリポジトリを手元に持っていれば、[gh](https://cli.github.com/) にログインしてから、リポジトリの中で:
+
+```sh
+scripts/set-signing-secrets.sh ~/Desktop/developer-id.p12 ~/Downloads/AuthKey_XXXXXXXXXX.p8
+```
+
+.p12 のパスワードと Issuer ID を尋ねられる（キー ID はファイル名から取る）。手で入れるなら（ファイルの場所は自分のものにする）:
 
 ```sh
 repo=trkw/sokkou
