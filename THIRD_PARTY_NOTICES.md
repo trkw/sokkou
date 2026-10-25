@@ -4,7 +4,7 @@ sokkou のアプリ（dmg の中の sokkou.app）には、次のソフトウェ�
 
 | 名前 | 使い方 | ライセンス |
 | --- | --- | --- |
-| [tugime](https://github.com/miyaoka/tugime) | 日英判定と変換（TugimeCore） | リポジトリにまだ LICENSE が無い。扱いは作者の miyaoka さんと相談している |
+| [tugime](https://github.com/miyaoka/tugime) | 日英判定と変換（TugimeCore） | 作者の miyaoka さんの了解を得て使っている |
 | [AzooKeyKanaKanjiConverter](https://github.com/azooKey/AzooKeyKanaKanjiConverter) | かな漢字変換 | MIT |
 | [azooKey_dictionary_storage](https://github.com/ensan-hcl/azooKey_dictionary_storage) | 変換の辞書、`loanwords.tsv` の元 | Apache-2.0 |
 | [llama.cpp（azooKey の版）](https://github.com/azooKey/llama.cpp) | llama.framework | MIT |
