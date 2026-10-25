@@ -35,17 +35,7 @@ sokkou の入れ方
 「最新版に更新」で今すぐ入れることも、「新しいリリースを自動で入れる」で止めることもできる。
 
 
-「開けません」「開発元を確認できません」と出たとき
-------------------------------------------------
-
-sokkou は Apple の公証を受けていない（自分用に作っている）ので、最初の 1 回だけ macOS が止める。
-
-- macOS 15 以降: いったん「完了」で閉じてから、システム設定 → プライバシーとセキュリティ を開き、
-  下のほうの「"sokkou" は開発元を確認できないため…」の横の「このまま開く」を押す。
-  もう一度 sokkou を開き、「このまま開く」を選ぶ
-- macOS 14: sokkou を右クリック（Control + クリック）して「開く」を選び、出てきた窓で「開く」を押す
-
-ターミナルからなら、この手順なしで入る（ダウンロードしたものに隔離の印が付かないため）:
+ターミナルから入れるなら:
 
     curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash
 
@@ -86,5 +76,15 @@ if ! codesign --verify --strict "$mount/sokkou.app"; then
     echo "dmg の中の sokkou.app が codesign --verify --strict を通らない" >&2
     exit 1
 fi
+# 窓に出るのは sokkou と「はじめに」だけ。ほかの隠しファイルは dmg-settings.py で窓の外に置いている。
+# 置き場所を決めていないものが増えたら、隠しファイルを表示している Finder で sokkou に重なるので止める。
+# 「はじめに」は *.txt で見る（HFS+ は濁点を分けて持つので、名前をそのまま比べると合わない）
+unexpected=$(cd "$mount" && find . -mindepth 1 -maxdepth 1 ! -name sokkou.app ! -name '*.txt' \
+    ! -name .background.tiff ! -name .VolumeIcon.icns ! -name .fseventsd ! -name .Trashes ! -name .DS_Store)
 hdiutil detach -quiet "$mount"
+if [[ -n "$unexpected" ]]; then
+    echo "dmg に置き場所を決めていないものがある（scripts/dmg-settings.py の icon_locations に足す）:" >&2
+    echo "$unexpected" >&2
+    exit 1
+fi
 echo "== 作成 $dmg"
