@@ -26,10 +26,10 @@ final class ModeBadge {
             panel.appear()
         }
         fade = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1.1))
+            try? await Task.sleep(for: .seconds(0.9))
             guard !Task.isCancelled, let self else { return }
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.3
+                context.duration = 0.16
                 self.panel.animator().alphaValue = 0
             }, completionHandler: { [weak self] in
                 // 消えるまでの間に次のモードが出ていたら、その札は残す

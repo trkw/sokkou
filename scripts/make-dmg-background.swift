@@ -41,15 +41,15 @@ func render(scale: CGFloat) -> NSBitmapImageRep {
 
     // 下のほうに、ゆるい線画。上端からの距離で書くため、y は size.height から引く
     let wave = NSBezierPath()
-    wave.move(to: NSPoint(x: 40, y: size.height - 352))
-    wave.curve(to: NSPoint(x: 210, y: size.height - 320), controlPoint1: NSPoint(x: 120, y: size.height - 352), controlPoint2: NSPoint(x: 150, y: size.height - 320))
-    wave.curve(to: NSPoint(x: 370, y: size.height - 344), controlPoint1: NSPoint(x: 270, y: size.height - 320), controlPoint2: NSPoint(x: 300, y: size.height - 350))
-    wave.curve(to: NSPoint(x: 600, y: size.height - 318), controlPoint1: NSPoint(x: 450, y: size.height - 336), controlPoint2: NSPoint(x: 520, y: size.height - 300))
+    wave.move(to: NSPoint(x: 40, y: size.height - 366))
+    wave.curve(to: NSPoint(x: 210, y: size.height - 334), controlPoint1: NSPoint(x: 120, y: size.height - 366), controlPoint2: NSPoint(x: 150, y: size.height - 334))
+    wave.curve(to: NSPoint(x: 370, y: size.height - 358), controlPoint1: NSPoint(x: 270, y: size.height - 334), controlPoint2: NSPoint(x: 300, y: size.height - 364))
+    wave.curve(to: NSPoint(x: 600, y: size.height - 332), controlPoint1: NSPoint(x: 450, y: size.height - 350), controlPoint2: NSPoint(x: 520, y: size.height - 314))
     wave.lineWidth = 1.5
     wave.lineCapStyle = .round
     rule.setStroke()
     wave.stroke()
-    for (x, y, width) in [(100.0, 366.0, 40.0), (510.0, 360.0, 30.0)] {
+    for (x, y, width) in [(100.0, 380.0, 40.0), (510.0, 374.0, 30.0)] {
         let dash = NSBezierPath()
         dash.move(to: NSPoint(x: x, y: size.height - y))
         dash.line(to: NSPoint(x: x + width, y: size.height - y))
