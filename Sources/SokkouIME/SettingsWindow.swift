@@ -1,5 +1,6 @@
 import AppKit
 import Carbon
+import SokkouCore
 import SwiftUI
 
 /// 入力メニューの「設定…」で開く窓。入力ソースの追加の具合、変換と更新の設定、キーの早見表、版の情報を見せる。
