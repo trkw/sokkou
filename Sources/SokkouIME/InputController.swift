@@ -16,8 +16,8 @@ extension InputSourceKind {
     }
 }
 
-/// アプリごとのモード。入力欄ごとの入力コントローラで共有する
-let modeMemory = ModeMemory()
+/// アプリごとのモード。入力欄ごとの入力コントローラで共有し、入れ替えや再起動のあとも覚えておく
+let modeMemory = ModeMemory(saved: Settings.appModes)
 
 /// Carbon の仮想キーコード。NSEvent.keyCode と同じ UInt16 にそろえる
 private enum KeyCode {
@@ -159,6 +159,7 @@ final class SokkouInputController: IMKInputController {
         app = client.bundleIdentifier()
         let current = Self.currentSourceID().flatMap(InputSourceKind.init(sourceID:))
         let mode = modeMemory.activate(app, current: composer.mode, source: current)
+        Settings.appModes = modeMemory.saved
         if composer.mode != mode {
             composer.select(mode: mode)
             flush(client)
@@ -182,6 +183,7 @@ final class SokkouInputController: IMKInputController {
         guard InputSourceKind(composer.mode) != source else { return }
         composer.select(mode: source.mode)
         modeMemory.remember(composer.mode, for: app)
+        Settings.appModes = modeMemory.saved
         if let client { flush(client) }
     }
 
@@ -189,6 +191,7 @@ final class SokkouInputController: IMKInputController {
     /// カタカナ・半角カナ・全角英数は日本語の入力ソースの中のモードで、macOS は何も出さないので sokkou の札で見せる
     private func modeDidChange(from before: InputMode, client: IMKTextInput) {
         modeMemory.remember(composer.mode, for: app)
+        Settings.appModes = modeMemory.saved
         switch ModeChangeReaction(from: before, to: composer.mode) {
         case .selectSource(let source):
             client.selectMode(source.sourceID)
