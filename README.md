@@ -7,7 +7,7 @@ SKK の手触りで、打てばそのまま変換される、自分用の macOS 
 - 英語と判定した語も、候補の窓や `C-k` でカタカナにできる（test → テスト、online game → オンラインゲーム）。表は azooKey の辞書と JMdict から `scripts/make-loanwords.py` で作った `Sources/SokkouEngine/Resources/loanwords.tsv`（約 1 万 5 千語）
 - モードは Ctrl で切り替える。`C-j` ひらがな、`C-q` 半角カナ、`C-l` 英数、`C-L` 全角英数（macSKK の流れ）
 - 入力ソースは「sokkou (英数)」と「sokkou (日本語)」の 2 つ。`C-l` `C-j` でも Ctrl-Space（macOS の入力ソースの切り替え）でも行き来でき、macOS の札とメニューバーのアイコンで今どちらか分かる。カタカナ・半角カナ・全角英数は日本語の中のモードで、切り替えると sokkou の札が出る
-- モードはアプリごとに覚える。ターミナル（Terminal、iTerm、WezTerm、Ghostty、kitty、Alacritty、Warp）は英数から始まる
+- モードはアプリごとに覚える（更新や再起動のあとも）。ターミナル（Terminal、iTerm、WezTerm、Ghostty、kitty、Alacritty、Warp）は英数から始まる
 - 自分で区切りたいときは `;` で ▽ を始める。送り仮名も `;` か大文字で区切る
 - 変換中は Emacs のキーで操作する。何も打っていないときの Ctrl キーはアプリに渡す
 - 選んだ候補だけを控えめに覚える。入力メニューから切れる
