@@ -84,7 +84,7 @@ bash install.sh "dist/sokkou Dev.app"        # 組み立てたものを入れる
 
 ## 上流を追う
 
-AzooKeyKanaKanjiConverter は revision で固定している。`upstream-watch` のワークフローが毎朝、azooKey・azooKey-Desktop・Meltype の新しいコミットやリリースを見て、`upstream` ラベルの issue で知らせる。上げるときは `Package.swift` の azooKey の revision を書き換える。Meltype は GPL-3.0 なので、取り込むのは考え方と動きだけで、コードは写さない。
+AzooKeyKanaKanjiConverter は revision で固定している。`upstream-watch` のワークフローが毎朝、tugime・azooKey・azooKey-Desktop・Meltype の新しいコミットやリリースを見て、`upstream` ラベルの issue で知らせる。上げるときは `Package.swift` の azooKey の revision を書き換える。Meltype は GPL-3.0 なので、取り込むのは考え方と動きだけで、コードは写さない。
 
 ## 謝辞
 
