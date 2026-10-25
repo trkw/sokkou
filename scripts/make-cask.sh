@@ -28,20 +28,20 @@ cask "sokkou" do
   # sokkou は自分で新しいリリースに入れ替わる（入力メニューの「新しいリリースを自動で入れる」）
   auto_updates true
   depends_on arch: :arm64
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   # 入れる処理は sokkou 自身の --install に任せる（dmg から開いたときと同じ）。
-  # ~/Library/Input Methods に写して入力ソースとして登録し、動いている古い版があれば入れ替えて起動し直す
+  # ~/Library/Input Methods に写して入力ソースとして登録し、動いている古い版があれば入れ替えて起動し直す。
+  # 公証を受けるまでは ad-hoc 署名なので、隔離の属性が付いたままだと --install を動かせない。先に外す
+  # （dmg から開いたときも sokkou は入れた先の属性を外している）。公証を受けたら sokkou を直接動かす
   installer script: {
-    executable: "sokkou.app/Contents/MacOS/sokkou",
-    args:       ["--install"],
+    executable: "/bin/sh",
+    args:       [
+      "-c",
+      '/usr/bin/xattr -dr com.apple.quarantine "\$0" && exec "\$0/Contents/MacOS/sokkou" --install',
+      "#{staged_path}/sokkou.app",
+    ],
   }
-
-  # 公証を受けるまでは ad-hoc 署名なので、隔離の属性が付いたままだと --install を動かせない。
-  # dmg から開いたときも sokkou は入れた先の属性を外している（Installer.swift）。公証を受けたら消す
-  preflight do
-    system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/sokkou.app"]
-  end
 
   # sokkou 自身の --uninstall で、入力ソースから外して止め、入れた版と取っておいた前の版を消す
   uninstall script: {
