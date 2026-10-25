@@ -386,7 +386,7 @@ private struct AboutPage: View {
             }
             .padding(.top, 4)
             Spacer(minLength: 10)
-            Text("変換は tugime（miyaoka）と AzooKeyKanaKanjiConverter、キー操作は macSKK を手本にしています")
+            Text("変換は AzooKeyKanaKanjiConverter、キー操作は macSKK を手本にしています")
                 .font(.system(size: 10.5))
                 .foregroundStyle(Theme.quiet)
                 .multilineTextAlignment(.center)

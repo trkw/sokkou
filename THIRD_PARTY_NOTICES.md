@@ -4,7 +4,6 @@ sokkou のアプリ（dmg の中の sokkou.app）には、次のソフトウェ�
 
 | 名前 | 使い方 | ライセンス |
 | --- | --- | --- |
-| [tugime](https://github.com/miyaoka/tugime) | 日英判定と変換（TugimeCore） | 作者の miyaoka さんの了解を得て使っている |
 | [AzooKeyKanaKanjiConverter](https://github.com/azooKey/AzooKeyKanaKanjiConverter) | かな漢字変換 | MIT |
 | [azooKey_dictionary_storage](https://github.com/ensan-hcl/azooKey_dictionary_storage) | 変換の辞書、`loanwords.tsv` の元 | Apache-2.0 |
 | [llama.cpp（azooKey の版）](https://github.com/azooKey/llama.cpp) | llama.framework | MIT |
@@ -15,10 +14,16 @@ sokkou のアプリ（dmg の中の sokkou.app）には、次のソフトウェ�
 | [swift-collections](https://github.com/apple/swift-collections) | | Apache-2.0 with Runtime Library Exception |
 | [swift-numerics](https://github.com/apple/swift-numerics) | | Apache-2.0 with Runtime Library Exception |
 | [JMdict](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project) | `loanwords.tsv` の元 | CC BY-SA 4.0 |
+| [wordfreq](https://github.com/rspeer/wordfreq) | `english-frequency.tsv` の元（日本語の文章に英字で出る語の頻度） | データは CC BY-SA 4.0 |
+| Webster's Second International Dictionary（1934 年） | `english-words.txt`（英語の綴りらしさを数える語表） | 著作権切れ（パブリックドメイン） |
 
 SKK-JISYO.L などの SKK 辞書（[skk-dev/dict](https://github.com/skk-dev/dict)、多くは GPL-2.0-or-later）はアプリにもリポジトリにも入れない。使う人が自分で取ってきて手元に置く。
 
 meltype（GPL-3.0）と macSKK（GPL-3.0）は動きを参考にしただけで、コードは入っていない。
+
+## wordfreq
+
+`Sources/SokkouConverter/Resources/english-frequency.tsv` は Robyn Speer の [wordfreq](https://github.com/rspeer/wordfreq) 3.1.1 の日本語の頻度から `scripts/make-english-frequency.py` で作った。wordfreq のデータは [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) で使われており、この表も CC BY-SA 4.0 で使える。
 
 ## JMdict
 

@@ -22,5 +22,6 @@ SOFTWARE.
 
 ---
 
-Sources/SokkouEngine/Resources/loanwords.tsv is derived from JMdict and is
-licensed under CC BY-SA 4.0, not MIT. See THIRD_PARTY_NOTICES.md.
+Sources/SokkouEngine/Resources/loanwords.tsv (derived from JMdict) and
+Sources/SokkouConverter/Resources/english-frequency.tsv (derived from wordfreq)
+are licensed under CC BY-SA 4.0, not MIT. See THIRD_PARTY_NOTICES.md.

@@ -1,5 +1,5 @@
 #!/bin/bash
-# .app を dist/ に組み立てて ad-hoc で署名する。tugime の scripts/build-app.sh をもとにしている。
+# .app を dist/ に組み立てて ad-hoc で署名する。
 # 無指定は開発版にする。手元で組み立てたものが普段使いの版と同じ bundle id を名乗り、上書きしないようにするため
 set -euo pipefail
 
@@ -35,7 +35,7 @@ echo "== 組み立て $app"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$app/Contents/Frameworks"
 cp "$bin/sokkou" "$app/Contents/MacOS/sokkou"
-# Zenzai は既定で使わないが、TugimeCore が llama.cpp をリンクするので、実行ファイルは @rpath/llama.framework を探す
+# Zenzai は既定で使わないが、azooKey の Zenzai が llama.cpp をリンクするので、実行ファイルは @rpath/llama.framework を探す
 cp -R "$bin/llama.framework" "$app/Contents/Frameworks/"
 llama=$(readlink -f "$app/Contents/Frameworks/llama.framework/llama")
 if [[ "$(lipo -archs "$llama")" != "arm64" ]]; then
