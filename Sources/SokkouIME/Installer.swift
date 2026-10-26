@@ -75,10 +75,15 @@ enum Installer {
             return 1
         }
         // インストーラーが終わるのを待つ。入れ替えは長くても数十秒
-        if let pid = launch.finished?.pid {
+        guard let pid = launch.finished?.pid else {
+            print("インストーラーを起動したが、プロセスが分からない")
+            return 1
+        }
+        print("== インストーラーを起動した（pid \(pid)）")
+        do {
             let deadline = Date().addingTimeInterval(10 * 60)
-            // サンドボックスの中からはほかのプロセスに kill(pid, 0) で尋ねられないことがあるので、LaunchServices に尋ねる
-            while NSRunningApplication(processIdentifier: pid).map({ !$0.isTerminated }) == true {
+            // プロセスが無くなれば ESRCH が返る。サンドボックスの中からは、生きているほかのプロセスには EPERM が返る
+            while kill(pid, 0) == 0 || errno != ESRCH {
                 guard Date() < deadline else {
                     print("インストーラーが 10 分たっても終わらない")
                     return 1
