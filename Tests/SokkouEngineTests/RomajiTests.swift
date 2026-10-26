@@ -72,4 +72,28 @@ enum Shared {
         let spans = try Shared.engine.get().live(input, leading: .start)
         #expect(spans.contains { $0.kind == .english && $0.text.contains(word) }, "\(spans)")
     }
+    /// 4 かなより短い日本語も、かなのまま確定せずに変換して見せる（kidoku → 既読）
+    @Test func shortJapaneseIsConverted() throws {
+        let spans = try Shared.engine.get().live("kidoku", leading: .start)
+        #expect(spans.map(\.kind) == [.japanese])
+        #expect(spans.map(\.text).joined() != "きどく", "\(spans)")
+    }
+
+    /// 日本語の途中に英字のかけらを残さない（思わなかったnode にしない）
+    @Test func noEnglishFragmentInsideJapanese() throws {
+        let spans = try Shared.engine.get().live("omowanakattanode", leading: .start)
+        #expect(spans.allSatisfy { $0.kind == .japanese }, "\(spans)")
+    }
+
+    /// 日本語に読んだ英単語は 1 つ下で打った綴りに戻せる（gun → 軍 → gun）。英語にならない綴りは最後に置き、変換の候補を先に出す
+    @Test func typedSpellingComesSecondOnlyForEnglishWords() throws {
+        let engine = try Shared.engine.get()
+        let gun = try #require(engine.clauses("gun", leading: .start).clauses.first)
+        if gun.candidates.first != "gun" {
+            #expect(gun.candidates.dropFirst().first == "gun", "\(gun.candidates)")
+        }
+        let yuusenn = try #require(engine.clauses("yuusenn", leading: .start).clauses.first)
+        #expect(yuusenn.candidates.last == "yuusenn", "\(yuusenn.candidates)")
+        #expect(yuusenn.candidates.dropFirst().first != "yuusenn", "\(yuusenn.candidates)")
+    }
 }

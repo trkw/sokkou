@@ -393,10 +393,15 @@ extension Segmenter {
     }
 
     private func japaneseCandidates(reading: String, best: String?, context: JapaneseContext, span: ClauseSpan) -> [String] {
-        var list = (best.map { [$0] } ?? []) + japaneseConverter.alternatives(kana: reading, context: context)
+        var list = best.map { [$0] } ?? []
+        // 区間全体の文節では、打ったままの綴りが区切りの選択で英語になりうるなら最良のすぐ後に置き（gun → 軍 から 1 つ下で gun）、
+        // そうでなければ最後に置く（yuusenn・kawa では 有線・川 の別の候補を先に出す）
+        let whole = reading == span.reading
+        let typedCanBeEnglish = whole && !prefersJapanese(span.source, readable: true)
+        if typedCanBeEnglish { list.append(span.source) }
+        list += japaneseConverter.alternatives(kana: reading, context: context)
         list += [reading, Self.katakana(reading)]
-        // 区間全体の文節なら、打ったままの綴りも選べるようにする
-        if reading == span.reading { list.append(span.source) }
+        if whole, !typedCanBeEnglish { list.append(span.source) }
         return Self.unique(list)
     }
 
