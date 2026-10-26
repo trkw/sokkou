@@ -185,6 +185,11 @@ jobs:
           set -euo pipefail
           rm -rf "$HOME/Library/Input Methods/sokkou.app"
           dist/sokkou.app/Contents/MacOS/sokkou --install
+          # インストーラーは裏で入れ替えるので、入るまで待つ
+          for _ in $(seq 60); do
+            [[ -x "$HOME/Library/Input Methods/sokkou.app/Contents/MacOS/sokkou" ]] && break
+            sleep 1
+          done
           test -x "$HOME/Library/Input Methods/sokkou.app/Contents/MacOS/sokkou"
 
       # 署名と公証は鍵を持たせた sign ジョブでする。.app をそのまま渡す（zip にしないとフレームワークのリンクが崩れる）

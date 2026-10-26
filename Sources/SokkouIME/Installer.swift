@@ -42,9 +42,9 @@ enum Installer {
         }
     }
 
-    /// 端末から動かしたとき（前の版の install.sh、Homebrew、Nix の --install・--uninstall）。インストーラーを起こして終わるのを待つ。
+    /// 端末から動かしたとき（インストーラーを持たない前の版の install.sh が動かす --install・--uninstall）。インストーラーを起こす。
     /// sokkou は App Sandbox の中なので、子のプロセスにするとインストーラーもサンドボックスに入って入れ物の外に書けない。
-    /// そこで別のアプリとして起こす。終わりの状態は受け取れないので、結果が要るときはインストーラーを直に動かす
+    /// そこで別のアプリとして起こす。終わりは待たないので、結果が要るときはインストーラーを直に動かす
     static func run(_ arguments: [String]) -> Int32 {
         // 起こし終えた知らせは裏のスレッドに届く。端末から動かしたときはメインの run loop に入力が無く、メインに渡すと届かないので、鍵をかけた箱で受ける
         nonisolated final class Launch: @unchecked Sendable {
@@ -74,24 +74,10 @@ enum Installer {
             print("インストーラーを起動できない: \(failure)")
             return 1
         }
-        // インストーラーが終わるのを待つ。入れ替えは長くても数十秒
-        guard let pid = launch.finished?.pid else {
-            print("インストーラーを起動したが、プロセスが分からない")
-            return 1
-        }
-        print("== インストーラーを起動した（pid \(pid)）")
-        do {
-            let deadline = Date().addingTimeInterval(10 * 60)
-            // プロセスが無くなれば ESRCH が返る。サンドボックスの中からは、生きているほかのプロセスには EPERM が返る
-            while kill(pid, 0) == 0 || errno != ESRCH {
-                guard Date() < deadline else {
-                    print("インストーラーが 10 分たっても終わらない")
-                    return 1
-                }
-                usleep(200_000)
-            }
-        }
-        print("== インストーラーが終わった。結果は \(helper.path)/Contents/MacOS/sokkou-installer を直に動かすと受け取れる")
+        // 終わりは待たない。サンドボックスの中からは、別のアプリとして起こしたインストーラーが終わったかを確かめる手立てが乏しいため。
+        // 入れ替えは数秒で済み、結果は ~/Library/Input Methods と、インストーラーを直に動かしたときの出力で確かめる
+        print("== インストーラーを起動した（pid \(launch.finished?.pid.map { String($0) } ?? "?")）。入れ替えは裏で続く")
+        fflush(stdout)
         return 0
     }
 
