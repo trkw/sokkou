@@ -29,6 +29,7 @@ build=(swift build --package-path "$root" -c release --build-system swiftbuild -
 
 echo "== swift build"
 "${build[@]}" --product sokkou
+"${build[@]}" --product sokkou-installer
 bin=$("${build[@]}" --show-bin-path)
 
 echo "== 組み立て $app"
@@ -53,15 +54,24 @@ for lproj in en.lproj ja.lproj; do
     sed -e "s/__NAME__/$name/g" "$root/App/$lproj/InfoPlist.strings" > "$app/Contents/Resources/$lproj/InfoPlist.strings"
     plutil -lint "$app/Contents/Resources/$lproj/InfoPlist.strings"
 done
-# 入力メニューの「最新版に更新」が動かす
-cp "$root/install.sh" "$app/Contents/Resources/update.sh"
+# 入れる・更新する・取り除くを受け持つ別のアプリ。sokkou 本体は自分の外に書かない
+installer="$app/Contents/Helpers/sokkou-installer.app"
+mkdir -p "$installer/Contents/MacOS" "$installer/Contents/Resources"
+cp "$bin/sokkou-installer" "$installer/Contents/MacOS/sokkou-installer"
+sed -e "s/__BUNDLE_ID__/$bundle_id/g" -e "s/__VERSION__/$version/g" -e "s/__NAME__/$name/g" "$root/App/Installer-Info.plist" > "$installer/Contents/Info.plist"
+plutil -lint "$installer/Contents/Info.plist"
+# 入力メニューの「最新版に更新」と自動の更新が、インストーラーを通して動かす
+cp "$root/install.sh" "$installer/Contents/Resources/update.sh"
 # 配るときにライセンスと第三者の表示を一緒に渡す
 cp "$root/LICENSE" "$root/THIRD_PARTY_NOTICES.md" "$app/Contents/Resources/"
 swift "$root/scripts/make-icons.swift" "$app/Contents/Resources"
 swift "$root/scripts/make-app-icon.swift" "$app/Contents/Resources"
+cp "$app/Contents/Resources/AppIcon.icns" "$installer/Contents/Resources/"
 
 echo "== ad-hoc 署名"
+# 中のものから順に署名する
 codesign --force --timestamp=none --sign - "$app/Contents/Frameworks/llama.framework"
+codesign --force --timestamp=none --sign - "$installer"
 codesign --force --timestamp=none --sign - "$app"
 codesign --verify --strict "$app"
 echo "== 完了 $app"

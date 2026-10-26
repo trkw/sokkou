@@ -52,10 +52,11 @@ case "--check":
 case "--version":
     print(Updater.build)
     exit(0)
+// 入れる・取り除くは .app に入れたインストーラーがする。前の版の install.sh、Homebrew の cask、Nix のために残す
 case "--install":
-    exit(Installer.run(interactive: false))
+    exit(Installer.run(["--install"]))
 case "--uninstall":
-    exit(Installer.uninstall(purge: CommandLine.arguments.contains("--purge")))
+    exit(Installer.run(["--uninstall"] + (CommandLine.arguments.contains("--purge") ? ["--purge"] : [])))
 case "--bench":
     exit(Bench.run(model: CommandLine.arguments.dropFirst(2).first))
 case "--fetch-model":
@@ -63,9 +64,10 @@ case "--fetch-model":
 case "--snapshot":
     exit(Snapshot.write(to: CommandLine.arguments.dropFirst(2).first ?? "snapshots"))
 default:
-    // dmg から開かれたら、入力メソッドとして動く前に自分をインストールする
+    // dmg から開かれたら、入力メソッドとして動く前にインストーラーに自分を入れてもらう
     if !Installer.isInstalled {
-        exit(Installer.run(interactive: true))
+        Installer.launch(["--install", "--interactive"]) { exit(0) }
+        NSApplication.shared.run()
     }
 }
 

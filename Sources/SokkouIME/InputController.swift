@@ -411,9 +411,9 @@ final class SokkouInputController: IMKInputController {
             let auto = NSMenuItem(title: "新しいリリースを自動で入れる", action: #selector(toggleAutoUpdates(_:)), keyEquivalent: "")
             auto.state = Settings.autoUpdates ? .on : .off
             menu.addItem(auto)
-            if let previous = Updater.previousBuild {
-                menu.addItem(NSMenuItem(title: "前の版に戻す（\(previous)）", action: #selector(rollback(_:)), keyEquivalent: ""))
-            }
+            // 前の版はインストーラーが確かめる。ここから読めれば、どの版に戻るかも出す
+            let previous = Installer.previousBuild.map { "前の版に戻す（\($0)）" } ?? "前の版に戻す"
+            menu.addItem(NSMenuItem(title: previous, action: #selector(rollback(_:)), keyEquivalent: ""))
         }
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "sokkou を取り除く…", action: #selector(uninstall(_:)), keyEquivalent: ""))
