@@ -11,6 +11,7 @@ let package = Package(
     products: [
         .library(name: "SokkouCore", targets: ["SokkouCore"]),
         .executable(name: "sokkou", targets: ["SokkouIME"]),
+        .executable(name: "sokkou-installer", targets: ["SokkouInstaller"]),
     ],
     dependencies: [
         // 1.0 まではマイナー版でも破壊的変更があるため revision で固定する
@@ -47,6 +48,12 @@ let package = Package(
             // 入力メソッドの呼び出しはすべてメインスレッドで届くので、既定の隔離をメインアクターにする（SE-0466）
             swiftSettings: [.defaultIsolation(MainActor.self), cxx],
             linkerSettings: [.linkedFramework("InputMethodKit")]
+        ),
+        // sokkou を ~/Library/Input Methods に入れる・更新する・取り除く別のアプリ。sokkou の .app の Contents/Helpers に入れる。
+        // 本体を App Sandbox に入れても入れ替えられるよう、本体と別のプロセスで動かす
+        .executableTarget(
+            name: "SokkouInstaller",
+            swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
         .testTarget(name: "SokkouCoreTests", dependencies: ["SokkouCore"]),
         // 本物の綴りの表と azooKey の辞書を通すテスト。macOS でだけ組み立てられる

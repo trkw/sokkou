@@ -22,6 +22,12 @@ enum Settings {
         set { defaults.set(newValue, forKey: "skippedRelease") }
     }
 
+    /// 前に起動したときのビルド。違うビルドで起動したら、入れ替わったことを知らせる
+    static var lastBuild: String? {
+        get { defaults.string(forKey: "lastBuild") }
+        set { defaults.set(newValue, forKey: "lastBuild") }
+    }
+
     /// アプリごとに最後に使ったモード。バンドル ID とモードの生の値
     static var appModes: [String: String] {
         get { defaults.dictionary(forKey: "appModes") as? [String: String] ?? [:] }

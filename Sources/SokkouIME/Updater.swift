@@ -1,8 +1,8 @@
 import AppKit
 
-/// 入力メニューと自動の更新から新しい版に入れ替える。中身は .app に入れた install.sh（Resources/update.sh）で、
-/// 取ってきた版の --install がこのプロセスを止めて、入れた版を起動し直す。
-/// 入れ替わったら新しい版が、しくじったら残っているこの版が、窓で知らせる
+/// 入力メニューと自動の更新から新しい版に入れ替える。入れ替えは .app に入れたインストーラー（Installer.helper）に頼む。
+/// インストーラーが取ってきた版を確かめてこのプロセスを止め、入れた版を起動し直す。
+/// 入れ替わったら新しい版が、しくじったらインストーラーが、窓で知らせる
 enum Updater {
     /// 入力メニューに出す、どのビルドか（例: v0.1.7 · abc1234、PR #4 · abc1234）
     static var build: String {
@@ -13,25 +13,12 @@ enum Updater {
 
     /// 更新は普段使いの版だけにする。開発版を入れ替えると、普段使いの版を上書きしてしまう
     static var isAvailable: Bool {
-        Bundle.main.bundleIdentifier?.hasSuffix(".dev") == false
-            && Bundle.main.url(forResource: "update", withExtension: "sh") != nil
+        Bundle.main.bundleIdentifier?.hasSuffix(".dev") == false && Installer.hasHelper
     }
-
-    /// 取っておいた 1 つ前の版のビルド。無ければ nil
-    static var previousBuild: String? {
-        guard let info = NSDictionary(contentsOf: Installer.previous.appendingPathComponent("Contents/Info.plist")) else { return nil }
-        return info["SokkouBuild"] as? String ?? info["CFBundleShortVersionString"] as? String
-    }
-
-    static let log = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/sokkou-update.log")
 
     /// 最新のリリースか、pr を渡したらその PR の CI のビルドを入れる
     static func install(pr: Int? = nil) {
-        var arguments = ["--notify"]
-        if let pr {
-            arguments += ["--pr", String(pr)]
-        }
-        runScript(arguments, reason: pr.map { "PR #\($0) の版を入れる" } ?? "最新版に更新")
+        Installer.launch(["--update"] + (pr.map { ["--pr", String($0)] } ?? []))
     }
 
     /// 取っておいた 1 つ前の版に戻す。戻した版は、自動の更新でもう一度入れない
@@ -39,76 +26,20 @@ enum Updater {
         if let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String, build.hasPrefix("v") {
             Settings.skippedRelease = version
         }
-        runScript(["--notify", Installer.previous.path], reason: "前の版に戻す")
+        Installer.launch(["--update", "--rollback"])
     }
 
-    /// quiet なら、しくじっても窓を出さない（自動の更新。ログには残り、次に確かめたときにまた試す）
-    private static func runScript(_ arguments: [String], reason: String, quiet: Bool = false) {
-        guard let script = Bundle.main.url(forResource: "update", withExtension: "sh") else { return }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/bash")
-        process.arguments = [script.path] + arguments
-        if let handle = openLog() {
-            handle.write(Data("\n==== \(Date().formatted(.iso8601)) \(reason)（\(build) から）\n".utf8))
-            process.standardOutput = handle
-            process.standardError = handle
-        }
-        // 入れ替えられたらこのプロセスは止められ、新しい版が updated.txt を読んで知らせる。
-        // 入れられなかったときはこのプロセスが残るので、ここで知らせる（通知は許可が無いと出ないため）
-        process.terminationHandler = { finished in
-            guard finished.terminationStatus != 0, !quiet else { return }
-            Task { @MainActor in reportFailure() }
-        }
-        do {
-            try process.run()
-        } catch {
-            alert("更新を始められませんでした", error.localizedDescription)
-        }
-    }
-
-    /// 更新のたびに書き足す。512 KB を超えたら古いほうの半分を捨てる
-    private static func openLog() -> FileHandle? {
-        let fileManager = FileManager.default
-        try? fileManager.createDirectory(at: log.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if let size = (try? fileManager.attributesOfItem(atPath: log.path))?[.size] as? Int, size > 512 * 1024,
-           let data = try? Data(contentsOf: log) {
-            try? data.suffix(256 * 1024).write(to: log)
-        }
-        if !fileManager.fileExists(atPath: log.path) {
-            fileManager.createFile(atPath: log.path, contents: nil)
-        }
-        guard let handle = try? FileHandle(forWritingTo: log) else { return nil }
-        handle.seekToEndOfFile()
-        return handle
-    }
-
-    /// install.sh が入れ替える直前に書く。起動し直した新しい版が読んで、入れ替わったことを知らせる
-    static let updatedNote = Installer.support.appendingPathComponent("updated.txt")
-
-    /// 入れ替わった直後の起動なら、どの版になったかを知らせる
+    /// 前に動いたのと違うビルドで起動したら、どの版になったかを知らせる。初めて入れたときは知らせない
     static func reportUpdate() {
-        let path = updatedNote.path
-        guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
-              let written = attributes[.modificationDate] as? Date,
-              let note = try? String(contentsOfFile: path, encoding: .utf8)
-        else { return }
-        try? FileManager.default.removeItem(atPath: path)
-        // 古いものは、入れ替えの途中で止まった跡なので知らせない
-        guard Date().timeIntervalSince(written) < 5 * 60 else { return }
+        let last = Settings.lastBuild
+        Settings.lastBuild = build
+        guard let last, last != build else { return }
+        let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "sokkou"
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
-                alert(note.trimmingCharacters(in: .whitespacesAndNewlines), "入力メニューにも、いま動いているビルドが出ます。")
+                alert("\(name) を \(build) にしました", "入力メニューにも、いま動いているビルドが出ます。")
             }
         }
-    }
-
-    /// ログの最後の「失敗: 」の行を出す。無ければ最後の 3 行
-    private static func reportFailure() {
-        let text = (try? String(contentsOf: log, encoding: .utf8)) ?? ""
-        let lines = text.split(separator: "\n").map(String.init).filter { !$0.isEmpty }
-        let reason = lines.last { $0.contains("失敗: ") }.map { String($0[$0.range(of: "失敗: ")!.upperBound...]) }
-            ?? lines.suffix(3).joined(separator: "\n")
-        alert("更新できませんでした", "\(reason)\n\n今の版（\(build)）のまま使えます。詳しくは ~/Library/Logs/sokkou-update.log")
     }
 
     private static func alert(_ title: String, _ message: String) {
@@ -152,7 +83,7 @@ enum Updater {
         let response = alert.runModal()
         Installer.stepBack()
         guard response == .alertFirstButtonReturn else { return }
-        exit(Installer.uninstall(purge: purge.state == .on))
+        Installer.launch(["--uninstall"] + (purge.state == .on ? ["--purge"] : []))
     }
 
     // MARK: 自動の更新
@@ -195,7 +126,7 @@ enum Updater {
         if let tag = pending {
             if Date().timeIntervalSince(lastKey) >= idleInterval {
                 pending = nil
-                runScript(["--notify"], reason: "自動で \(tag) に更新", quiet: true)
+                Installer.launch(["--update", "--quiet", "--reason", "自動で \(tag) に更新"])
             }
         } else if Date().timeIntervalSince(lastCheck) >= checkInterval {
             lastCheck = Date()

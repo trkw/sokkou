@@ -83,7 +83,6 @@ enum Dictionaries {
 
     /// ほかの SKK のユーザー辞書の語を、sokkou のユーザー辞書に足す
     static func importUserDictionary() {
-        let home = FileManager.default.homeDirectoryForCurrentUser
         let macSKK = home.appendingPathComponent("Library/Containers/net.mtgto.inputmethod.macSKK/Data/Documents/Dictionaries", isDirectory: true)
         let start = FileManager.default.fileExists(atPath: macSKK.path) ? macSKK : home
         guard let url = choose("取り込む SKK のユーザー辞書を選んでください（~/.skk-jisyo、macSKK の skk-jisyo.utf8 など）", multiple: false, in: start)?.first

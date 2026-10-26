@@ -90,6 +90,7 @@ notarize() {
 echo "== 署名 sokkou.app"
 sign=(codesign --force --timestamp --options runtime --keychain "$keychain" --sign "$identity")
 "${sign[@]}" "$app/Contents/Frameworks/llama.framework"
+"${sign[@]}" "$app/Contents/Helpers/sokkou-installer.app"
 "${sign[@]}" "$app"
 codesign --verify --deep --strict --verbose=2 "$app"
 

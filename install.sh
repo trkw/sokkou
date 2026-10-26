@@ -7,7 +7,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/trkw/sokkou/main/install.sh | bash -s -- --pr 4  # PR #4 の CI のビルドを入れる
 #   bash install.sh "dist/sokkou Dev.app"                                                        # 手元で組み立てたものを入れる
 #
-# 入力メニューの「最新版に更新」「PR の版を入れる…」と自動の更新も、.app に入れたこのスクリプトを --notify 付きで動かす。
+# 入力メニューの「最新版に更新」「PR の版を入れる…」と自動の更新も、.app のインストーラーに入れたこのスクリプトを --notify 付きで動かす。
 #
 # 取ってきた dmg は、GitHub がリリースの資産ごとに出す SHA-256 と突き合わせ、中の .app が sokkou の Developer ID で署名されていることとバンドル ID を確かめ、
 # その .app が辞書を読んで変換できるか（--check）を試してから入れる。入れ替えでしくじったら sokkou が前の版に戻す
@@ -173,8 +173,14 @@ log "== 確かめた $name $build"
 
 mkdir -p "$(dirname "$note")"
 echo "$name を $build にしました" > "$note"
-# 入れる処理は sokkou 自身が持つ（dmg から開いたときと同じ）。今の版を取っておき、動いている版を止めて入れ替え、起動し直す。
-# 入れ替えや起動でしくじったら、sokkou が取っておいた版に戻して失敗を返す
-"$src/Contents/MacOS/sokkou" --install || fail "入れ替えられなかった。前の版のまま"
+# 入れる処理は入れる版の .app が持つ（dmg から開いたときと同じ）。今の版を取っておき、動いている版を止めて入れ替え、起動し直す。
+# 入れ替えや起動でしくじったら、取っておいた版に戻して失敗を返す。
+# 新しい版はインストーラー（Contents/Helpers）が入れる。前の版に戻すときなど、インストーラーを持たない版は sokkou 自身が入れる
+installer="$src/Contents/Helpers/sokkou-installer.app/Contents/MacOS/sokkou-installer"
+if [[ -x "$installer" ]]; then
+    "$installer" --install || fail "入れ替えられなかった。前の版のまま"
+else
+    "$src/Contents/MacOS/sokkou" --install || fail "入れ替えられなかった。前の版のまま"
+fi
 say "$name を $build にしました"
 $notify || echo "メニューバーの入力メニューから $name を選ぶと使える"
