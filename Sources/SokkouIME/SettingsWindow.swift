@@ -744,7 +744,7 @@ private struct DictionaryPage: View {
                     Button("取り込む…") { Dictionaries.importUserDictionary() }
                         .buttonStyle(PaperButtonStyle())
                 }
-                SettingsRow(title: "辞書のフォルダ", detail: "~/Library/Application Support/sokkou") {
+                SettingsRow(title: "辞書のフォルダ", detail: Dictionaries.folderForDisplay) {
                     Button("開く") { Dictionaries.openFolder() }
                         .buttonStyle(PaperButtonStyle())
                 }

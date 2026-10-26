@@ -4,9 +4,9 @@ import AppKit
 /// sokkou は ~/Library/Input Methods に自分で書かず、入れる・更新する・取り除くはそちらに頼む
 enum Installer {
     static let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/sokkou-installer.app", isDirectory: true)
-    private static var helperBinary: URL { helper.appendingPathComponent("Contents/MacOS/sokkou-installer") }
-
-    static var hasHelper: Bool { FileManager.default.isExecutableFile(atPath: helperBinary.path) }
+    static var hasHelper: Bool {
+        FileManager.default.isExecutableFile(atPath: helper.appendingPathComponent("Contents/MacOS/sokkou-installer").path)
+    }
 
     /// 入力メソッドの置き場所から起動したか。そこ以外（dmg、ダウンロード、dist）から開かれたらインストールする
     static var isInstalled: Bool {
@@ -42,19 +42,39 @@ enum Installer {
         }
     }
 
-    /// 端末から動かしたとき（--install、--uninstall）。インストーラーを動かして終わりを待ち、その終わりの状態を返す
+    /// 端末から動かしたとき（前の版の install.sh、Homebrew、Nix の --install・--uninstall）。インストーラーを起こして終わるのを待つ。
+    /// sokkou は App Sandbox の中なので、子のプロセスにするとインストーラーもサンドボックスに入って入れ物の外に書けない。
+    /// そこで別のアプリとして起こす。終わりの状態は受け取れないので、結果が要るときはインストーラーを直に動かす
     static func run(_ arguments: [String]) -> Int32 {
-        let process = Process()
-        process.executableURL = helperBinary
-        process.arguments = arguments
-        do {
-            try process.run()
-        } catch {
-            print("インストーラーを動かせない: \(error.localizedDescription)")
+        final class Launch {
+            var done = false
+            var pid: pid_t?
+            var failure: String?
+        }
+        let launch = Launch()
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.arguments = arguments
+        configuration.createsNewApplicationInstance = true
+        configuration.addsToRecentItems = false
+        configuration.activates = false
+        NSWorkspace.shared.openApplication(at: helper, configuration: configuration) { app, error in
+            let pid = app?.processIdentifier
+            let failure = error?.localizedDescription
+            Task { @MainActor in
+                launch.pid = pid
+                launch.failure = failure
+                launch.done = true
+            }
+        }
+        while !launch.done || launch.pid.map({ kill($0, 0) == 0 }) == true {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        }
+        if let failure = launch.failure {
+            print("インストーラーを起動できない: \(failure)")
             return 1
         }
-        process.waitUntilExit()
-        return process.terminationStatus
+        print("== インストーラーが終わった。結果は \(helper.path)/Contents/MacOS/sokkou-installer を直に動かすと受け取れる")
+        return 0
     }
 
     @discardableResult

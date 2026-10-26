@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- 打った文字をほぼすべて見るので、穴を突かれても入れ物（~/Library/Containers）の外のファイルに触れないようにする -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<!-- 新しいリリースの確認（api.github.com）と SKK-JISYO.L の取得（raw.githubusercontent.com）。受けは開けない -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<!-- 「SKK 辞書を追加…」「SKK のユーザー辞書を取り込む…」で選んだファイルだけを読む。読んだら入れ物に写す -->
+	<key>com.apple.security.files.user-selected.read-only</key>
+	<true/>
+	<!-- Nix の設定（programs.sokkou.autoUpdate）を読むだけ。Nix は入れ物の外の ~/Library/Preferences に書く -->
+	<key>com.apple.security.temporary-exception.shared-preference.read-only</key>
+	<array>
+		<string>__BUNDLE_ID__.managed</string>
+	</array>
+	<!-- 入力メソッドとしてアプリとつながるための名前の登録（Info.plist の InputMethodConnectionName） -->
+	<key>com.apple.security.temporary-exception.mach-register.global-name</key>
+	<string>__BUNDLE_ID___Connection</string>
+</dict>
+</plist>

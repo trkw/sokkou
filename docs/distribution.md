@@ -1,6 +1,6 @@
 # 配り方
 
-リリースは main への push ごとに `release.yml` が作る（版は `0.1.<実行番号>`）。dmg のほかに、次の 3 つの入口がある。どれも、入れる処理は sokkou 自身の `--install`（dmg から開いたときと同じ）に任せる。
+リリースは main への push ごとに `release.yml` が作る（版は `0.1.<実行番号>`）。dmg のほかに、次の 3 つの入口がある。どれも、入れる処理は sokkou に入れたインストーラー（`Contents/Helpers/sokkou-installer.app`）の `--install`（dmg から開いたときと同じ）に任せる。sokkou 本体は App Sandbox の中で動き、`~/Library/Input Methods` に書けないため。
 
 | 入口 | 置き場所 | 版を上げるもの |
 | --- | --- | --- |
@@ -14,7 +14,7 @@
 
 - cask は `scripts/make-cask.sh <版> <sha256>` が書く。tap の中のファイルは手で直さず、このスクリプトを直す
 - `auto_updates true` にしてあるので、`brew upgrade` は sokkou を入れ替えない（`brew upgrade --greedy` なら入れ替える）
-- 中身は `installer script:` で dmg の中の `sokkou.app/Contents/MacOS/sokkou --install` を動かす。`brew uninstall` は sokkou 自身の `--uninstall` で入力ソースから外し、入れた版と取っておいた前の版を消す。`--zap` で辞書と設定も消す
+- 中身は `installer script:` で dmg の中の sokkou に入れたインストーラー（`sokkou.app/Contents/Helpers/sokkou-installer.app`）の `--install` を動かす。`brew uninstall` はインストーラーの `--uninstall` で入力ソースから外し、入れた版と取っておいた前の版を消す。`--zap` で辞書と設定（入れ物の `~/Library/Containers/io.github.trkw.inputmethod.sokkou` も）消す
 - CI（ci.yml の app）は毎回、組み立てた dmg をこの cask で入れて消せるかを確かめる
 
 ### はじめに一度だけ（trkw）
@@ -38,7 +38,7 @@ token が無いあいだ、`homebrew` ジョブは警告を出して何もしな
 - `packages.aarch64-darwin.sokkou`（`default` も同じ）: リリースの dmg を取ってきて `$out/Library/Input Methods/sokkou.app` に置く。Swift の組み立てに Xcode が要るので Nix では組み立てない
 - `darwinModules.default` / `homeManagerModules.default`: `programs.sokkou.enable` で、利用者として `--install` を動かす。版が変わったときだけ動かす（動いている sokkou を入れ替えるため）
   - nix-darwin は root で動くので、`programs.sokkou.user`（既定は `system.primaryUser`）のログインのセッションで動かす
-  - `autoUpdate`（既定 `true`）は sokkou の設定の `autoUpdates` に書く。`true` なら自動更新が入れた新しい版を古い版に戻さない。`false` なら flake.lock の版にそろえる
+  - `autoUpdate`（既定 `true`）は `io.github.trkw.inputmethod.sokkou.managed` の `autoUpdates` に書く。sokkou は App Sandbox の中で動くので、入れ物の外の設定はこれだけを読み、入力メニューの設定より先に使う。`true` なら自動更新が入れた新しい版を古い版に戻さない。`false` なら flake.lock の版にそろえる
 - `overlays.default`: `pkgs.sokkou` を足す
 - ストアから写すと読み取り専用になるので、`--install` と activation の両方で書けるようにしている。でないと自動更新が入れ替えられない
 - CI（ci.yml の nix）は Linux で `nix/test/flake.nix` を評価し、モジュールが nix-darwin と home-manager に入るかを確かめる

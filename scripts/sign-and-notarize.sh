@@ -91,7 +91,11 @@ echo "== 署名 sokkou.app"
 sign=(codesign --force --timestamp --options runtime --keychain "$keychain" --sign "$identity")
 "${sign[@]}" "$app/Contents/Frameworks/llama.framework"
 "${sign[@]}" "$app/Contents/Helpers/sokkou-installer.app"
-"${sign[@]}" "$app"
+# 本体の権限（App Sandbox など）は build-app.sh が付けたものをそのまま残す
+entitlements_before=$(codesign -d --entitlements - --xml "$app" 2>/dev/null)
+"${sign[@]}" --preserve-metadata=entitlements "$app"
+[[ "$(codesign -d --entitlements - --xml "$app" 2>/dev/null)" == "$entitlements_before" ]] \
+    || { echo "署名し直したら本体の entitlements が変わった" >&2; exit 1; }
 codesign --verify --deep --strict --verbose=2 "$app"
 
 ditto -c -k --keepParent "$app" "$work/sokkou.zip"

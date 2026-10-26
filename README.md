@@ -23,7 +23,7 @@ SKK の手触りで、打てばそのまま変換される、自分用の macOS 
 Apple シリコンの macOS 14 以降で動く。
 
 1. [最新のリリース](https://github.com/trkw/sokkou/releases/latest) から `sokkou-macos-arm64.dmg` を取ってきて開く
-2. 窓の sokkou をダブルクリックする。sokkou が自分を `~/Library/Input Methods` に入れ、入力ソースに「sokkou (日本語)」と「sokkou (英数)」を足す
+2. 窓の sokkou をダブルクリックする。sokkou に入っているインストーラーが sokkou を `~/Library/Input Methods` に入れ、入力ソースに「sokkou (日本語)」と「sokkou (英数)」を足す
 3. 「sokkou を入れました」と出たら「sokkou に切り替える」を押す。入力ソースの一覧に出ないときだけ、ログインし直す
 
 ターミナルからなら 1 行で入る。こちらは次の「開けません」も出ない。
@@ -59,7 +59,10 @@ main に入るたびに CI が dmg を組み立ててリリースに置き、Hom
 
 入力メソッドは打った文字のほとんどを見るので、sokkou が何をして何をしないかを書いておく。
 
-- 打った文字や覚えた候補を外へ送らない。覚えた候補とユーザー辞書は `~/Library/Application Support/sokkou` にだけ置く
+- 打った文字や覚えた候補を外へ送らない。覚えた候補とユーザー辞書は sokkou の入れ物（`~/Library/Containers/io.github.trkw.inputmethod.sokkou/Data/Library/Application Support/sokkou`）にだけ置く
+- sokkou は App Sandbox の中で動く。触れられるファイルは自分の入れ物と、「SKK 辞書を追加…」などで自分で選んだファイルだけ。穴を突かれても、ほかのファイルを読んだり書き換えたりできない。権限は `App/sokkou.entitlements` に書いたものだけで、CI が毎回それ以外が付いていないかを確かめる
+- 通信の権限は残している（下の 2 つに要る）。受け付けの口は開けない
+- `~/Library/Input Methods` への導入・更新・取り除きは、sokkou の中に入れた別のアプリ（`Contents/Helpers/sokkou-installer.app`）がする。こちらはサンドボックスの外で動き、打った文字は見ない
 - つなぐ先は GitHub だけ。新しいリリースの確認（1 時間に 1 回、`api.github.com`）と dmg の取得、それに頼まれたときだけ SKK-JISYO.L を取る
 - 更新で入れる dmg は、GitHub がリリースの資産ごとに出す SHA-256 と突き合わせ、中の .app が trkw の Developer ID（Team ID `BCA6Z83Q5N`）で署名されていることを確かめてから入れる。fork からの PR のように署名の違うビルドは入らない
 - SKK-JISYO.L は skk-dev/dict のコミットを固定して取り、SHA-256 が合わなければ入れない
@@ -69,15 +72,17 @@ main に入るたびに CI が dmg を組み立ててリリースに置き、Hom
 入力メニューの「sokkou を取り除く…」を選ぶ。入力ソースから外し、`~/Library/Input Methods/sokkou.app` と取っておいた前の版を消す。覚えた候補と設定も消すかを選べる。ターミナルからなら:
 
 ```sh
-~/Library/Input\ Methods/sokkou.app/Contents/MacOS/sokkou --uninstall          # 覚えた候補（~/Library/Application Support/sokkou）は残す
+~/Library/Input\ Methods/sokkou.app/Contents/MacOS/sokkou --uninstall          # 覚えた候補とユーザー辞書は残す
 ~/Library/Input\ Methods/sokkou.app/Contents/MacOS/sokkou --uninstall --purge  # 覚えた候補と設定も消す
 ```
 
 ## 辞書
 
-- **ユーザー辞書**: `~/Library/Application Support/sokkou/skk-jisyo.utf8`（SKK 形式、UTF-8）。候補の「登録…」で登録した語が入る。`X` で消した語は隣の `ignored.tsv` に残り、変換エンジンの候補からも外れる
+辞書と覚えた候補は、sokkou の入れ物の `~/Library/Containers/io.github.trkw.inputmethod.sokkou/Data/Library/Application Support/sokkou` に置く（入力メニューの「辞書のフォルダを開く」で開ける）。App Sandbox に入れる前の版の `~/Library/Application Support/sokkou` にあったものは、入れた版を初めて起動したときに macOS がここへ写す。
+
+- **ユーザー辞書**: `skk-jisyo.utf8`（SKK 形式、UTF-8）。候補の「登録…」で登録した語が入る。`X` で消した語は隣の `ignored.tsv` に残り、変換エンジンの候補からも外れる
 - **取り込み**: 入力メニューの「SKK のユーザー辞書を取り込む…」で `~/.skk-jisyo` や macSKK の `skk-jisyo.utf8` を選ぶと、無い語だけを足す（UTF-8 と EUC-JP を読む）
-- **SKK 辞書**: 入力メニューの「SKK-JISYO.L を入れる」で [skk-dev/dict](https://github.com/skk-dev/dict) から取ってくる。「SKK 辞書を追加…」でほかの辞書（人名、地名など）も足せる。辞書は `~/Library/Application Support/sokkou/Dictionaries/` に置かれ、中のファイルはすべて読む。SKK 辞書の語は ▽ の候補と文節選択の候補の後ろに出る
+- **SKK 辞書**: 入力メニューの「SKK-JISYO.L を入れる」で [skk-dev/dict](https://github.com/skk-dev/dict) から取ってくる。「SKK 辞書を追加…」でほかの辞書（人名、地名など）も足せる。辞書は同じところの `Dictionaries/` に置かれ、中のファイルはすべて読む。SKK 辞書の語は ▽ の候補と文節選択の候補の後ろに出る
 
 ## 設定
 
@@ -142,7 +147,13 @@ Xcode 26 が要る。
 swift test                                   # キー操作の状態のテスト（SokkouCore は Linux でも動く）
 scripts/build-app.sh                         # dist/sokkou Dev.app を組み立てる
 bash install.sh "dist/sokkou Dev.app"        # 組み立てたものを入れる
-"dist/sokkou Dev.app/Contents/MacOS/sokkou" --snapshot snapshots   # 候補の窓とモードの札を画像に書き出す
+```
+
+sokkou は App Sandbox の中で動くので、`--snapshot` は作業ディレクトリに書けない。権限を外した写しで書き出す:
+
+```sh
+ditto "dist/sokkou Dev.app" /tmp/snap.app && codesign --force --sign - /tmp/snap.app
+/tmp/snap.app/Contents/MacOS/sokkou --snapshot snapshots   # 候補の窓とモードの札を画像に書き出す
 ```
 
 手元で組み立てたものは ad-hoc 署名になる。配る dmg の署名と公証は [docs/signing.md](docs/signing.md)。

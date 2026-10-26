@@ -62,6 +62,9 @@ sed -e "s/__BUNDLE_ID__/$bundle_id/g" -e "s/__VERSION__/$version/g" -e "s/__NAME
 plutil -lint "$installer/Contents/Info.plist"
 # 入力メニューの「最新版に更新」と自動の更新が、インストーラーを通して動かす
 cp "$root/install.sh" "$installer/Contents/Resources/update.sh"
+# App Sandbox に入れた版を初めて起動したとき、これまでの辞書・覚えた候補・設定を入れ物に写す
+cp "$root/App/container-migration.plist" "$app/Contents/Resources/"
+plutil -lint "$app/Contents/Resources/container-migration.plist"
 # 配るときにライセンスと第三者の表示を一緒に渡す
 cp "$root/LICENSE" "$root/THIRD_PARTY_NOTICES.md" "$app/Contents/Resources/"
 swift "$root/scripts/make-icons.swift" "$app/Contents/Resources"
@@ -69,9 +72,14 @@ swift "$root/scripts/make-app-icon.swift" "$app/Contents/Resources"
 cp "$app/Contents/Resources/AppIcon.icns" "$installer/Contents/Resources/"
 
 echo "== ad-hoc 署名"
-# 中のものから順に署名する
+# 中のものから順に署名する。本体は App Sandbox に入れ、権限は App/sokkou.entitlements のものだけにする。
+# インストーラーは入れ物の外（~/Library/Input Methods）に書くので、サンドボックスに入れない
+entitlements=$(mktemp)
+trap 'rm -f "$entitlements"' EXIT
+sed -e "s/__BUNDLE_ID__/$bundle_id/g" "$root/App/sokkou.entitlements" > "$entitlements"
+plutil -lint "$entitlements"
 codesign --force --timestamp=none --sign - "$app/Contents/Frameworks/llama.framework"
 codesign --force --timestamp=none --sign - "$installer"
-codesign --force --timestamp=none --sign - "$app"
+codesign --force --timestamp=none --sign - --entitlements "$entitlements" "$app"
 codesign --verify --strict "$app"
 echo "== 完了 $app"
