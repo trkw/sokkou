@@ -67,6 +67,8 @@ enum Shared {
     @Test(arguments: [
         ("kyouhagithubdekensaku", "github"), ("yahoodesirabeta", "yahoo"),
         ("vnodewotukuru", "vnode"), ("statewokaeru", "state"),
+        // Meltype 1.3.1-pre の判定の直しと同じ入力。英単語の最後の d・t に続く わ行、子音 2 つで始まる語の後の to、母音に挟まれた略語（e2e）も英語のまま
+        ("androidwatukaeru", "android"), ("ffmpegtopythonwotukau", "ffmpeg"), ("pptwotukuru", "ppt"), ("e2etesutowokaku", "e2e"),
     ])
     func commonEnglishWordsStayEnglish(input: String, word: String) throws {
         let spans = try Shared.engine.get().live(input, leading: .start)
