@@ -70,7 +70,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .appearance: "候補の窓の形を選びます。次に候補を出したときから変わります"
         case .colors: "地の色と差し色を選びます。候補の窓も札も、この窓も同じ色になります"
         case .skk: "自動変換と ; の ▽ はそのままに、SKK の手ざわりを足します"
-        case .dictionaries: "変換に使う辞書と、自分の単語"
+        case .dictionaries: "変換に使う辞書とモデル、自分の単語"
         case .keys: "覚えておくと楽なキー"
         case .about: nil
         }
@@ -111,6 +111,12 @@ final class SettingsModel {
     var forgotten = false
     /// 追加の SKK 辞書のファイルの名前
     var dictionaries: [String] = []
+    /// 賢い変換に選んでいるモデル。nil なら使わない
+    var conversionModel = ConversionModel.selected
+    /// 取ってきてあるモデル
+    var installedModels: Set<String> = []
+    /// 取ってきている途中のモデル
+    var fetchingModel: String?
 
     func refresh() {
         learns = Settings.learns
@@ -122,6 +128,43 @@ final class SettingsModel {
         enabled = InputSourceRow.enabled()
         installed = InputSourceRow.installed()
         dictionaries = Dictionaries.installed()
+        conversionModel = ConversionModel.selected
+        installedModels = Set(ConversionModel.all.filter(\.isInstalled).map(\.id))
+    }
+
+    /// 賢い変換のモデルを選ぶ。取ってきていなければ先に取ってくる。モデルは起動したときに読むので、確かめてから起動し直す
+    func choose(_ model: ConversionModel?) {
+        guard model != conversionModel, fetchingModel == nil else { return }
+        guard let model, !model.isInstalled else {
+            switchModel(to: model)
+            return
+        }
+        fetchingModel = model.id
+        Task {
+            do {
+                try await model.fetch()
+                fetchingModel = nil
+                refresh()
+                switchModel(to: model)
+            } catch {
+                fetchingModel = nil
+                Installer.alert("\(model.title) を取ってこられませんでした", error.localizedDescription)
+                Installer.stepBack()
+            }
+        }
+    }
+
+    private func switchModel(to model: ConversionModel?) {
+        let name = model?.title ?? "使わない設定"
+        let response = Installer.alert(
+            "\(name)に切り替えます",
+            "モデルは起動したときに読み込むので、sokkou を起動し直します。打っている途中の文字は確定されず、設定の窓は開き直します。",
+            buttons: ["切り替える", "やめる"]
+        )
+        Installer.stepBack()
+        guard response == .alertFirstButtonReturn else { return }
+        ConversionModel.selected = model
+        ConversionModel.relaunch()
     }
 
     func isOn(_ feature: SKKFeature) -> Binding<Bool> {
@@ -648,6 +691,12 @@ private struct DictionaryPage: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 20) {
+            SettingsSection(title: "賢い変換") {
+                modelRow(nil, title: "使わない", detail: "azooKey の辞書だけで変換する。いちばん軽い", first: true)
+                ForEach(ConversionModel.all) { model in
+                    modelRow(model, title: model.title, detail: model.detail)
+                }
+            }
             SettingsSection(title: "引く辞書") {
                 SettingsRow(title: "いつもの辞書", detail: "azooKey の辞書と、英単語のカタカナ", first: true) {
                     Text("入っています")
@@ -688,6 +737,34 @@ private struct DictionaryPage: View {
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 22)
+    }
+}
+
+extension DictionaryPage {
+    /// 賢い変換のモデルの 1 行。取ってきていないモデルは、大きさを出して「入れる」にする
+    private func modelRow(_ model: ConversionModel?, title: String, detail: String, first: Bool = false) -> some View {
+        let selected = model?.id == self.model.conversionModel?.id
+        let installed = model.map { self.model.installedModels.contains($0.id) } ?? true
+        return Button {
+            self.model.choose(model)
+        } label: {
+            SettingsRow(title: title, detail: detail, first: first) {
+                if let model, self.model.fetchingModel == model.id {
+                    Text("取ってきています…")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(Theme.quiet)
+                } else if let model, !installed {
+                    Text("入れる（\(model.size)）")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(Theme.accent)
+                } else {
+                    Choice(selected: selected)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 

@@ -6,12 +6,15 @@ public enum ConversionMethod: Sendable, Hashable {
     case azooKey
     /// 採点は azooKey、表示は azooKey の Zenzai に GGUF のモデルを渡して選び直す
     case azooKeyZenzai(weight: URL)
+    /// 採点と候補の窓は azooKey（Zenzai なし）、表示は zenz 形式の GGUF のモデル（genmai など）を直接動かした出力そのもの
+    case direct(weight: URL)
 
     /// 方式が読むモデルのファイル。nil ならモデルを使わない方式
     public var weight: URL? {
         switch self {
         case .azooKey: nil
         case .azooKeyZenzai(let weight): weight
+        case .direct(let weight): weight
         }
     }
 
@@ -25,6 +28,9 @@ public enum ConversionMethod: Sendable, Hashable {
             let converter = AzooKeyConverter(zenzaiWeight: weight)
             converter.preloadZenzai()
             return converter
+        case .direct(let weight):
+            // azooKey には Zenzai を渡さない。llama.cpp にモデルを載せるのは ZenzGenerator だけになる
+            return DirectConverter(scorer: AzooKeyConverter(zenzaiWeight: nil), generator: ZenzGenerator(weight: weight))
         }
     }
 }

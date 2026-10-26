@@ -78,6 +78,15 @@ jobs:
       - name: Bench
         run: dist/sokkou.app/Contents/MacOS/sokkou --bench | tee -a "$GITHUB_STEP_SUMMARY"
 
+      # 賢い変換のモデルを、入力メソッドと同じ取り方（コミットで固定し SHA-256 で確かめる）で取ってきて、同じ打鍵で測る
+      - name: Bench with conversion models
+        run: |
+          set -euo pipefail
+          for model in zenzai genmai; do
+            dist/sokkou.app/Contents/MacOS/sokkou --fetch-model "$model"
+            dist/sokkou.app/Contents/MacOS/sokkou --bench "$model" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+
       # dmg を作れるかと、dmg の外（dist）から --install で入れられるか
       - name: Make dmg
         run: scripts/make-dmg.sh
