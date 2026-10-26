@@ -461,13 +461,17 @@ public final class Composer {
             committed += typingText(typing)
             finish()
             return false
-        case .pageDown:
-            guard mode == .hiragana else { break }
+        case .pageDown where mode == .hiragana:
             var selecting = startSelecting(typing.keys)
             selecting.window = selecting.list.clauses[selecting.focus].candidates.count > 1
             phase = .selecting(selecting)
             return true
-        case .eisu, .kana, .pageUp:
+        case .pageUp, .pageDown:
+            // 送るページが無いので、確定してからアプリに渡す（割り当ての無いキーと同じ）
+            committed += typingText(typing)
+            finish()
+            return false
+        case .eisu, .kana:
             break
         }
         phase = .typing(typing)

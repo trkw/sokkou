@@ -161,6 +161,11 @@ struct ComposerSKKFeelTests {
     @Test func pageKeysTurnWindowPages() {
         let composer = composer()
         #expect(!type(composer, [.pageDown]))
+        // 打っている途中の PageUp は、確定してからアプリに渡す
+        type(composer, characters("kaku"))
+        #expect(!type(composer, [.pageUp]))
+        #expect(composer.takeCommitted() == "書く")
+        #expect(!composer.isComposing)
         type(composer, characters("kaku") + [.pageDown])
         #expect(composer.presentation.window?.page == 0)
         type(composer, [.pageDown])
