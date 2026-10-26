@@ -319,13 +319,10 @@ public final class Segmenter {
             let japaneseReach = japaneseEnds.reduce(into: japaneseEnds) { $0.formUnion(chained[$1]) }
             // 句読点は前の語の後ろに付くので、英語区間を句読点から始めない。入力の先頭は、入力欄の前の英語に付いている
             if start > 0, Self.punctuation[chars[start]] != nil { continue }
-            // 入力欄のカーソルの前の数字に続く英語区間は、入力の中で数字に続くとき（3nin を 1 つの英語区間にする）と同じく、数字ごと採点する
-            let englishPrefix: String
-            if start == 0, case .afterNumber(let digits) = leading { englishPrefix = digits } else { englishPrefix = "" }
             for end in (start + 1)...n {
                 let source = String(chars[start..<end])
                 if prefersJapanese(source, readable: readableEnds.contains(end)), japaneseReach.contains(end) { continue }
-                relax(end, start, englishSegment(source, context: context, after: englishPrefix), after: start == 0 ? nil : .japanese)
+                relax(end, start, englishSegment(source, context: context), after: start == 0 ? nil : .japanese)
             }
         }
 
@@ -368,10 +365,9 @@ public final class Segmenter {
     /// （tugime の 2113cc9 と同じ値。日本語の技術文書の英単語の区切りで確かめられたもの）
     static let singleLetterEnglishPenalty = 3.0
 
-    /// prefix は、区間の前にあって区間と 1 つの綴りとして読む文字列（入力欄のカーソルの前の数字）。採点にだけ使う
-    private func englishSegment(_ source: String, context: JapaneseContext, after prefix: String = "") -> Segment {
+    private func englishSegment(_ source: String, context: JapaneseContext) -> Segment {
         let singleLetter = source.filter(\.isLetter).count == 1 ? Self.singleLetterEnglishPenalty : 0
-        let score = weights.english * english.logProbability(prefix + source) - weights.englishSpanPenalty - singleLetter
+        let score = weights.english * english.logProbability(source) - weights.englishSpanPenalty - singleLetter
         return Segment(kind: .english, source: source, reading: source, output: source, score: score, context: context)
     }
 
