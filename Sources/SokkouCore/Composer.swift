@@ -817,7 +817,7 @@ public final class Composer {
         }
         learn(selecting, through: selecting.focus)
         committed += result.text
-        leading = result.text.last.map { $0.isASCII ? .afterEnglish : .afterJapanese } ?? leading
+        leading = Leading(ending: result.text) ?? leading
         selecting.list = decorated(result.rest)
         selecting.keys = result.keys
         selecting.focus = 0
@@ -1218,7 +1218,7 @@ public final class Composer {
                 break
             }
         }
-        let leading: Leading = registering.word.last.map { $0.isASCII ? .afterEnglish : .afterJapanese } ?? .start
+        let leading = Leading(ending: registering.word) ?? .start
         let handled = registering.inner.handle(key, leading: { leading })
         registering.word += registering.inner.takeCommitted()
         if !handled {

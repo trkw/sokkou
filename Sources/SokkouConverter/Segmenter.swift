@@ -81,11 +81,27 @@ public final class Segmenter {
         case start
         /// 日本語の文の途中
         case afterJapanese
-        /// 英字・数字・記号など ASCII の後
+        /// 英字・記号など ASCII の後
         case afterEnglish
+        /// 半角数字の後。最初の日本語区間は、入力の中で数字に続くときと同じく助数詞として読む（3 の後の nin → 人）
+        case afterNumber(String)
 
         /// 最初の日本語区間の評価のしかた
-        var japaneseContext: JapaneseContext { self == .start ? .start : .afterCaret }
+        var japaneseContext: JapaneseContext {
+            switch self {
+            case .start: .start
+            case .afterNumber(let digits): .afterNumber(digits)
+            case .afterJapanese, .afterEnglish: .afterCaret
+            }
+        }
+
+        /// ASCII の後か。入力の先頭の句読点を英語のまま続けるかを決める
+        var followsASCII: Bool {
+            switch self {
+            case .afterEnglish, .afterNumber: true
+            case .start, .afterJapanese: false
+            }
+        }
     }
 
     /// 英語区間に続く日本語区間の評価のしかた。英語区間が数字で終わるなら、その数字に続く形（1500 円、3 回）にする
@@ -212,7 +228,7 @@ public final class Segmenter {
             var runSpans: [ScoredSpan] = []
             let collect: ((ScoredSpan) -> Void)? = observe.map { _ in { runSpans.append($0) } }
             let before = segmentRun(String(chars[runStart..<i]), leading: runContext, offset: runStart, observe: collect)
-            let previousIsEnglish = before.last.map { $0.kind == .english } ?? (runLeading == .afterEnglish)
+            let previousIsEnglish = before.last.map { $0.kind == .english } ?? runLeading.followsASCII
             if symbol == nil, previousIsEnglish { continue }
             runSpans.forEach { observe?($0) }
             segments += before

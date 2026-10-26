@@ -49,6 +49,8 @@ final class SokkouInputController: IMKInputController {
     private var showsMarkedText = false
     /// 入力欄のアプリのバンドル ID。モードをアプリごとに覚えるのに使う
     private var app: String?
+    /// sokkou がこの入力欄で確定した文字列。カーソルの前を返さない入力欄で、打ち始めの形を決めるのに使う
+    private var ownCommits = OwnCommits()
 
     // MARK: InputMethodKit からの呼び出し
     // InputMethodKit の基底クラスは隔離の指定を持たないので、上書きする関数は nonisolated にし、中身を onMain でメインアクターとして動かす
@@ -103,6 +105,7 @@ final class SokkouInputController: IMKInputController {
                 composer.commitAll()
                 flush(target)
             }
+            ownCommits = OwnCommits()
             candidatePanel.hide()
             modeBadge.hide()
         }
@@ -131,12 +134,14 @@ final class SokkouInputController: IMKInputController {
         if IsSecureEventInputEnabled() {
             composer.commitAll()
             flush(client)
+            ownCommits.forget()
             return false
         }
         guard let key = Self.key(for: event) else {
             // 割り当ての無いキー（Cmd・Option 付き、ファンクションキーなど）は、確定してからアプリに渡す
             composer.commitAll()
             flush(client)
+            ownCommits.forget()
             return false
         }
         // 設定はほかの入力欄のメニューや設定の窓からも変わるので、打鍵ごとに読み直す
@@ -148,8 +153,9 @@ final class SokkouInputController: IMKInputController {
         }
         let before = composer.mode
         let wasComposing = composer.isComposing
-        let handled = composer.handle(key, leading: { Self.leadingContext(of: client) })
+        let handled = composer.handle(key, leading: { leadingContext(of: client) })
         flush(client)
+        if !handled { ownCommits.forget() }
         if case .control = key, handled, !wasComposing, !composer.isComposing, ModeMemory.isTerminal(app) {
             tellKeyWasUsed(client)
         }
@@ -272,16 +278,24 @@ final class SokkouInputController: IMKInputController {
         return .character(Character(text))
     }
 
-    /// 入力欄のカーソルの直前の 1 文字を読む。読めない、空白・改行、文末の記号の後なら文頭とする
-    private static func leadingContext(of client: IMKTextInput) -> Leading {
-        let selection = client.selectedRange()
-        guard selection.location != NSNotFound, selection.location > 0,
-              let before = client.attributedSubstring(from: NSRange(location: selection.location - 1, length: 1))?.string.last,
-              !before.isWhitespace,
-              !before.unicodeScalars.contains(where: \.properties.isSentenceTerminal)
-        else { return .start }
-        return before.isASCII ? .afterEnglish : .afterJapanese
+    /// 入力欄のカーソルの前から、打ち始めの形を決める。空白・改行、文末の記号の後なら文頭、半角数字の後なら数字の後とする。
+    /// カーソルの前を返さない入力欄（Ghostty などのターミナル）では、sokkou がこの入力欄で確定した文字列に続ける
+    private func leadingContext(of client: IMKTextInput) -> Leading {
+        let before = Self.textBeforeCaret(of: client)
+        if !before.isEmpty { ownCommits.fieldShowsText = true }
+        return Leading(before: ownCommits.fieldShowsText ? before : ownCommits.text)
     }
+
+    /// 入力欄のカーソルの前の、最大 maxLeadingLength 文字（UTF-16）。読めなければ空。
+    /// 数字の後かを決めるのに要る分だけ読む。パスワード欄では安全入力でキーがここまで来ないので、読まない
+    private static func textBeforeCaret(of client: IMKTextInput) -> String {
+        let selection = client.selectedRange()
+        guard selection.location != NSNotFound, selection.location > 0 else { return "" }
+        let length = min(selection.location, maxLeadingLength)
+        return client.attributedSubstring(from: NSRange(location: selection.location - length, length: length))?.string ?? ""
+    }
+
+    private static let maxLeadingLength = 16
 
     // MARK: 表示と確定
 
@@ -290,6 +304,7 @@ final class SokkouInputController: IMKInputController {
         let text = composer.takeCommitted()
         if !text.isEmpty {
             client.insertText(text, replacementRange: NSRange(location: NSNotFound, length: 0))
+            ownCommits.append(text)
             showsMarkedText = false
         }
         // 確定を取り消したら、入力欄の確定した文字列を未確定の文字列で置き換える
@@ -442,5 +457,21 @@ final class SokkouInputController: IMKInputController {
             Settings.learns.toggle()
             Self.apply(to: composer)
         }
+    }
+}
+
+/// sokkou が入力欄で確定した文字列の、末尾の数文字。カーソルの前を返さない入力欄（Ghostty は selectedRange に {0, 0} を返す）では、
+/// 打ち始めをこれに続ける。アプリにキーを渡したら（カーソルが動いたかもしれない）捨て、入力欄を離れたら作り直す。
+/// 入力欄が一度でもカーソルの前を返したら、その入力欄では使わない（読めるアプリでカーソルを先頭へ移したら文頭のまま）
+struct OwnCommits {
+    private(set) var text = ""
+    var fieldShowsText = false
+
+    mutating func append(_ committed: String) {
+        text = String((text + committed).suffix(16))
+    }
+
+    mutating func forget() {
+        text = ""
     }
 }

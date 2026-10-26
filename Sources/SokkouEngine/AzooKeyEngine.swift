@@ -280,6 +280,7 @@ extension Leading {
         case .start: .start
         case .afterJapanese: .afterJapanese
         case .afterEnglish: .afterEnglish
+        case .afterNumber(let digits): .afterNumber(digits)
         }
     }
 }
