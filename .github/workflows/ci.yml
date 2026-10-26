@@ -49,6 +49,10 @@ jobs:
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
 
       - name: Evaluate
+        # nix/test の入力（home-manager など）を GitHub の API から引く。認証なしだとランナーの IP ごとの上限に当たって 403 になるので、
+        # このジョブのトークン（contents: read）を渡す
+        env:
+          NIX_CONFIG: access-tokens = github.com=${{ github.token }}
         run: nix eval --json --no-write-lock-file ./nix/test#tests --override-input sokkou "path:$PWD"
 
   app:
