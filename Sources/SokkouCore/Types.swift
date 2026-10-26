@@ -25,6 +25,32 @@ public enum Leading: Sendable, Equatable {
     case start
     case afterJapanese
     case afterEnglish
+    /// 半角数字の後。続く日本語は助数詞として読む（3 の後の nin → 人）
+    case afterNumber(String)
+}
+
+extension Leading {
+    /// 入力欄のカーソルの前の文字列から決める。空か、空白・改行・文末の記号の後なら文頭
+    public init(before text: some StringProtocol) {
+        guard let last = text.last, !last.isWhitespace,
+              !last.unicodeScalars.contains(where: \.properties.isSentenceTerminal)
+        else {
+            self = .start
+            return
+        }
+        self = Leading(ending: text) ?? .start
+    }
+
+    /// 文字列に続けて打つときの形。半角数字で終われば数字の後、ASCII なら英語の後、それ以外は日本語の後。空なら nil
+    public init?(ending text: some StringProtocol) {
+        guard let last = text.last else { return nil }
+        let digits = String(text.reversed().prefix { $0.isASCII && $0.isNumber }.reversed())
+        if !digits.isEmpty {
+            self = .afterNumber(digits)
+        } else {
+            self = last.isASCII ? .afterEnglish : .afterJapanese
+        }
+    }
 }
 
 /// 入力メソッドが受け取ったキーを、sokkou が区別する形にしたもの

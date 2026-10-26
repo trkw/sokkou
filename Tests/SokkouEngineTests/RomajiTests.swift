@@ -72,6 +72,7 @@ enum Shared {
         let spans = try Shared.engine.get().live(input, leading: .start)
         #expect(spans.contains { $0.kind == .english && $0.text.contains(word) }, "\(spans)")
     }
+
     /// 4 かなより短い日本語も、かなのまま確定せずに変換して見せる（kidoku → 既読）
     @Test func shortJapaneseIsConverted() throws {
         let spans = try Shared.engine.get().live("kidoku", leading: .start)
@@ -95,5 +96,11 @@ enum Shared {
         let yuusenn = try #require(engine.clauses("yuusenn", leading: .start).clauses.first)
         #expect(yuusenn.candidates.last == "yuusenn", "\(yuusenn.candidates)")
         #expect(yuusenn.candidates.dropFirst().first != "yuusenn", "\(yuusenn.candidates)")
+    }
+
+    /// 入力欄のカーソルの前が半角数字なら、続く日本語は助数詞として読む（3 の後に ninn → 人）
+    @Test func readsCountersAfterDigitsBeforeTheCaret() throws {
+        let spans = try Shared.engine.get().live("ninn", leading: .afterNumber("3"))
+        #expect(spans.map(\.text).joined() == "人", "\(spans)")
     }
 }

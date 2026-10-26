@@ -93,8 +93,8 @@ $notes"
 }
 
 # SokkouConverter は tugime の TugimeCore をもとにしている。取り込んだ revision と比べ、新しい変更を知らせる。
-# 取り込んだら、ここを取り込んだ revision に書き換える
-tugime_ported=407ea0da9417c24e989d549edd3a28741f791bd0
+# 取り込んだら、ここを取り込んだ revision に書き換える。見送ったもの（ユーザー辞書、サンドボックス、Zenzai 向けの表示）も見たうえで進める
+tugime_ported=29ade90a2bca0226fd2adf441ad65d018d3f78ef
 watch_revision tugime miyaoka/tugime "$tugime_ported" "SokkouConverter が取り込んだ版"
 
 azookey_pinned=$(tr -d ' \n' <Package.swift | sed -n 's|.*AzooKeyKanaKanjiConverter",revision:"\([0-9a-f]*\)".*|\1|p')
