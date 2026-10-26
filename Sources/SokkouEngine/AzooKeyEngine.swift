@@ -10,7 +10,7 @@ public final class AzooKeyEngine: Engine {
     private let loanwords: Loanwords
     private let dateWords: DateWords
 
-    /// method は既定で azooKey の辞書だけを使う。Zenzai（言語モデル）は軽さを測ってから入れる
+    /// method は既定で azooKey の辞書だけを使う。言語モデル（Zenzai や genmai）は、設定の「賢い変換」で選んだときだけ渡される
     public init(method: ConversionMethod = .azooKey) throws {
         readsDisplayFromSegments = method.weight == nil
         table = try Self.romajiTable()

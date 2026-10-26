@@ -57,7 +57,9 @@ case "--install":
 case "--uninstall":
     exit(Installer.uninstall(purge: CommandLine.arguments.contains("--purge")))
 case "--bench":
-    exit(Bench.run())
+    exit(Bench.run(model: CommandLine.arguments.dropFirst(2).first))
+case "--fetch-model":
+    exit(ConversionModel.fetchFromCommandLine(CommandLine.arguments.dropFirst(2).first))
 case "--snapshot":
     exit(Snapshot.write(to: CommandLine.arguments.dropFirst(2).first ?? "snapshots"))
 default:
@@ -85,4 +87,8 @@ _ = sharedLexicon
 Updater.startAutoUpdate()
 // 入れ替えた直後なら、どの版になったかを知らせる
 Updater.reportUpdate()
+// 賢い変換のモデルを切り替えて起動し直したなら、設定の窓を開き直す
+if CommandLine.arguments.contains(ConversionModel.reopenSettingsArgument) {
+    DispatchQueue.main.async { SettingsWindow.shared.show(.dictionaries) }
+}
 NSApplication.shared.run()

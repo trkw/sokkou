@@ -17,6 +17,8 @@ sokkou のアプリ（dmg の中の sokkou.app）には、次のソフトウェ�
 | [wordfreq](https://github.com/rspeer/wordfreq) | `english-frequency.tsv` の元（日本語の文章に英字で出る語の頻度） | データは CC BY-SA 4.0 |
 | Webster's Second International Dictionary（1934 年） | `english-words.txt`（英語の綴りらしさを数える語表） | 著作権切れ（パブリックドメイン） |
 
+賢い変換の言語モデル（[zenz-v3.2-small](https://huggingface.co/Miwa-Keita/zenz-v3.2-small-gguf)、Apache-2.0。[genmai-310M](https://huggingface.co/subdiox/genmai-310M)、CC BY-SA 4.0）もアプリには入れない。設定で選んだ人が、そのときに Hugging Face から取ってくる。
+
 SKK-JISYO.L などの SKK 辞書（[skk-dev/dict](https://github.com/skk-dev/dict)、多くは GPL-2.0-or-later）はアプリにもリポジトリにも入れない。使う人が自分で取ってきて手元に置く。
 
 meltype（GPL-3.0）と macSKK（GPL-3.0）は動きを参考にしただけで、コードは入っていない。

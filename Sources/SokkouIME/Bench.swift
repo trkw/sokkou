@@ -1,8 +1,9 @@
 import Foundation
 import SokkouCore
+import SokkouEngine
 
 /// 打鍵ごとにかかる時間とメモリを測る。入力メソッドと同じく、キーを 1 つ処理して表示を作るまでを 1 打鍵とする。
-/// 結果は Markdown の表で出し、CI のまとめに載せる
+/// 結果は Markdown の表で出し、CI のまとめに載せる。model に賢い変換のモデルの名前を渡すと、そのモデルで測る（先に --fetch-model で取ってくる）
 enum Bench {
     /// 普段打つ長さの文と、確定せずに打ち続けた長い文
     static let sentences = [
@@ -13,10 +14,25 @@ enum Bench {
         "nihongonyuuryokunohayasawotamesutamenisukosinagaibunsyouwokakuninsimasu,sikamokakuteisezuniutitudukemasu.",
     ]
 
-    static func run() -> Int32 {
+    static func run(model id: String?) -> Int32 {
+        let model = id.flatMap(ConversionModel.named)
+        if let id, model == nil {
+            print("--bench には \(ConversionModel.all.map(\.id).joined(separator: " か ")) を渡すか、何も渡さない")
+            return 1
+        }
+        if let model, !model.isInstalled {
+            print("\(model.title) のモデルが無い。先に --fetch-model \(model.id) で取ってくる")
+            return 1
+        }
         let clock = ContinuousClock()
         let loadStart = clock.now
-        let engine = sharedEngine
+        let engine: AzooKeyEngine
+        do {
+            engine = try AzooKeyEngine(method: model?.method ?? .azooKey)
+        } catch {
+            print("変換エンジンを作れない: \(error)")
+            return 1
+        }
         let load = loadStart.duration(to: clock.now)
         let afterLoad = peakMemory()
         let composer = Composer(engine: engine)
@@ -54,6 +70,8 @@ enum Bench {
         }
 
         let longest = byLength.filter { $0.length > 60 }.map(\.time)
+        print("### 賢い変換: \(model.map { "\($0.title)（\($0.fileName)）" } ?? "使わない")")
+        print("")
         print("| | 打鍵数 | 中央値 | 95% | 最大 |")
         print("| --- | ---: | ---: | ---: | ---: |")
         print(row("打っている途中", typing))
@@ -66,7 +84,7 @@ enum Bench {
             print("- \(ms(entry.time)) ms `\(entry.typed)`")
         }
         print("")
-        print("- 辞書と語表の読み込み: \(ms(load)) ms")
+        print("- 辞書と語表\(model == nil ? "" : "とモデル")の読み込み: \(ms(load)) ms")
         print("- メモリの最大（読み込み後）: \(megabytes(afterLoad)) MB")
         print("- メモリの最大（打ち終わり）: \(megabytes(peakMemory())) MB")
         return 0

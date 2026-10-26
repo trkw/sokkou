@@ -43,7 +43,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "SokkouIME",
-            dependencies: ["SokkouCore", "SokkouEngine"],
+            dependencies: ["SokkouCore", "SokkouEngine", "SokkouConverter"],
             // 入力メソッドの呼び出しはすべてメインスレッドで届くので、既定の隔離をメインアクターにする（SE-0466）
             swiftSettings: [.defaultIsolation(MainActor.self), cxx],
             linkerSettings: [.linkedFramework("InputMethodKit")]

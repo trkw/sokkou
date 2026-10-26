@@ -14,7 +14,7 @@ SKK の手触りで、打てばそのまま変換される、自分用の macOS 
 - 選んだ候補だけを控えめに覚える。入力メニューから切れる
 - SKK のように、候補の最後の「登録…」から単語を登録でき、`X` で候補を消せる。ユーザー辞書は SKK 形式で、`~/.skk-jisyo` や macSKK の辞書を取り込める
 - SKK 辞書（SKK-JISYO.L など）を追加の候補元にできる。ほかに abbrev（`/`）、数値変換、Tab での読みの補完
-- 軽さを優先し、既定は azooKey の辞書だけで変換する（Zenzai は使わない）
+- 軽さを優先し、既定は azooKey の辞書だけで変換する。設定の「辞書」の「賢い変換」で、言語モデルの Zenzai（zenz-v3.2-small、74MB）か genmai（genmai-310M、340MB）を選べる。選んだモデルはそのときに Hugging Face から取ってきて、`~/Library/Application Support/sokkou/Models` に置く
 
 キーの全体は [docs/keys.md](docs/keys.md)。
 
@@ -166,6 +166,13 @@ AzooKeyKanaKanjiConverter は revision で固定している。`upstream-watch` 
 - 英語の語の頻度は [wordfreq](https://github.com/rspeer/wordfreq)（CC BY-SA 4.0）、英語の綴りらしさの語表は Webster's Second International（1934 年、著作権切れ）
 - キー操作は [macSKK](https://github.com/mtgto/macSKK)、自動変換の手軽さは meltype を参考にした
 - 友だちの miyaoka の [tugime](https://github.com/miyaoka/tugime) には大いに助けられた。`SokkouConverter` は tugime から分けてもらったコードがもとで、その後も英単語の割り方（#43）や文節の移り方（#31）などを tugime から取り込んでいる。thank you, my friend!
+
+## モデルのクレジット
+
+賢い変換のモデルはアプリにもリポジトリにも入れず、選んだ人が手元に取ってくる。
+
+- [zenz-v3.2-small](https://huggingface.co/Miwa-Keita/zenz-v3.2-small-gguf)（Miwa-Keita、Apache-2.0）
+- [genmai-310M](https://huggingface.co/subdiox/genmai-310M)（subdiox、CC BY-SA 4.0。[zenz-v2.5-medium](https://huggingface.co/Miwa-Keita/zenz-v2.5-medium) をもとにしたモデル）。GGUF は miyaoka が変換した [genmai-310M-GGUF](https://huggingface.co/miyaoka/genmai-310M-GGUF)。genmai を動かすコード（`ZenzGenerator` など）は tugime から分けてもらった
 
 ## 辞書のクレジット
 
