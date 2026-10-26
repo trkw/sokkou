@@ -46,10 +46,12 @@ enum Installer {
     /// sokkou は App Sandbox の中なので、子のプロセスにするとインストーラーもサンドボックスに入って入れ物の外に書けない。
     /// そこで別のアプリとして起こす。終わりの状態は受け取れないので、結果が要るときはインストーラーを直に動かす
     static func run(_ arguments: [String]) -> Int32 {
-        final class Launch {
-            var done = false
-            var pid: pid_t?
-            var failure: String?
+        // 起こし終えた知らせは裏のスレッドに届く。端末から動かしたときはメインの run loop に入力が無く、メインに渡すと届かないので、鍵をかけた箱で受ける
+        nonisolated final class Launch: @unchecked Sendable {
+            private let lock = NSLock()
+            private var result: (pid: pid_t?, failure: String?)?
+            func finish(pid: pid_t?, failure: String?) { lock.withLock { result = (pid, failure) } }
+            var finished: (pid: pid_t?, failure: String?)? { lock.withLock { result } }
         }
         let launch = Launch()
         let configuration = NSWorkspace.OpenConfiguration()
@@ -58,20 +60,31 @@ enum Installer {
         configuration.addsToRecentItems = false
         configuration.activates = false
         NSWorkspace.shared.openApplication(at: helper, configuration: configuration) { app, error in
-            let pid = app?.processIdentifier
-            let failure = error?.localizedDescription
-            Task { @MainActor in
-                launch.pid = pid
-                launch.failure = failure
-                launch.done = true
+            launch.finish(pid: app?.processIdentifier, failure: error?.localizedDescription)
+        }
+        let deadline = Date().addingTimeInterval(60)
+        while launch.finished == nil {
+            guard Date() < deadline else {
+                print("インストーラーを起動できない: 60 秒待っても起動しなかった")
+                return 1
             }
+            usleep(100_000)
         }
-        while !launch.done || launch.pid.map({ kill($0, 0) == 0 }) == true {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
-        }
-        if let failure = launch.failure {
+        if let failure = launch.finished?.failure {
             print("インストーラーを起動できない: \(failure)")
             return 1
+        }
+        // インストーラーが終わるのを待つ。入れ替えは長くても数十秒
+        if let pid = launch.finished?.pid {
+            let deadline = Date().addingTimeInterval(10 * 60)
+            // サンドボックスの中からはほかのプロセスに kill(pid, 0) で尋ねられないことがあるので、LaunchServices に尋ねる
+            while NSRunningApplication(processIdentifier: pid).map({ !$0.isTerminated }) == true {
+                guard Date() < deadline else {
+                    print("インストーラーが 10 分たっても終わらない")
+                    return 1
+                }
+                usleep(200_000)
+            }
         }
         print("== インストーラーが終わった。結果は \(helper.path)/Contents/MacOS/sokkou-installer を直に動かすと受け取れる")
         return 0

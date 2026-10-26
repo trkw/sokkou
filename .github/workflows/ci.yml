@@ -180,6 +180,7 @@ jobs:
       # 次の手順の --snapshot のため、もう一度入れる
       # 前の版の install.sh・Homebrew・Nix が動かす sokkou --install は、サンドボックスの外のインストーラーに渡る
       - name: Install from .app through sokkou --install
+        timeout-minutes: 5
         run: |
           set -euo pipefail
           rm -rf "$HOME/Library/Input Methods/sokkou.app"
