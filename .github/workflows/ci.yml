@@ -78,14 +78,16 @@ jobs:
       - name: Bench
         run: dist/sokkou.app/Contents/MacOS/sokkou --bench | tee -a "$GITHUB_STEP_SUMMARY"
 
-      # 賢い変換のモデルを、入力メソッドと同じ取り方（コミットで固定し SHA-256 で確かめる）で取ってきて、同じ打鍵で測る
+      # 賢い変換のモデルを、入力メソッドと同じ取り方（コミットで固定し SHA-256 で確かめる）で取ってくる。
+      # 測るのは Zenzai だけ。ランナーの GPU（Apple Paravirtual device）は bfloat と simdgroup の行列積を持たず、
+      # genmai-310M（KV キャッシュが bf16）は 1 打鍵に何秒もかかって 30 分を超えるので、genmai は手元の Mac で --bench genmai で測る
       - name: Bench with conversion models
         run: |
           set -euo pipefail
           for model in zenzai genmai; do
             dist/sokkou.app/Contents/MacOS/sokkou --fetch-model "$model"
-            dist/sokkou.app/Contents/MacOS/sokkou --bench "$model" | tee -a "$GITHUB_STEP_SUMMARY"
           done
+          dist/sokkou.app/Contents/MacOS/sokkou --bench zenzai | tee -a "$GITHUB_STEP_SUMMARY"
 
       # dmg を作れるかと、dmg の外（dist）から --install で入れられるか
       - name: Make dmg
