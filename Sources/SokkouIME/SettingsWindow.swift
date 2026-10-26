@@ -63,6 +63,13 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 
     var id: Self { self }
 
+    /// ならびの中で前後に移る。端では止まる
+    func step(_ delta: Int) -> SettingsTab {
+        let all = Self.allCases
+        let index = all.firstIndex(of: self)! + delta
+        return all[min(max(index, 0), all.count - 1)]
+    }
+
     /// ページの上に出す一言。情報のページは中身が名前そのものなので出さない
     var lead: String? {
         switch self {
@@ -278,6 +285,12 @@ struct SettingsView: View {
             .frame(width: Self.sidebarWidth)
             .frame(maxHeight: .infinity)
             .background(Theme.ink.opacity(0.03))
+            // ならびは 1 つのかたまりとしてフォーカスを受け、↑↓ で行を移る。
+            // macOS の青い枠は出さず、選んでいる行の印だけで今いる所を示す
+            .focusable()
+            .focusEffectDisabled()
+            .onKeyPress(.upArrow) { model.tab = model.tab.step(-1); return .handled }
+            .onKeyPress(.downArrow) { model.tab = model.tab.step(1); return .handled }
             Rectangle().fill(Theme.rule).frame(width: 0.5)
             VStack(alignment: .leading, spacing: 0) {
                 if let lead = model.tab.lead {
@@ -346,6 +359,8 @@ private struct SidebarItem: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // 1 行ずつはフォーカスを受けない。窓を開いたとき「一般」に青い枠が付かないように
+        .focusable(false)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
