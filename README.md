@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/banner-dark.svg">
+    <img src="docs/images/banner-light.svg" alt="sokkou（即効） SKK の手触りで、打てばそのまま変換される日本語入力" width="100%">
+  </picture>
+</p>
+
 # sokkou（即効）
 
 SKK の手触りで、打てばそのまま変換される、自分用の macOS 日本語入力。
