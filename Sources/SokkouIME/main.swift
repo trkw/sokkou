@@ -56,7 +56,11 @@ case "--version":
 case "--install":
     exit(Installer.run(["--install"]))
 case "--uninstall":
-    exit(Installer.run(["--uninstall"] + (CommandLine.arguments.contains("--purge") ? ["--purge"] : [])))
+    let purge = CommandLine.arguments.contains("--purge")
+    if purge {
+        Settings.purge(support: Dictionaries.folder)
+    }
+    exit(Installer.run(["--uninstall"] + (purge ? ["--purge"] : [])))
 case "--bench":
     exit(Bench.run(model: CommandLine.arguments.dropFirst(2).first))
 case "--fetch-model":

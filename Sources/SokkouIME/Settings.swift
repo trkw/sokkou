@@ -3,6 +3,8 @@ import Foundation
 /// 利用者が入力メニューから変える設定
 enum Settings {
     private static let defaults = UserDefaults.standard
+    /// Nix などが入れ物の外から決める設定（<bundle id>.managed）。あればこちらを使う
+    private static let managed = UserDefaults(suiteName: "\(Bundle.main.bundleIdentifier ?? "sokkou").managed")
 
     /// 選んだ候補を覚えるか。既定は覚える
     static var learns: Bool {
@@ -12,7 +14,7 @@ enum Settings {
 
     /// 新しいリリースが出たら、打っていないときに自動で入れ替えるか。既定は入れ替える
     static var autoUpdates: Bool {
-        get { defaults.object(forKey: "autoUpdates") as? Bool ?? true }
+        get { managed?.object(forKey: "autoUpdates") as? Bool ?? defaults.object(forKey: "autoUpdates") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "autoUpdates") }
     }
 
@@ -26,6 +28,14 @@ enum Settings {
     static var lastBuild: String? {
         get { defaults.string(forKey: "lastBuild") }
         set { defaults.set(newValue, forKey: "lastBuild") }
+    }
+
+    /// 覚えた候補と設定を消す（取り除くときの「覚えた候補と設定も消す」）。入れ物の中にあるので sokkou 自身が消す
+    static func purge(support: URL) {
+        try? FileManager.default.removeItem(at: support)
+        if let id = Bundle.main.bundleIdentifier {
+            defaults.removePersistentDomain(forName: id)
+        }
     }
 
     /// アプリごとに最後に使ったモード。バンドル ID とモードの生の値

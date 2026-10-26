@@ -3,11 +3,16 @@ import CryptoKit
 import SokkouCore
 
 /// 辞書のファイルの置き場所と、入力メニューからの辞書の出し入れ。
-/// ユーザー辞書は ~/Library/Application Support/sokkou/skk-jisyo.utf8（SKK 形式）、
-/// 追加の SKK 辞書は同じところの Dictionaries フォルダに置き、中のファイルをすべて読む
+/// ユーザー辞書は Application Support/sokkou/skk-jisyo.utf8（SKK 形式）、
+/// 追加の SKK 辞書は同じところの Dictionaries フォルダに置き、中のファイルをすべて読む。
+/// sokkou は App Sandbox で動くので、Application Support は入れ物の中（~/Library/Containers/<bundle id>/Data/Library）を指す
 enum Dictionaries {
-    private static let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    static let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("sokkou", isDirectory: true)
+    /// 設定の窓に出す置き場所。ホームフォルダは ~ と書く
+    static var folderForDisplay: String {
+        folder.path.replacingOccurrences(of: home.path, with: "~", options: .anchored)
+    }
     static let userURL = folder.appendingPathComponent("skk-jisyo.utf8")
     static let directory = folder.appendingPathComponent("Dictionaries", isDirectory: true)
     /// skk-dev の SKK-JISYO.L（EUC-JP のまま置く）。取る版をコミットで固定し、中身を SHA-256 で確かめる。

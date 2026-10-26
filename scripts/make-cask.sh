@@ -30,23 +30,25 @@ cask "sokkou" do
   depends_on arch: :arm64
   depends_on macos: :sonoma
 
-  # 入れる処理は sokkou 自身の --install に任せる（dmg から開いたときと同じ）。
+  # 入れる処理は sokkou に入れたインストーラーの --install に任せる（dmg から開いたときと同じ）。
   # ~/Library/Input Methods に写して入力ソースとして登録し、動いている古い版があれば入れ替えて起動し直す
   installer script: {
-    executable: "sokkou.app/Contents/MacOS/sokkou",
+    executable: "sokkou.app/Contents/Helpers/sokkou-installer.app/Contents/MacOS/sokkou-installer",
     args:       ["--install"],
   }
 
-  # sokkou 自身の --uninstall で、入力ソースから外して止め、入れた版と取っておいた前の版を消す
+  # インストーラーの --uninstall で、入力ソースから外して止め、入れた版と取っておいた前の版を消す
   uninstall script: {
-              executable: "sokkou.app/Contents/MacOS/sokkou",
+              executable: "sokkou.app/Contents/Helpers/sokkou-installer.app/Contents/MacOS/sokkou-installer",
               args:       ["--uninstall"],
             },
             delete: "~/Library/Input Methods/sokkou.app"
 
   zap trash: [
     "~/Library/Application Support/sokkou",
+    "~/Library/Containers/io.github.trkw.inputmethod.sokkou",
     "~/Library/Logs/sokkou-update.log",
+    "~/Library/Preferences/io.github.trkw.inputmethod.sokkou.managed.plist",
     "~/Library/Preferences/io.github.trkw.inputmethod.sokkou.plist",
   ]
 

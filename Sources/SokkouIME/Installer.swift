@@ -4,9 +4,9 @@ import AppKit
 /// sokkou は ~/Library/Input Methods に自分で書かず、入れる・更新する・取り除くはそちらに頼む
 enum Installer {
     static let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/sokkou-installer.app", isDirectory: true)
-    private static var helperBinary: URL { helper.appendingPathComponent("Contents/MacOS/sokkou-installer") }
-
-    static var hasHelper: Bool { FileManager.default.isExecutableFile(atPath: helperBinary.path) }
+    static var hasHelper: Bool {
+        FileManager.default.isExecutableFile(atPath: helper.appendingPathComponent("Contents/MacOS/sokkou-installer").path)
+    }
 
     /// 入力メソッドの置き場所から起動したか。そこ以外（dmg、ダウンロード、dist）から開かれたらインストールする
     static var isInstalled: Bool {
@@ -24,17 +24,13 @@ enum Installer {
     }
 
     /// インストーラーを別のアプリとして起こし、終わりを待たない。sokkou を止めて入れ替えるので、sokkou の子のプロセスにしない。
+    /// sokkou はサンドボックスの中で、入れ物の外に書くインストーラーを自分では起こせないので、.app に入れた XPC サービス（SokkouLauncher）に頼む。
     /// launched は起こせたかどうかにかかわらず、起こし終えたあとに呼ぶ
     static func launch(_ arguments: [String], launched: (@MainActor () -> Void)? = nil) {
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.arguments = arguments
-        configuration.createsNewApplicationInstance = true
-        configuration.addsToRecentItems = false
-        NSWorkspace.shared.openApplication(at: helper, configuration: configuration) { _, error in
-            let message = error?.localizedDescription
+        call(arguments, wait: false) { status, message in
             Task { @MainActor in
-                if let message {
-                    alert("sokkou のインストーラーを起動できませんでした", message)
+                if status != 0 {
+                    alert("sokkou のインストーラーを起動できませんでした", message ?? "終わりの状態 \(status)")
                     stepBack()
                 }
                 launched?()
@@ -42,19 +38,46 @@ enum Installer {
         }
     }
 
-    /// 端末から動かしたとき（--install、--uninstall）。インストーラーを動かして終わりを待ち、その終わりの状態を返す
+    /// 端末から動かしたとき（Homebrew、Nix、インストーラーを持たない前の版の install.sh が動かす --install・--uninstall）。
+    /// XPC サービスがインストーラーを動かして終わるのを待ち、その終わりの状態を返す
     static func run(_ arguments: [String]) -> Int32 {
-        let process = Process()
-        process.executableURL = helperBinary
-        process.arguments = arguments
-        do {
-            try process.run()
-        } catch {
-            print("インストーラーを動かせない: \(error.localizedDescription)")
+        nonisolated final class Result: @unchecked Sendable {
+            let done = DispatchSemaphore(value: 0)
+            var status: Int32 = 1
+            var message: String?
+        }
+        let result = Result()
+        call(arguments, wait: true) { status, message in
+            result.status = status
+            result.message = message
+            result.done.signal()
+        }
+        guard result.done.wait(timeout: .now() + 10 * 60) == .success else {
+            print("インストーラーが 10 分たっても終わらない")
             return 1
         }
-        process.waitUntilExit()
-        return process.terminationStatus
+        if let message = result.message {
+            print(message)
+        }
+        return result.status
+    }
+
+    /// XPC サービスにインストーラーを動かすよう頼む。reply は裏のスレッドで 1 度だけ呼ばれる
+    private static func call(_ arguments: [String], wait: Bool, reply: @escaping @Sendable (Int32, String?) -> Void) {
+        nonisolated(unsafe) let connection = NSXPCConnection(serviceName: "\(Bundle.main.bundleIdentifier ?? "sokkou").launcher")
+        connection.remoteObjectInterface = NSXPCInterface(with: Launcher.self)
+        connection.resume()
+        let proxy = connection.remoteObjectProxyWithErrorHandler { error in
+            reply(1, "インストーラーを頼む XPC サービスにつながらない: \(error.localizedDescription)")
+        } as? Launcher
+        guard let proxy else {
+            reply(1, "インストーラーを頼む XPC サービスが分からない")
+            return
+        }
+        proxy.run(arguments, wait: wait) { status, message in
+            reply(status, message)
+            connection.invalidate()
+        }
     }
 
     @discardableResult
@@ -76,6 +99,11 @@ enum Installer {
         guard !SettingsWindow.shared.isOpen else { return }
         NSApplication.shared.setActivationPolicy(.prohibited)
     }
+}
+
+/// XPC サービス（Sources/SokkouLauncher）に頼むこと。向こうの宣言と同じ形にする
+@objc nonisolated protocol Launcher {
+    func run(_ arguments: [String], wait: Bool, reply: @escaping @Sendable (Int32, String?) -> Void)
 }
 
 /// 本当のホームフォルダ。App Sandbox の中でも、入れ物（~/Library/Containers）ではなくこちらを指す

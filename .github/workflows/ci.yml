@@ -74,6 +74,37 @@ jobs:
       - name: Check .app
         run: scripts/check-app.sh dist/sokkou.app
 
+      # App Sandbox に入れる前の版の辞書と設定を、初めて起動したときに macOS が入れ物に写すか（App/container-migration.plist）。
+      # 普段使いの版の入れ物は Check .app で作られているので、バンドル ID を変えた写しで確かめる。覚えた候補（learning.json）は置かず、無いものがあっても写るかも見る
+      - name: Migrate files into the sandbox container
+        run: |
+          set -euo pipefail
+          id=io.github.trkw.inputmethod.sokkou.migrationtest
+          app="$RUNNER_TEMP/migration/sokkou.app"
+          mkdir -p "$(dirname "$app")"
+          ditto dist/sokkou.app "$app"
+          plutil -replace CFBundleIdentifier -string "$id" "$app/Contents/Info.plist"
+          sed -e "s/__BUNDLE_ID__/$id/g" App/sokkou.entitlements > "$RUNNER_TEMP/migration.entitlements"
+          codesign --force --timestamp=none --sign - --entitlements "$RUNNER_TEMP/migration.entitlements" "$app"
+          old="$HOME/Library/Application Support/sokkou"
+          mkdir -p "$old/Dictionaries"
+          printf ';; okuri-nasi entries.\nそっこう /即効/\n' > "$old/skk-jisyo.utf8"
+          printf ';; okuri-nasi entries.\nてすと /テスト/\n' > "$old/Dictionaries/SKK-JISYO.test"
+          mkdir -p "$old/Models"
+          printf 'model' > "$old/Models/test.gguf"
+          defaults write "$id" learns -bool false
+          "$app/Contents/MacOS/sokkou" --check
+          data="$HOME/Library/Containers/$id/Data/Library"
+          ls -la "$data/Application Support/sokkou" "$data/Preferences" || true
+          grep -q 即効 "$data/Application Support/sokkou/skk-jisyo.utf8"
+          test -s "$data/Application Support/sokkou/Dictionaries/SKK-JISYO.test"
+          test -s "$data/Application Support/sokkou/Models/test.gguf"
+          [[ "$(plutil -extract learns raw "$data/Preferences/$id.plist")" == false ]]
+          # 写したあとも元が残るか（前の版に戻したとき、その版が読む）
+          ls -la "$old" || true
+          rm -rf "$old"
+          defaults delete "$id"
+
       # 打鍵ごとの時間とメモリ。MacBook Neo（8GB）でも軽いかの目安にする
       - name: Bench
         run: dist/sokkou.app/Contents/MacOS/sokkou --bench | tee -a "$GITHUB_STEP_SUMMARY"
@@ -111,7 +142,7 @@ jobs:
       - name: Uninstall
         run: |
           set -euo pipefail
-          "$HOME/Library/Input Methods/sokkou.app/Contents/MacOS/sokkou" --uninstall --purge
+          "$HOME/Library/Input Methods/sokkou.app/Contents/Helpers/sokkou-installer.app/Contents/MacOS/sokkou-installer" --uninstall --purge
           test ! -e "$HOME/Library/Input Methods/sokkou.app"
           test ! -e "$HOME/Library/Application Support/sokkou"
 
@@ -123,8 +154,8 @@ jobs:
           mkdir -p "$(dirname "$ro")"
           ditto dist/sokkou.app "$ro"
           chmod -R a-w "$ro"
-          "$ro/Contents/MacOS/sokkou" --install
-          dist/sokkou.app/Contents/MacOS/sokkou --install
+          "$ro/Contents/Helpers/sokkou-installer.app/Contents/MacOS/sokkou-installer" --install
+          "dist/sokkou.app/Contents/Helpers/sokkou-installer.app/Contents/MacOS/sokkou-installer" --install
 
       # release.yml が trkw/homebrew-tap に書く cask で、組み立てた dmg を入れて消せるか
       - name: Install with Homebrew
@@ -147,8 +178,19 @@ jobs:
           test ! -e "$HOME/Library/Input Methods/sokkou.app"
 
       # 次の手順の --snapshot のため、もう一度入れる
-      - name: Install from .app
-        run: dist/sokkou.app/Contents/MacOS/sokkou --install
+      # 前の版の install.sh・Homebrew・Nix が動かす sokkou --install は、サンドボックスの外のインストーラーに渡る
+      - name: Install from .app through sokkou --install
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          rm -rf "$HOME/Library/Input Methods/sokkou.app"
+          dist/sokkou.app/Contents/MacOS/sokkou --install
+          # インストーラーは裏で入れ替えるので、入るまで待つ
+          for _ in $(seq 60); do
+            [[ -x "$HOME/Library/Input Methods/sokkou.app/Contents/MacOS/sokkou" ]] && break
+            sleep 1
+          done
+          test -x "$HOME/Library/Input Methods/sokkou.app/Contents/MacOS/sokkou"
 
       # 署名と公証は鍵を持たせた sign ジョブでする。.app をそのまま渡す（zip にしないとフレームワークのリンクが崩れる）
       - name: Pack .app
@@ -167,7 +209,12 @@ jobs:
       - name: Snapshot UI
         run: |
           set -euo pipefail
-          dist/sokkou.app/Contents/MacOS/sokkou --snapshot snapshots
+          # 本体はサンドボックスの中で作業ディレクトリに書けないので、権限を外した写しで書き出す
+          snap="$RUNNER_TEMP/snapshot/sokkou.app"
+          mkdir -p "$(dirname "$snap")"
+          ditto dist/sokkou.app "$snap"
+          codesign --force --timestamp=none --sign - "$snap"
+          "$snap/Contents/MacOS/sokkou" --snapshot snapshots
           swift scripts/make-dmg-background.swift snapshots/dmg-background.tiff
           sips -s format png snapshots/dmg-background.tiff --out snapshots/dmg-background.png
           rm snapshots/dmg-background.tiff

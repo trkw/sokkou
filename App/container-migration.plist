@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- App Sandbox に入れた版を初めて起動したとき、macOS がこれまでの辞書・覚えた候補・設定を入れ物（~/Library/Containers/<bundle id>）に写す。
+     取っておいた前の版（previous）はインストーラーが使うので写さない -->
+<dict>
+	<key>Move</key>
+	<array>
+		<string>${ApplicationSupport}/sokkou/skk-jisyo.utf8</string>
+		<string>${ApplicationSupport}/sokkou/ignored.tsv</string>
+		<string>${ApplicationSupport}/sokkou/learning.json</string>
+		<string>${ApplicationSupport}/sokkou/Dictionaries</string>
+		<string>${ApplicationSupport}/sokkou/Models</string>
+		<string>${Library}/Preferences/${BundleId}.plist</string>
+	</array>
+</dict>
+</plist>

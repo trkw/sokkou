@@ -15,11 +15,8 @@ let sharedEngine: AzooKeyEngine = {
     }
 }()
 
-/// 覚えた候補は ~/Library/Application Support/sokkou/learning.json に置く
-let sharedLearning: FileLearning = {
-    let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-    return FileLearning(url: support.appendingPathComponent("sokkou/learning.json"))
-}()
+/// 覚えた候補は辞書と同じところ（Application Support/sokkou）の learning.json に置く
+let sharedLearning = FileLearning(url: Dictionaries.folder.appendingPathComponent("learning.json"))
 
 /// 自分で登録した語と、追加した SKK 辞書。追加の辞書は大きいので、初めて使うときに別のスレッドで読む
 let sharedLexicon: SKKLexicon = {

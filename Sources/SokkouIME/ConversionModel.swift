@@ -58,7 +58,7 @@ nonisolated struct ConversionModel: Identifiable, Hashable, Sendable {
         all.first { $0.id == id }
     }
 
-    /// モデルを置くところ。~/Library/Application Support/sokkou/Models
+    /// モデルを置くところ。入れ物の中の Application Support/sokkou/Models
     static let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("sokkou/Models", isDirectory: true)
 

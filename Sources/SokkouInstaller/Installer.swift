@@ -15,6 +15,16 @@ enum Installer {
         support.appendingPathComponent("previous-staging", isDirectory: true).appendingPathComponent(ime.bundleURL.lastPathComponent)
     }
 
+    /// 止めない sokkou。端末から動かした sokkou の --install・--uninstall（このプロセスの親か、XPC サービスに頼んできたもの）。
+    /// 止めるとそれらが終わりの状態を返せない
+    private static let spared: Set<pid_t> = {
+        var pids: Set<pid_t> = [getppid()]
+        if let pid = ProcessInfo.processInfo.environment["SOKKOU_SPARE_PID"].flatMap({ pid_t($0) }), pid > 0 {
+            pids.insert(pid)
+        }
+        return pids
+    }()
+
     /// 入れる入力メソッド。このアプリは その .app の Contents/Helpers に入っている
     static let ime: Bundle = {
         let url = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -84,8 +94,7 @@ enum Installer {
         for source in inputSources(id) {
             TISDisableInputSource(source)
         }
-        // 端末で動かした sokkou の --uninstall（このプロセスの親）は止めない。止めると終わりの状態を返せない
-        for app in NSRunningApplication.runningApplications(withBundleIdentifier: id) where app.processIdentifier != getppid() {
+        for app in NSRunningApplication.runningApplications(withBundleIdentifier: id) where !spared.contains(app.processIdentifier) {
             app.forceTerminate()
         }
         let fileManager = FileManager.default
@@ -125,10 +134,10 @@ enum Installer {
             try fileManager.createDirectory(at: staging.deletingLastPathComponent(), withIntermediateDirectories: true)
             try run("/usr/bin/ditto", [destination.path, staging.path])
         }
-        // 動いている古い版を止める。止めたら、入れ終えたあとに新しい版を起動し直す。端末で動かした sokkou の --install（このプロセスの親）は除く
+        // 動いている古い版を止める。止めたら、入れ終えたあとに新しい版を起動し直す。端末で動かした sokkou の --install は除く
         var stopped: [pid_t] = []
         if let id = ime.bundleIdentifier {
-            for app in NSRunningApplication.runningApplications(withBundleIdentifier: id) where app.processIdentifier != getppid() {
+            for app in NSRunningApplication.runningApplications(withBundleIdentifier: id) where !spared.contains(app.processIdentifier) {
                 app.forceTerminate()
                 stopped.append(app.processIdentifier)
             }

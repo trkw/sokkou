@@ -83,6 +83,9 @@ enum Updater {
         let response = alert.runModal()
         Installer.stepBack()
         guard response == .alertFirstButtonReturn else { return }
+        if purge.state == .on {
+            Settings.purge(support: Dictionaries.folder)
+        }
         Installer.launch(["--uninstall"] + (purge.state == .on ? ["--purge"] : []))
     }
 
