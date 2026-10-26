@@ -147,13 +147,14 @@ bash install.sh "dist/sokkou Dev.app"        # 組み立てたものを入れる
 
 ## 上流を追う
 
-AzooKeyKanaKanjiConverter は revision で固定している。`upstream-watch` のワークフローが毎朝、azooKey・azooKey-Desktop・Meltype などの新しいコミットやリリースを見て、`upstream` ラベルの issue で知らせる。上げるときは `Package.swift` の azooKey の revision を書き換える。Meltype は GPL-3.0 なので、取り込むのは考え方と動きだけで、コードは写さない。
+AzooKeyKanaKanjiConverter は revision で固定している。`upstream-watch` のワークフローが毎朝、azooKey・azooKey-Desktop・tugime・Meltype などの新しいコミットやリリースを見て、`upstream` ラベルの issue で知らせる。上げるときは `Package.swift` の azooKey の revision を書き換える。Meltype は GPL-3.0 なので、取り込むのは考え方と動きだけで、コードは写さない。
 
 ## 謝辞
 
 - かな漢字変換は [AzooKeyKanaKanjiConverter](https://github.com/azooKey/AzooKeyKanaKanjiConverter)
 - 英語の語の頻度は [wordfreq](https://github.com/rspeer/wordfreq)（CC BY-SA 4.0）、英語の綴りらしさの語表は Webster's Second International（1934 年、著作権切れ）
 - キー操作は [macSKK](https://github.com/mtgto/macSKK)、自動変換の手軽さは meltype を参考にした
+- 友だちの miyaoka の [tugime](https://github.com/miyaoka/tugime) には大いに助けられた。`SokkouConverter` は tugime から分けてもらったコードがもとで、その後も英単語の割り方（#43）や文節の移り方（#31）などを tugime から取り込んでいる。thank you, my friend!
 
 ## 辞書のクレジット
 
