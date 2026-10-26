@@ -24,17 +24,13 @@ enum Installer {
     }
 
     /// インストーラーを別のアプリとして起こし、終わりを待たない。sokkou を止めて入れ替えるので、sokkou の子のプロセスにしない。
+    /// sokkou はサンドボックスの中で、入れ物の外に書くインストーラーを自分では起こせないので、.app に入れた XPC サービス（SokkouLauncher）に頼む。
     /// launched は起こせたかどうかにかかわらず、起こし終えたあとに呼ぶ
     static func launch(_ arguments: [String], launched: (@MainActor () -> Void)? = nil) {
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.arguments = arguments
-        configuration.createsNewApplicationInstance = true
-        configuration.addsToRecentItems = false
-        NSWorkspace.shared.openApplication(at: helper, configuration: configuration) { _, error in
-            let message = error?.localizedDescription
+        call(arguments, wait: false) { status, message in
             Task { @MainActor in
-                if let message {
-                    alert("sokkou のインストーラーを起動できませんでした", message)
+                if status != 0 {
+                    alert("sokkou のインストーラーを起動できませんでした", message ?? "終わりの状態 \(status)")
                     stepBack()
                 }
                 launched?()
@@ -42,43 +38,46 @@ enum Installer {
         }
     }
 
-    /// 端末から動かしたとき（インストーラーを持たない前の版の install.sh が動かす --install・--uninstall）。インストーラーを起こす。
-    /// sokkou は App Sandbox の中なので、子のプロセスにするとインストーラーもサンドボックスに入って入れ物の外に書けない。
-    /// そこで別のアプリとして起こす。終わりは待たないので、結果が要るときはインストーラーを直に動かす
+    /// 端末から動かしたとき（Homebrew、Nix、インストーラーを持たない前の版の install.sh が動かす --install・--uninstall）。
+    /// XPC サービスがインストーラーを動かして終わるのを待ち、その終わりの状態を返す
     static func run(_ arguments: [String]) -> Int32 {
-        // 起こし終えた知らせは裏のスレッドに届く。端末から動かしたときはメインの run loop に入力が無く、メインに渡すと届かないので、鍵をかけた箱で受ける
-        nonisolated final class Launch: @unchecked Sendable {
-            private let lock = NSLock()
-            private var result: (pid: pid_t?, failure: String?)?
-            func finish(pid: pid_t?, failure: String?) { lock.withLock { result = (pid, failure) } }
-            var finished: (pid: pid_t?, failure: String?)? { lock.withLock { result } }
+        nonisolated final class Result: @unchecked Sendable {
+            let done = DispatchSemaphore(value: 0)
+            var status: Int32 = 1
+            var message: String?
         }
-        let launch = Launch()
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.arguments = arguments
-        configuration.createsNewApplicationInstance = true
-        configuration.addsToRecentItems = false
-        configuration.activates = false
-        NSWorkspace.shared.openApplication(at: helper, configuration: configuration) { app, error in
-            launch.finish(pid: app?.processIdentifier, failure: error?.localizedDescription)
+        let result = Result()
+        call(arguments, wait: true) { status, message in
+            result.status = status
+            result.message = message
+            result.done.signal()
         }
-        let deadline = Date().addingTimeInterval(60)
-        while launch.finished == nil {
-            guard Date() < deadline else {
-                print("インストーラーを起動できない: 60 秒待っても起動しなかった")
-                return 1
-            }
-            usleep(100_000)
-        }
-        if let failure = launch.finished?.failure {
-            print("インストーラーを起動できない: \(failure)")
+        guard result.done.wait(timeout: .now() + 10 * 60) == .success else {
+            print("インストーラーが 10 分たっても終わらない")
             return 1
         }
-        // 終わりは待たない。サンドボックスの中からは、別のアプリとして起こしたインストーラーが終わったかを確かめる手立てが乏しいため。
-        // 入れ替えは数秒で済み、結果は ~/Library/Input Methods と、インストーラーを直に動かしたときの出力で確かめる
-        print("== インストーラーを起動した（pid \(launch.finished?.pid.map { String($0) } ?? "?")）。入れ替えは裏で続く")
-        fflush(stdout)
-        return 0
+        if let message = result.message {
+            print(message)
+        }
+        return result.status
+    }
+
+    /// XPC サービスにインストーラーを動かすよう頼む。reply は裏のスレッドで 1 度だけ呼ばれる
+    private static func call(_ arguments: [String], wait: Bool, reply: @escaping @Sendable (Int32, String?) -> Void) {
+        nonisolated(unsafe) let connection = NSXPCConnection(serviceName: "\(Bundle.main.bundleIdentifier ?? "sokkou").launcher")
+        connection.remoteObjectInterface = NSXPCInterface(with: Launcher.self)
+        connection.resume()
+        let proxy = connection.remoteObjectProxyWithErrorHandler { error in
+            reply(1, "インストーラーを頼む XPC サービスにつながらない: \(error.localizedDescription)")
+        } as? Launcher
+        guard let proxy else {
+            reply(1, "インストーラーを頼む XPC サービスが分からない")
+            return
+        }
+        proxy.run(arguments, wait: wait) { status, message in
+            reply(status, message)
+            connection.invalidate()
+        }
     }
 
     @discardableResult
@@ -100,6 +99,11 @@ enum Installer {
         guard !SettingsWindow.shared.isOpen else { return }
         NSApplication.shared.setActivationPolicy(.prohibited)
     }
+}
+
+/// XPC サービス（Sources/SokkouLauncher）に頼むこと。向こうの宣言と同じ形にする
+@objc nonisolated protocol Launcher {
+    func run(_ arguments: [String], wait: Bool, reply: @escaping @Sendable (Int32, String?) -> Void)
 }
 
 /// 本当のホームフォルダ。App Sandbox の中でも、入れ物（~/Library/Containers）ではなくこちらを指す

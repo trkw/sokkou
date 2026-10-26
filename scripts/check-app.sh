@@ -28,7 +28,13 @@ codesign --verify --strict "$installer"
 installer_entitlements=$(codesign -d --entitlements - --xml "$installer" 2>/dev/null || true)
 [[ -z "$installer_entitlements" ]] || { echo "インストーラーに entitlements が付いている: $installer_entitlements" >&2; exit 1; }
 
-for binary in "$app/Contents/MacOS/sokkou" "$installer/Contents/MacOS/sokkou-installer" "$app/Contents/Frameworks/llama.framework/llama"; do
+launcher="$app/Contents/XPCServices/$id.launcher.xpc"
+codesign --verify --strict "$launcher"
+# XPC サービスもインストーラーを起こすのでサンドボックスに入れない。権限は何も付けない
+launcher_entitlements=$(codesign -d --entitlements - --xml "$launcher" 2>/dev/null || true)
+[[ -z "$launcher_entitlements" ]] || { echo "XPC サービスに entitlements が付いている: $launcher_entitlements" >&2; exit 1; }
+
+for binary in "$app/Contents/MacOS/sokkou" "$installer/Contents/MacOS/sokkou-installer" "$launcher/Contents/MacOS/sokkou-launcher" "$app/Contents/Frameworks/llama.framework/llama"; do
     archs=$(lipo -archs "$binary")
     [[ "$archs" == "arm64" ]] || { echo "対象が arm64 だけではない: $binary $archs" >&2; exit 1; }
     echo "対象 $archs $(basename "$binary")"

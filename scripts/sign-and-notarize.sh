@@ -91,6 +91,9 @@ echo "== 署名 sokkou.app"
 sign=(codesign --force --timestamp --options runtime --keychain "$keychain" --sign "$identity")
 "${sign[@]}" "$app/Contents/Frameworks/llama.framework"
 "${sign[@]}" "$app/Contents/Helpers/sokkou-installer.app"
+for launcher in "$app"/Contents/XPCServices/*.xpc; do
+    "${sign[@]}" "$launcher"
+done
 # 本体の権限（App Sandbox など）は build-app.sh が付けたものをそのまま残す
 entitlements_before=$(codesign -d --entitlements - --xml "$app" 2>/dev/null)
 "${sign[@]}" --preserve-metadata=entitlements "$app"

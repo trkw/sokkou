@@ -12,6 +12,7 @@ let package = Package(
         .library(name: "SokkouCore", targets: ["SokkouCore"]),
         .executable(name: "sokkou", targets: ["SokkouIME"]),
         .executable(name: "sokkou-installer", targets: ["SokkouInstaller"]),
+        .executable(name: "sokkou-launcher", targets: ["SokkouLauncher"]),
     ],
     dependencies: [
         // 1.0 まではマイナー版でも破壊的変更があるため revision で固定する
@@ -55,6 +56,8 @@ let package = Package(
             name: "SokkouInstaller",
             swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
+        // サンドボックスの中の sokkou に頼まれて、インストーラーを起こす XPC サービス。サンドボックスに入れない
+        .executableTarget(name: "SokkouLauncher"),
         .testTarget(name: "SokkouCoreTests", dependencies: ["SokkouCore"]),
         // 本物の綴りの表と azooKey の辞書を通すテスト。macOS でだけ組み立てられる
         .testTarget(
