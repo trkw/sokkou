@@ -103,3 +103,8 @@ watch_revision AzooKeyKanaKanjiConverter azooKey/AzooKeyKanaKanjiConverter "$azo
 
 watch_release azooKey-Desktop azooKey/azooKey-Desktop
 watch_release Meltype yksr-melt/Meltype
+
+# 入力メニューの「SKK-JISYO.L を入れる」が取る版。上げるときは Dictionaries.swift の SHA-256 も書き換える
+skk_pinned=$(sed -n 's/.*largeRevision = "\([0-9a-f]*\)".*/\1/p' Sources/SokkouIME/Dictionaries.swift)
+[[ -n "$skk_pinned" ]] || { echo "Dictionaries.swift に SKK-JISYO.L の revision が無い" >&2; exit 1; }
+watch_revision skk-dev/dict skk-dev/dict "$skk_pinned" "sokkou が取る SKK-JISYO.L の版"

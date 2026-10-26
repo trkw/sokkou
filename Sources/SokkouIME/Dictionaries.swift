@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 import SokkouCore
 
 /// 辞書のファイルの置き場所と、入力メニューからの辞書の出し入れ。
@@ -9,8 +10,12 @@ enum Dictionaries {
         .appendingPathComponent("sokkou", isDirectory: true)
     static let userURL = folder.appendingPathComponent("skk-jisyo.utf8")
     static let directory = folder.appendingPathComponent("Dictionaries", isDirectory: true)
-    /// skk-dev の SKK-JISYO.L（EUC-JP のまま置く）
-    private static let largeURL = URL(string: "https://raw.githubusercontent.com/skk-dev/dict/master/SKK-JISYO.L")!
+    /// skk-dev の SKK-JISYO.L（EUC-JP のまま置く）。取る版をコミットで固定し、中身を SHA-256 で確かめる。
+    /// 変換の候補にそのまま出る語なので、書き換えられたものや壊れたものは入れない。
+    /// 新しい版は upstream-watch が知らせる。上げるときは largeRevision と largeSHA256 を一緒に書き換える
+    static let largeRevision = "0a164e6b990c5eb5b59eb7d8789f08865dc2f644"
+    private static let largeSHA256 = "c791f578d1b4040fce282db29bc22b2cc7ea46f83e269fab2e0fa779e2967e40"
+    private static let largeURL = URL(string: "https://raw.githubusercontent.com/skk-dev/dict/\(largeRevision)/SKK-JISYO.L")!
 
     /// 追加の SKK 辞書を別のスレッドで読み直す。読み終えるまでは前の辞書のまま変換する
     static func reload() {
@@ -35,6 +40,11 @@ enum Dictionaries {
             do {
                 let (file, response) = try await URLSession.shared.download(from: largeURL)
                 guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+                let digest = SHA256.hash(data: try Data(contentsOf: file)).map { String(format: "%02x", $0) }.joined()
+                guard digest == largeSHA256 else {
+                    try? FileManager.default.removeItem(at: file)
+                    throw InstallError("取ってきた SKK-JISYO.L の SHA-256 が合いません。途中で書き換えられたか壊れています。")
+                }
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 try? FileManager.default.removeItem(at: destination)
                 try FileManager.default.moveItem(at: file, to: destination)

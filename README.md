@@ -55,6 +55,15 @@ programs.sokkou.autoUpdate = false;
 
 main に入るたびに CI が dmg を組み立ててリリースに置き、Homebrew の cask（[trkw/homebrew-tap](https://github.com/trkw/homebrew-tap)）と Nix の版（`nix/release.json`）も書き換える。仕組みは [docs/distribution.md](docs/distribution.md)。
 
+### 安全のために
+
+入力メソッドは打った文字のほとんどを見るので、sokkou が何をして何をしないかを書いておく。
+
+- 打った文字や覚えた候補を外へ送らない。覚えた候補とユーザー辞書は `~/Library/Application Support/sokkou` にだけ置く
+- つなぐ先は GitHub だけ。新しいリリースの確認（1 時間に 1 回、`api.github.com`）と dmg の取得、それに頼まれたときだけ SKK-JISYO.L を取る
+- 更新で入れる dmg は、GitHub がリリースの資産ごとに出す SHA-256 と突き合わせ、中の .app が trkw の Developer ID（Team ID `BCA6Z83Q5N`）で署名されていることを確かめてから入れる。fork からの PR のように署名の違うビルドは入らない
+- SKK-JISYO.L は skk-dev/dict のコミットを固定して取り、SHA-256 が合わなければ入れない
+
 ### 取り除き方
 
 入力メニューの「sokkou を取り除く…」を選ぶ。入力ソースから外し、`~/Library/Input Methods/sokkou.app` と取っておいた前の版を消す。覚えた候補と設定も消すかを選べる。ターミナルからなら:
