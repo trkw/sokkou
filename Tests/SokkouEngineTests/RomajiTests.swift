@@ -98,9 +98,9 @@ enum Shared {
         #expect(yuusenn.candidates.dropFirst().first != "yuusenn", "\(yuusenn.candidates)")
     }
 
-    /// 入力欄のカーソルの前が半角数字なら、続く日本語は助数詞として読む（3 の後に nin → 人）
+    /// 入力欄のカーソルの前が半角数字なら、続く日本語は助数詞として読む（3 の後に ninn → 人）
     @Test func readsCountersAfterDigitsBeforeTheCaret() throws {
-        let spans = try Shared.engine.get().live("nin", leading: .afterNumber("3"))
+        let spans = try Shared.engine.get().live("ninn", leading: .afterNumber("3"))
         #expect(spans.map(\.text).joined() == "人", "\(spans)")
     }
 }
