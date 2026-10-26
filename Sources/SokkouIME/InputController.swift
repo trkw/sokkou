@@ -304,7 +304,15 @@ final class SokkouInputController: IMKInputController {
         let text = composer.takeCommitted()
         if !text.isEmpty {
             client.insertText(text, replacementRange: NSRange(location: NSNotFound, length: 0))
-            ownCommits.append(text)
+            // 確定した直後にカーソルの前を読めれば、読める入力欄なので確定した文字列は覚えない。
+            // 覚えていると、読める入力欄でカーソルを先頭へ移したときに文頭にならない
+            if !ownCommits.fieldShowsText {
+                if Self.textBeforeCaret(of: client).isEmpty {
+                    ownCommits.append(text)
+                } else {
+                    ownCommits.fieldShowsText = true
+                }
+            }
             showsMarkedText = false
         }
         // 確定を取り消したら、入力欄の確定した文字列を未確定の文字列で置き換える
