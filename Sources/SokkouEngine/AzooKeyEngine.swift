@@ -68,14 +68,9 @@ public final class AzooKeyEngine: Engine {
     /// 区切りをもう一度作らせず、区切りの結果から表示を作る。区切りは打鍵列の長さの 2 乗で重くなるので、長く打つほど効く
     var readsDisplayFromSegments: Bool
 
-    /// Segmenter.liveConversionMinLength。これより短い日本語区間はかなのまま見せる
-    static let liveConversionMinLength = 4
-
     /// Segmenter.liveText と同じ文字列を、区切りの結果から作る。Zenzai を使わないときだけ同じになる
     static func liveText(of segments: [Segment]) -> String {
-        segments.map { segment in
-            segment.kind == .japanese && segment.reading.count < liveConversionMinLength ? segment.reading : segment.output
-        }.joined()
+        segments.map(\.output).joined()
     }
 
     public func clauses(_ keys: String, leading: Leading) -> ClauseList {

@@ -36,12 +36,16 @@ public struct SegmentWeights: Sendable {
     public var english: Double
     /// 区間を 1 つ増やすごとに引く値
     public var japaneseSpanPenalty: Double
+    /// 日本語区間に続く日本語区間で引く値。この切れ目は採点のためのもので、区切りが決まったら前の区間とまとめ直すので、
+    /// 日本語の区間を増やすときより少なく引く。多く引くと、日本語の途中に英字のかけらが残る（思わなかったnode、国土交通s用）
+    public var continuingJapaneseSpanPenalty: Double
     public var englishSpanPenalty: Double
 
-    public init(japanese: Double, english: Double, japaneseSpanPenalty: Double, englishSpanPenalty: Double) {
+    public init(japanese: Double, english: Double, japaneseSpanPenalty: Double, continuingJapaneseSpanPenalty: Double, englishSpanPenalty: Double) {
         self.japanese = japanese
         self.english = english
         self.japaneseSpanPenalty = japaneseSpanPenalty
+        self.continuingJapaneseSpanPenalty = continuingJapaneseSpanPenalty
         self.englishSpanPenalty = englishSpanPenalty
     }
 
@@ -50,6 +54,7 @@ public struct SegmentWeights: Sendable {
         japanese: 1.0,
         english: 1.4,
         japaneseSpanPenalty: 3,
+        continuingJapaneseSpanPenalty: 2,
         englishSpanPenalty: -2
     )
 }
@@ -89,21 +94,8 @@ public final class Segmenter {
         return digits.isEmpty ? .afterWord : .afterNumber(digits)
     }
 
-    /// 打っている途中に変換して見せる日本語区間の、かなの最短の長さ。短い断片は的外れな漢字になりやすい（きょ → 居）ので、それより短い区間はかなのまま見せる
-    static let liveConversionMinLength = 4
-
-    /// 打っている途中に見せる文字列。Enter で確定するのもこれ。日本語区間は長ければ変換し、短ければかなのまま、英語区間は打ったまま。
-    /// かなのまま見せるのは見た目だけで、後ろの区間の左の文脈には変換した表記を渡す
+    /// 打っている途中に見せる文字列。Enter で確定するのもこれ。日本語区間は長さによらず変換し（kidoku → 既読）、英語区間は打ったまま
     public func liveText(_ input: String, leading: Leading = .start) -> String {
-        let segments = segment(input, leading: leading)
-        return zip(segments, displays(of: segments.map(ShownSpan.init))).map { segment, display in
-            guard let display else { return segment.output }
-            return segment.reading.count < Self.liveConversionMinLength ? segment.reading : display.text
-        }.joined()
-    }
-
-    /// 日本語区間をすべて表示の変換にした文字列
-    public func displayText(_ input: String, leading: Leading = .start) -> String {
         let segments = segment(input, leading: leading)
         return zip(segments, displays(of: segments.map(ShownSpan.init))).map { segment, display in
             display?.text ?? segment.output
@@ -293,16 +285,17 @@ public final class Segmenter {
             // 英語区間の後は前の語に続く形（数字の後は助数詞）、日本語区間の後は文頭の形で採点する。
             // 日本語区間の後の切れ目は採点のためのもので、区切りが決まったら前の日本語区間とまとめて変換し直す
             let context = start == 0 ? leading : Self.context(after: chars[..<start])
-            let predecessors: [(kind: Segment.Kind?, context: JapaneseContext)] = start == 0
-                ? [(nil, leading)]
-                : [(.english, context), (.japanese, .start)]
+            let predecessors: [(kind: Segment.Kind?, context: JapaneseContext, penalty: Double)] = start == 0
+                ? [(nil, leading, weights.japaneseSpanPenalty)]
+                : [(.english, context, weights.japaneseSpanPenalty), (.japanese, .start, weights.continuingJapaneseSpanPenalty)]
             let readings = readingsAt[start]
             // この位置から綴りの表で最後まで読める終端。英語区間の候補が読める綴りかを引くのに使う
             let readableEnds = Set(readings.map(\.end))
             for (end, kana) in readings where Self.isScoredJapanese(kana) {
                 for predecessor in predecessors {
                     guard score(at: start, after: predecessor.kind) != nil,
-                          let segment = japaneseSegment(String(chars[start..<end]), kana: kana, context: predecessor.context) else { continue }
+                          let segment = japaneseSegment(String(chars[start..<end]), kana: kana, context: predecessor.context, penalty: predecessor.penalty)
+                    else { continue }
                     japaneseEnds.insert(end)
                     relax(end, start, segment, after: predecessor.kind)
                 }
@@ -342,13 +335,13 @@ public final class Segmenter {
 
     /// 1 つのかなになる綴り（ga to de no）、読める 2 文字以下の綴り（ie）、読めて英語の語でない綴り（utte deno matte）は、
     /// 日本語として採れるなら英語にしない
-    private func prefersJapanese(_ source: String, readable: Bool) -> Bool {
+    func prefersJapanese(_ source: String, readable: Bool) -> Bool {
         table.isSingleKana(source) || (readable && (source.count <= Self.maxJapaneseFirstLength || !english.isWord(source)))
     }
 
-    private func japaneseSegment(_ source: String, kana: String, context: JapaneseContext) -> Segment? {
+    private func japaneseSegment(_ source: String, kana: String, context: JapaneseContext, penalty: Double? = nil) -> Segment? {
         guard let reading = japaneseConverter.convert(kana: kana, context: context) else { return nil }
-        let score = weights.japanese * reading.value - weights.japaneseSpanPenalty
+        let score = weights.japanese * reading.value - (penalty ?? weights.japaneseSpanPenalty)
         return Segment(kind: .japanese, source: source, reading: kana, output: reading.text, score: score, context: reading.context)
     }
 
