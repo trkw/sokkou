@@ -51,6 +51,9 @@ public enum Key: Sendable, Equatable {
     case eisu
     /// JIS キーボードのかなキー
     case kana
+    /// 候補の窓のページ送り（Meltype と同じ）。変換していないときはアプリに渡す
+    case pageUp
+    case pageDown
 }
 
 /// 打っている途中の 1 区間
