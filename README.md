@@ -14,7 +14,7 @@ SKK の手触りで、打てばそのまま変換される、自分用の macOS 
 - 選んだ候補だけを控えめに覚える。入力メニューから切れる
 - SKK のように、候補の最後の「登録…」から単語を登録でき、`X` で候補を消せる。ユーザー辞書は SKK 形式で、`~/.skk-jisyo` や macSKK の辞書を取り込める
 - SKK 辞書（SKK-JISYO.L など）を追加の候補元にできる。ほかに abbrev（`/`）、数値変換、Tab での読みの補完
-- 軽さを優先し、既定は azooKey の辞書だけで変換する。設定の「辞書」の「賢い変換」で、言語モデルの Zenzai（zenz-v3.2-small、74MB）か genmai（genmai-310M、340MB）を選べる。選んだモデルはそのときに Hugging Face から取ってきて、`~/Library/Application Support/sokkou/Models` に置く
+- 軽さを優先し、既定は azooKey の辞書だけで変換する。設定の「辞書」の「賢い変換」で、言語モデルの Zenzai（zenz-v3.2-small、74MB）か genmai（genmai-310M、340MB）を選べる。選んだモデルはそのときに Hugging Face から取ってきて、sokkou の入れ物の中の `Application Support/sokkou/Models` に置く
 
 キーの全体は [docs/keys.md](docs/keys.md)。
 
@@ -63,7 +63,7 @@ main に入るたびに CI が dmg を組み立ててリリースに置き、Hom
 - sokkou は App Sandbox の中で動く。触れられるファイルは自分の入れ物と、「SKK 辞書を追加…」などで自分で選んだファイルだけ。穴を突かれても、ほかのファイルを読んだり書き換えたりできない。権限は `App/sokkou.entitlements` に書いたものだけで、CI が毎回それ以外が付いていないかを確かめる
 - 通信の権限は残している（下の 2 つに要る）。受け付けの口は開けない
 - `~/Library/Input Methods` への導入・更新・取り除きは、sokkou の中に入れた別のアプリ（`Contents/Helpers/sokkou-installer.app`）がする。こちらはサンドボックスの外で動き、打った文字は見ない
-- つなぐ先は GitHub だけ。新しいリリースの確認（1 時間に 1 回、`api.github.com`）と dmg の取得、それに頼まれたときだけ SKK-JISYO.L を取る
+- つなぐ先は GitHub と Hugging Face だけ。新しいリリースの確認（1 時間に 1 回、`api.github.com`）と dmg の取得、それに頼まれたときだけ SKK-JISYO.L（GitHub）と賢い変換のモデル（Hugging Face）を取る
 - 更新で入れる dmg は、GitHub がリリースの資産ごとに出す SHA-256 と突き合わせ、中の .app が trkw の Developer ID（Team ID `BCA6Z83Q5N`）で署名されていることを確かめてから入れる。fork からの PR のように署名の違うビルドは入らない
 - SKK-JISYO.L は skk-dev/dict のコミットを固定して取り、SHA-256 が合わなければ入れない
 

@@ -5,7 +5,7 @@
 	<!-- 打った文字をほぼすべて見るので、穴を突かれても入れ物（~/Library/Containers）の外のファイルに触れないようにする -->
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
-	<!-- 新しいリリースの確認（api.github.com）と SKK-JISYO.L の取得（raw.githubusercontent.com）。受けは開けない -->
+	<!-- 新しいリリースの確認（api.github.com）、SKK-JISYO.L（raw.githubusercontent.com）と賢い変換のモデル（huggingface.co）の取得。受けは開けない -->
 	<key>com.apple.security.network.client</key>
 	<true/>
 	<!-- 「SKK 辞書を追加…」「SKK のユーザー辞書を取り込む…」で選んだファイルだけを読む。読んだら入れ物に写す -->

@@ -90,12 +90,15 @@ jobs:
           mkdir -p "$old/Dictionaries"
           printf ';; okuri-nasi entries.\nそっこう /即効/\n' > "$old/skk-jisyo.utf8"
           printf ';; okuri-nasi entries.\nてすと /テスト/\n' > "$old/Dictionaries/SKK-JISYO.test"
+          mkdir -p "$old/Models"
+          printf 'model' > "$old/Models/test.gguf"
           defaults write "$id" learns -bool false
           "$app/Contents/MacOS/sokkou" --check
           data="$HOME/Library/Containers/$id/Data/Library"
           ls -la "$data/Application Support/sokkou" "$data/Preferences" || true
           grep -q 即効 "$data/Application Support/sokkou/skk-jisyo.utf8"
           test -s "$data/Application Support/sokkou/Dictionaries/SKK-JISYO.test"
+          test -s "$data/Application Support/sokkou/Models/test.gguf"
           [[ "$(plutil -extract learns raw "$data/Preferences/$id.plist")" == false ]]
           # 写したあとも元が残るか（前の版に戻したとき、その版が読む）
           ls -la "$old" || true

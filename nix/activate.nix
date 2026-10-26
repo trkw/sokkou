@@ -16,8 +16,10 @@ writeShellScript "sokkou-activate" ''
   want=${lib.escapeShellArg package.version}
   have=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$installed/Contents/Info.plist" 2>/dev/null || true)
 
-  # 自動更新を決める。sokkou は App Sandbox の中で動き、入れ物の外の設定は <bundle id>.managed だけを読む（入力メニューの設定より先に使う）
+  # 自動更新を決める。App Sandbox に入れた版は、入れ物の外の設定は <bundle id>.managed だけを読む（入力メニューの設定より先に使う）。
+  # それより前の版は <bundle id> を読むので、両方に書く
   /usr/bin/defaults write ${package.passthru.bundleId}.managed autoUpdates -bool ${lib.boolToString autoUpdate}
+  /usr/bin/defaults write ${package.passthru.bundleId} autoUpdates -bool ${lib.boolToString autoUpdate}
 
   install=0
   if [ -z "$have" ]; then

@@ -10,6 +10,7 @@
 		<string>${ApplicationSupport}/sokkou/ignored.tsv</string>
 		<string>${ApplicationSupport}/sokkou/learning.json</string>
 		<string>${ApplicationSupport}/sokkou/Dictionaries</string>
+		<string>${ApplicationSupport}/sokkou/Models</string>
 		<string>${Library}/Preferences/${BundleId}.plist</string>
 	</array>
 </dict>
