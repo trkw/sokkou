@@ -157,6 +157,33 @@ struct ComposerSKKFeelTests {
         #expect(composer.isComposing)
     }
 
+    /// PageDown / PageUp で候補の窓のページを送る（Meltype と同じ）。変換していないときはアプリに渡す
+    @Test func pageKeysTurnWindowPages() {
+        let composer = composer()
+        #expect(!type(composer, [.pageDown]))
+        // 打っている途中の PageUp は、確定してからアプリに渡す
+        type(composer, characters("kaku"))
+        #expect(!type(composer, [.pageUp]))
+        #expect(composer.takeCommitted() == "書く")
+        #expect(!composer.isComposing)
+        type(composer, characters("kaku") + [.pageDown])
+        #expect(composer.presentation.window?.page == 0)
+        type(composer, [.pageDown])
+        #expect(composer.presentation.window?.page == 1)
+        type(composer, [.pageUp])
+        #expect(composer.presentation.window?.page == 0)
+        type(composer, [.pageUp])
+        #expect(composer.presentation.window?.page == 0)
+        let manual = self.composer()
+        type(manual, characters(";kaku ") + [.pageDown])
+        #expect(manual.presentation.window?.page == 0)
+        type(manual, [.pageDown])
+        #expect(manual.presentation.window?.page == 1)
+        #expect(manual.presentation.text == "▼画")
+        type(manual, [.pageUp])
+        #expect(manual.presentation.window?.page == 0)
+    }
+
     @Test func spaceTurnsPagesInClauseSelection() {
         let composer = composer()
         type(composer, characters("kaku") + [.control("n"), .control("n"), .control("n")])

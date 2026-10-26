@@ -33,6 +33,8 @@ private enum KeyCode {
     static let down = UInt16(kVK_DownArrow)
     static let up = UInt16(kVK_UpArrow)
     static let tab = UInt16(kVK_Tab)
+    static let pageUp = UInt16(kVK_PageUp)
+    static let pageDown = UInt16(kVK_PageDown)
 }
 
 @objc(SokkouInputController)
@@ -259,6 +261,8 @@ final class SokkouInputController: IMKInputController {
         case KeyCode.right: return shift ? .shiftRight : .right
         case KeyCode.up: return .up
         case KeyCode.down: return .down
+        case KeyCode.pageUp: return shift ? nil : .pageUp
+        case KeyCode.pageDown: return shift ? nil : .pageDown
         case KeyCode.tab: return shift ? nil : .tab
         default: break
         }

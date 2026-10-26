@@ -25,7 +25,7 @@ struct ComposerFuzzTests {
         keys += "KS;;.,? -1".map { $0 == " " ? .space : .character($0) }
         keys += "ghjkqlLnpfbmx/".map { .control($0) }
         keys += [.control("j"), .control("j"), .space, .shiftSpace, .shiftSpace, .enter, .shiftEnter]
-        keys += [.backspace, .escape, .left, .right, .up, .down, .shiftLeft, .shiftRight, .eisu, .kana]
+        keys += [.backspace, .escape, .left, .right, .up, .down, .shiftLeft, .shiftRight, .eisu, .kana, .pageUp, .pageDown]
         return keys
     }()
 

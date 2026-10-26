@@ -461,6 +461,16 @@ public final class Composer {
             committed += typingText(typing)
             finish()
             return false
+        case .pageDown where mode == .hiragana:
+            var selecting = startSelecting(typing.keys)
+            selecting.window = selecting.list.clauses[selecting.focus].candidates.count > 1
+            phase = .selecting(selecting)
+            return true
+        case .pageUp, .pageDown:
+            // 送るページが無いので、確定してからアプリに渡す（割り当ての無いキーと同じ）
+            committed += typingText(typing)
+            finish()
+            return false
         case .eisu, .kana:
             break
         }
@@ -634,6 +644,21 @@ public final class Composer {
             } else {
                 selecting.window = false
             }
+        case .pageDown:
+            var clause = selecting.list.clauses[selecting.focus]
+            guard clause.candidates.count > 1 else { break }
+            if selecting.window {
+                clause.selected = Self.nextPage(from: clause.selected, count: clause.candidates.count)
+                selecting.list.clauses[selecting.focus] = clause
+            }
+            selecting.window = true
+            selecting.chosen.insert(selecting.focus)
+        case .pageUp:
+            var clause = selecting.list.clauses[selecting.focus]
+            guard selecting.window, let index = Self.previousPage(from: clause.selected) else { break }
+            clause.selected = index
+            selecting.list.clauses[selecting.focus] = clause
+            selecting.chosen.insert(selecting.focus)
         case .space, .shiftSpace, .down, .control("n"):
             step(&selecting, by: 1)
         case .up, .control("p"):
@@ -985,6 +1010,15 @@ public final class Composer {
             }
         case .space where usesSKKCandidateKeys && choice.window:
             choice.index = Self.nextPage(from: choice.index, count: choice.words.count)
+        case .pageDown:
+            if choice.window {
+                choice.index = Self.nextPage(from: choice.index, count: choice.words.count)
+            }
+            choice.window = true
+        case .pageUp:
+            if choice.window, let index = Self.previousPage(from: choice.index) {
+                choice.index = index
+            }
         case .character("x") where usesSKKCandidateKeys:
             if choice.window {
                 if let index = Self.previousPage(from: choice.index) {
