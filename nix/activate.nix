@@ -14,7 +14,11 @@ writeShellScript "sokkou-activate" ''
   app=${lib.escapeShellArg "${package}/${package.passthru.app}"}
   installed="$HOME/Library/Input Methods/sokkou.app"
   want=${lib.escapeShellArg package.version}
-  have=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$installed/Contents/Info.plist" 2>/dev/null || true)
+  # ファイルが無いと PlistBuddy は「File Doesn't Exist, Will Create: …」を標準出力に出すので、先に存在を確かめる
+  have=""
+  if [ -f "$installed/Contents/Info.plist" ]; then
+    have=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$installed/Contents/Info.plist" 2>/dev/null || true)
+  fi
 
   # 自動更新を入力メニューの設定と同じ値で決める
   /usr/bin/defaults write ${package.passthru.bundleId} autoUpdates -bool ${lib.boolToString autoUpdate}
