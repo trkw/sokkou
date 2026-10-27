@@ -374,36 +374,42 @@ public final class Segmenter {
     /// 隣り合う日本語区間を 1 つにまとめ、まとめた読みを最初の区間の文脈で変換し直す。
     /// まとめた読みを変換できなければまとめない。各区間は採点のときに自分の文脈で変換できているので、文節に分けても同じ変換になる。
     /// まとめた区間の点は、区切りを決めた区間ごとの点の和にする。
-    /// 最後の区間が日本語区間に続く - だけの英語区間なら、長音として前の日本語区間に含める（so-su- の最後の - をハイフンにしない）。
-    /// 途中の - は、後ろに英語が続くこと（binge-watch）があるので区切りのとおりにする
+    /// 日本語区間に続く - だけの英語区間（後ろに空白が続いてもよい）は、長音として前の日本語区間に含める
+    /// （so-su- の最後の -、Space で確定する so-su-␣ の -、日本語に挟まれた - をハイフンにしない）。空白は英語区間のまま後ろに残す。
+    /// 英語区間は英語区間に続かないので、この - の後ろは日本語区間か空白か入力の最後で、英語のハイフンではない
     private func mergeJapanese(_ segments: [Segment]) -> [Segment] {
         var merged: [Segment] = []
-        for (index, segment) in segments.enumerated() {
-            guard let last = merged.last, last.kind == .japanese,
-                  segment.kind == .japanese || (index == segments.count - 1 && Self.isLongVowelMarks(segment))
-            else {
+        for segment in segments {
+            let marks = segment.kind == .english ? Self.longVowelMarks(segment.source) : nil
+            guard let last = merged.last, last.kind == .japanese, segment.kind == .japanese || marks != nil else {
                 merged.append(segment)
                 continue
             }
-            let reading = last.reading + (segment.kind == .japanese ? segment.reading : String(repeating: "ー", count: segment.source.count))
+            let reading = last.reading + (marks.map { String(repeating: "ー", count: $0.count) } ?? segment.reading)
             guard let whole = japaneseConverter.convert(kana: reading, context: last.context) else {
                 merged.append(segment)
                 continue
             }
             merged[merged.count - 1] = Segment(
                 kind: .japanese,
-                source: last.source + segment.source,
+                source: last.source + (marks ?? segment.source),
                 reading: reading,
                 output: whole.text,
                 score: last.score + segment.score,
                 context: whole.context
             )
+            if let marks, marks.count < segment.source.count {
+                let spaces = String(segment.source.dropFirst(marks.count))
+                merged.append(Segment(kind: .english, source: spaces, reading: spaces, output: spaces, score: 0, context: segment.context))
+            }
         }
         return merged
     }
 
-    /// 打鍵が - だけの英語区間か。日本語区間の後ろでは長音として打ったもの
-    static func isLongVowelMarks(_ segment: Segment) -> Bool {
-        segment.kind == .english && !segment.source.isEmpty && segment.source.allSatisfy { $0 == "-" }
+    /// 英語区間の打鍵が - の並びと、その後の空白だけなら、先頭の - の並び。日本語区間の後ろでは長音として打ったもの
+    static func longVowelMarks(_ source: String) -> String? {
+        let marks = source.prefix { $0 == "-" }
+        guard !marks.isEmpty, source.dropFirst(marks.count).allSatisfy({ $0 == " " }) else { return nil }
+        return String(marks)
     }
 }
