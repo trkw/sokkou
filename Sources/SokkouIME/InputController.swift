@@ -147,6 +147,7 @@ final class SokkouInputController: IMKInputController {
         // 設定はほかの入力欄のメニューや設定の窓からも変わるので、打鍵ごとに読み直す
         Self.apply(to: composer)
         if app == nil { app = client.bundleIdentifier() }
+        composer.passesControlQInRoman = ModeMemory.isTerminal(app)
         if key == .control("/"), let text = composer.undoableCommit, Self.range(before: text, in: client) == nil {
             // 入力欄のカーソルの前が確定した文字列でない（カーソルが動いた、読めないアプリ）なら、取り消さずにアプリに渡す
             composer.forgetCommit()

@@ -248,6 +248,18 @@ struct ComposerTests {
         #expect(composer.mode == .ascii)
     }
 
+    @Test func controlQFromRomanEntersHalfwidthKatakana() {
+        let composer = composer()
+        type(composer, [.control("l"), .control("q")])
+        #expect(composer.mode == .halfwidthKatakana)
+        type(composer, [.control("L"), .control("q")])
+        #expect(composer.mode == .halfwidthKatakana)
+        composer.passesControlQInRoman = true
+        type(composer, [.control("l")])
+        #expect(!composer.handle(.control("q"), leading: { .start }))
+        #expect(composer.mode == .ascii)
+    }
+
     @Test func fullwidthRomanTypesAFullwidthSpace() {
         let composer = composer()
         type(composer, [.control("L"), .character("a"), .space, .character("b")])

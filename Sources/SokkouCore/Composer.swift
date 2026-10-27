@@ -11,6 +11,9 @@ public final class Composer {
     public var learns = true
     /// 何も打っていないときの `C-k` をアプリに渡し、macOS の「行末まで削除」を残す。false ならカタカナモードに入る
     public var passesIdleControlK = true
+    /// 英数・全角英数の `C-q` をアプリに渡す（SKK と同じ）。false なら半角カナモードに入る。
+    /// 入力メソッドはターミナルでだけ true にし、`C-q`（次の文字をそのまま入力）を残す
+    public var passesControlQInRoman = false
 
     // SKK の手触りの機能。入力メソッドは設定で切り替える。既定は使わない
 
@@ -159,13 +162,23 @@ public final class Composer {
         }
         switch mode {
         case .ascii:
-            guard key == .control("j") else { return false }
-            mode = .hiragana
-            return true
+            switch key {
+            case .control("j"):
+                mode = .hiragana
+                return true
+            case .control("q") where !passesControlQInRoman:
+                mode = .halfwidthKatakana
+                return true
+            default:
+                return false
+            }
         case .fullwidthRoman:
             switch key {
             case .control("j"):
                 mode = .hiragana
+                return true
+            case .control("q") where !passesControlQInRoman:
+                mode = .halfwidthKatakana
                 return true
             case .control("l"):
                 mode = .ascii

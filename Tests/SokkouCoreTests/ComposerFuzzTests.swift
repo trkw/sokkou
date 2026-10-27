@@ -37,6 +37,7 @@ struct ComposerFuzzTests {
             let composer = Composer(engine: FakeEngine(), learning: learning)
             composer.learns = Bool.random(using: &random)
             composer.passesIdleControlK = Bool.random(using: &random)
+            composer.passesControlQInRoman = Bool.random(using: &random)
             composer.undoesCommit = Bool.random(using: &random)
             composer.convertsWithQ = Bool.random(using: &random)
             composer.usesSKKCandidateKeys = Bool.random(using: &random)
