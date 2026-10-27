@@ -11,6 +11,9 @@
 
 writeShellScript "sokkou-activate" ''
   set -eu
+  # Home Manager の activation の PATH には /usr/bin が無い。macOS 15 以降の rsync (openrsync) は
+  # 手元へのコピーでも受け手の rsync を PATH から起こすので、--install の rsync が「exec on 'rsync'」で失敗する
+  export PATH="$PATH:/usr/bin:/bin:/usr/sbin:/sbin"
   app=${lib.escapeShellArg "${package}/${package.passthru.app}"}
   installed="$HOME/Library/Input Methods/sokkou.app"
   want=${lib.escapeShellArg package.version}
