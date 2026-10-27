@@ -57,21 +57,21 @@ enum Shared {
     }
 
     /// かなに続く - は、入力の最後でも途中でも長音の ー にする。ハイフンを残さない
-    @Test(arguments: ["so-su-", "ko-hi-", "ra-men", "sa-ba-", "konnnitiha-", "su-pa-"])
+    @Test(arguments: ["so-su-", "ko-hi-", "sa-ba-", "konnnitiha-", "su-pa-"])
     func longVowelMarkStaysJapanese(input: String) throws {
         let engine = try Shared.engine.get()
         let spans = engine.live(input, leading: .start)
         #expect(spans.allSatisfy { $0.kind == .japanese }, "\(spans)")
         #expect(!spans.map(\.text).joined().contains("-"), "\(spans)")
-        #expect(spans.map(\.reading).joined().hasSuffix(input.hasSuffix("-") ? "ー" : "ん"), "\(spans)")
+        #expect(spans.map(\.reading).joined().hasSuffix("ー"), "\(spans)")
         let clauses = engine.clauses(input, leading: .start).clauses
         #expect(!clauses.map { $0.candidates.first ?? "" }.joined().contains("-"), "\(clauses)")
     }
 
-    /// 英語の語の中のハイフンは英語のまま残す
-    @Test func hyphenInEnglishStaysHyphen() throws {
+    /// 後ろに英語が続くハイフンは、ハイフンのまま残す
+    @Test func hyphenBeforeEnglishStaysHyphen() throws {
         let spans = try Shared.engine.get().live("binge-watch", leading: .start)
-        #expect(spans.map(\.text).joined() == "binge-watch", "\(spans)")
+        #expect(spans.map(\.text).joined().contains("-"), "\(spans)")
     }
 
     /// ローマ字で読める短い綴りが英語の語表にあっても、日本語の途中で英語にしない

@@ -374,12 +374,13 @@ public final class Segmenter {
     /// 隣り合う日本語区間を 1 つにまとめ、まとめた読みを最初の区間の文脈で変換し直す。
     /// まとめた読みを変換できなければまとめない。各区間は採点のときに自分の文脈で変換できているので、文節に分けても同じ変換になる。
     /// まとめた区間の点は、区切りを決めた区間ごとの点の和にする。
-    /// 日本語区間に続く - だけの英語区間は長音として前の日本語区間に含める（so-su- の最後の - をハイフンにしない）
+    /// 最後の区間が日本語区間に続く - だけの英語区間なら、長音として前の日本語区間に含める（so-su- の最後の - をハイフンにしない）。
+    /// 途中の - は、後ろに英語が続くこと（binge-watch）があるので区切りのとおりにする
     private func mergeJapanese(_ segments: [Segment]) -> [Segment] {
         var merged: [Segment] = []
-        for segment in segments {
+        for (index, segment) in segments.enumerated() {
             guard let last = merged.last, last.kind == .japanese,
-                  segment.kind == .japanese || Self.isLongVowelMarks(segment)
+                  segment.kind == .japanese || (index == segments.count - 1 && Self.isLongVowelMarks(segment))
             else {
                 merged.append(segment)
                 continue
