@@ -56,6 +56,18 @@ enum Shared {
         #expect(spans.map(\.text).joined() == "she")
     }
 
+    /// かなに続く - は、入力の最後でも途中でも長音の ー にする。ハイフンを残さない
+    @Test(arguments: ["so-su-", "ko-hi-", "sa-ba-", "konnnitiha-", "su-pa-"])
+    func longVowelMarkStaysJapanese(input: String) throws {
+        let engine = try Shared.engine.get()
+        let spans = engine.live(input, leading: .start)
+        #expect(spans.allSatisfy { $0.kind == .japanese }, "\(spans)")
+        #expect(!spans.map(\.text).joined().contains("-"), "\(spans)")
+        #expect(spans.map(\.reading).joined().hasSuffix("ー"), "\(spans)")
+        let clauses = engine.clauses(input, leading: .start).clauses
+        #expect(!clauses.map { $0.candidates.first ?? "" }.joined().contains("-"), "\(clauses)")
+    }
+
     /// ローマ字で読める短い綴りが英語の語表にあっても、日本語の途中で英語にしない
     @Test(arguments: ["madahitotuninattenaine", "sounanda", "usodesyo", "ikuyo", "orehaikanai"])
     func shortRomajiWordsStayJapanese(input: String) throws {
