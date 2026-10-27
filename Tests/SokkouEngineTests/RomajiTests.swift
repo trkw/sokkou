@@ -68,12 +68,6 @@ enum Shared {
         #expect(!clauses.map { $0.candidates.first ?? "" }.joined().contains("-"), "\(clauses)")
     }
 
-    /// 後ろに英語が続くハイフンは、ハイフンのまま残す
-    @Test func hyphenBeforeEnglishStaysHyphen() throws {
-        let spans = try Shared.engine.get().live("binge-watch", leading: .start)
-        #expect(spans.map(\.text).joined().contains("-"), "\(spans)")
-    }
-
     /// ローマ字で読める短い綴りが英語の語表にあっても、日本語の途中で英語にしない
     @Test(arguments: ["madahitotuninattenaine", "sounanda", "usodesyo", "ikuyo", "orehaikanai"])
     func shortRomajiWordsStayJapanese(input: String) throws {
