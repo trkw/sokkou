@@ -68,6 +68,15 @@ enum Shared {
         #expect(!clauses.map { $0.candidates.first ?? "" }.joined().contains("-"), "\(clauses)")
     }
 
+    /// Space・句読点で確定するときや、日本語に挟まれた - も ー にする。Space の空白はそのまま残す
+    @Test(arguments: [("so-su- ", " "), ("so-su-.", "。"), ("ko-hi-wonomu", "む"), ("ko-hi-ha", "は")])
+    func longVowelMarkBeforeSpaceOrKana(input: String, suffix: String) throws {
+        let text = try Shared.engine.get().live(input, leading: .start).map(\.text).joined()
+        #expect(!text.contains("-"), "\(text)")
+        #expect(text.contains("ー"), "\(text)")
+        #expect(text.hasSuffix(suffix), "\(text)")
+    }
+
     /// ローマ字で読める短い綴りが英語の語表にあっても、日本語の途中で英語にしない
     @Test(arguments: ["madahitotuninattenaine", "sounanda", "usodesyo", "ikuyo", "orehaikanai"])
     func shortRomajiWordsStayJapanese(input: String) throws {
