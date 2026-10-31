@@ -24,7 +24,7 @@
 ## GitHub に送る
 
 記録をオンにしたあと、設定の「GitHub に送る」に非公開のリポジトリ（既定は `trkw/sokkou-stumbles`）と token を入れると、
-1 日 1 回、前に送ったあとの記録を `stumbles/<日時>-<Mac ごとの乱数>.jsonl` として送ります。「いま送る」ですぐにも送れます。
+1 時間ごとに、前に送ったあとの記録を `stumbles/<日時>-<Mac ごとの乱数>.jsonl` として送ります。「いま送る」ですぐにも送れます。
 
 - token は fine-grained personal access token で、そのリポジトリだけ・Contents の Read and write だけにする
 - token は Keychain（`sokkou.stumbles.github`）に入れ、アプリにもリポジトリにも書かない
