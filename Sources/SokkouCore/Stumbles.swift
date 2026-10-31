@@ -168,7 +168,8 @@ public struct StumbleDetector {
         let deletes = key == .backspace || key == .control("h")
         if deletes {
             lastDelete = stroke.time
-            if idleBefore, !stroke.handled {
+            // 確定した語をまとめて消すときは、sokkou が ⌫ を受ける
+            if idleBefore {
                 if let commit = lastCommit, stroke.time - commit.time <= Self.afterCommit, !deletedSinceCommit {
                     deletedSinceCommit = true
                     add(.deletedAfterCommit, count: commit.text.count, text: commit.text)

@@ -50,6 +50,7 @@ enum Settings {
 /// SKK の手触りの機能。設定の窓で 1 つずつ切り替える。既定はすべて使う
 enum SKKFeature: String, CaseIterable, Identifiable {
     case undoCommit
+    case eraseClause
     case katakanaWithQ
     case candidateKeys
     case commitAtPunctuation
@@ -61,6 +62,7 @@ enum SKKFeature: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .undoCommit: "確定を取り消す"
+        case .eraseClause: "確定した語をまとめて消す"
         case .katakanaWithQ: "▽ の q でカタカナ"
         case .candidateKeys: "x で前の候補"
         case .commitAtPunctuation: "句読点で確定"
@@ -72,6 +74,7 @@ enum SKKFeature: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .undoCommit: "確定した直後の ⌃/ で、確定した語を選び直す"
+        case .eraseClause: "確定した直後の ⌫ で、変換した語を 1 文字ずつでなく語ごと消す"
         case .katakanaWithQ: "▽ で読みを打って q で、カタカナにして確定する"
         case .candidateKeys: "▼ の x で前の候補。窓では Space と x でページを送る"
         case .commitAtPunctuation: "打っている途中に 、。！？ を打ったら、そこまで確定する"
