@@ -21,6 +21,12 @@ enum StumbleUpload {
         set { UserDefaults.standard.set(newValue, forKey: "stumblesSentThrough") }
     }
 
+    /// sentThrough と同じ時刻（秒まで）の記録のうち、送った数。同じ秒にあとから残した記録を取りこぼさない
+    private static var sentAtThrough: Int {
+        get { UserDefaults.standard.integer(forKey: "stumblesSentAtThrough") }
+        set { UserDefaults.standard.set(newValue, forKey: "stumblesSentAtThrough") }
+    }
+
     /// 最後に送ろうとした時刻
     private static var lastAttempt: Date? {
         get { UserDefaults.standard.object(forKey: "stumblesLastAttempt") as? Date }
@@ -63,7 +69,16 @@ enum StumbleUpload {
             done("token がありません")
             return
         }
-        let records = StumbleLog.records().filter { record in sentThrough.map { record.at > $0 } ?? true }
+        let all = StumbleLog.records()
+        var skip = sentAtThrough
+        let records = all.filter { record in
+            guard let through = sentThrough else { return true }
+            if record.at == through, skip > 0 {
+                skip -= 1
+                return false
+            }
+            return record.at >= through
+        }
         lastAttempt = Date()
         guard let last = records.last else {
             finish("送る記録はありませんでした", done)
@@ -99,6 +114,7 @@ enum StumbleUpload {
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
         sending = true
         let count = records.count
+        let sameTime = all.count { $0.at == last.at }
         Task {
             let result: String
             do {
@@ -106,6 +122,7 @@ enum StumbleUpload {
                 let code = (response as? HTTPURLResponse)?.statusCode ?? 0
                 if (200..<300).contains(code) {
                     sentThrough = last.at
+                    sentAtThrough = sameTime
                     result = "\(count) 件を送りました"
                 } else if code == 401 || code == 403 || code == 404 {
                     result = "送れませんでした（\(code)）。token とリポジトリの名前を確かめてください"

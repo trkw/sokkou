@@ -49,11 +49,14 @@ enum StumbleLog {
         try? handle.write(contentsOf: data)
     }
 
+    /// 残っている記録を古い順に。作り直す前の古いほう（.1）も読む
     static func records() -> [Record] {
-        guard let text = try? String(contentsOf: file, encoding: .utf8) else { return [] }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return text.split(separator: "\n").compactMap { try? decoder.decode(Record.self, from: Data($0.utf8)) }
+        return [file.appendingPathExtension("1"), file].flatMap { url -> [Record] in
+            guard let text = try? String(contentsOf: url, encoding: .utf8) else { return [] }
+            return text.split(separator: "\n").compactMap { try? decoder.decode(Record.self, from: Data($0.utf8)) }
+        }
     }
 
     static func clear() {
