@@ -18,6 +18,6 @@ import SokkouConverter
                 }
             }
         }
-        Issue.record("DIAGDUMP\n" + lines.joined(separator: "\n"))
+        Issue.record("DIAGDUMP\n\(lines.joined(separator: "\n"))")
     }
 }
