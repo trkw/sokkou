@@ -501,7 +501,7 @@ private struct GeneralPage: View {
                     if model.hasStumbleToken {
                         SettingsRow(
                             title: "GitHub に送る",
-                            detail: "\(model.stumbleRepository) に 1 日 1 回。" + (model.stumbleUploadStatus ?? "まだ送っていません")
+                            detail: "\(model.stumbleRepository) に 1 時間ごと。" + (model.stumbleUploadStatus ?? "まだ送っていません")
                         ) {
                             HStack(spacing: 8) {
                                 Button("token を消す") {
@@ -516,7 +516,7 @@ private struct GeneralPage: View {
                             }
                         }
                     } else {
-                        SettingsRow(title: "GitHub に送る", detail: "非公開のリポジトリの Contents を書ける token を貼ると、1 日 1 回送ります") {
+                        SettingsRow(title: "GitHub に送る", detail: "非公開のリポジトリの Contents を書ける token を貼ると、1 時間ごとに送ります") {
                             HStack(spacing: 8) {
                                 TextField("owner/repo", text: $model.stumbleRepository)
                                     .textFieldStyle(.roundedBorder)

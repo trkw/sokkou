@@ -1,12 +1,12 @@
 import Foundation
 import Security
 
-/// つまづきの記録を、利用者の非公開のリポジトリ（既定は trkw/sokkou-stumbles）に 1 日 1 回送る。
+/// つまづきの記録を、利用者の非公開のリポジトリ（既定は trkw/sokkou-stumbles）に 1 時間ごとに送る。
 /// token は利用者が設定の窓に貼り、Keychain に入れる。アプリには埋め込まない。
 /// 送るのは前に送ったあとの記録だけで、1 回ごとに stumbles/ の下に新しいファイルを作る
 enum StumbleUpload {
-    /// 送る間隔
-    private static let interval: TimeInterval = 24 * 60 * 60
+    /// 送る間隔。1 時間ごとのタイマーが少しずれても飛ばさないよう、1 時間より短くする
+    private static let interval: TimeInterval = 50 * 60
     private static var timer: Timer?
     private static var sending = false
 
@@ -47,7 +47,7 @@ enum StumbleUpload {
         return id
     }
 
-    /// 1 時間ごとに、記録がオンで token があり、前に送ってから 1 日たっていれば送る
+    /// 1 時間ごとに、記録がオンで token があり、前に送ってから 50 分たっていれば送る
     static func start() {
         guard timer == nil else { return }
         timer = Timer.scheduledTimer(withTimeInterval: 60 * 60, repeats: true) { _ in
