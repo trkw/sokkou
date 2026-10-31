@@ -101,6 +101,15 @@ final class SettingsModel {
     }
     /// まとめをコピーした・記録を消したあとに、ボタンの横に出す言葉
     var stumbleStatus: String?
+    /// つまづきの記録を送る token が Keychain にあるか
+    var hasStumbleToken = StumbleUpload.token != nil
+    /// 貼っている途中の token
+    var stumbleToken = ""
+    var stumbleRepository = StumbleUpload.repository {
+        didSet { StumbleUpload.repository = stumbleRepository }
+    }
+    /// 最後に送った結果
+    var stumbleUploadStatus = StumbleUpload.status
     var candidateStyle = CandidateStyle.current {
         didSet { CandidateStyle.current = candidateStyle }
     }
@@ -139,6 +148,9 @@ final class SettingsModel {
         recordsStumbles = Settings.recordsStumbles
         stumblesIncludeText = Settings.stumblesIncludeText
         stumbleStatus = nil
+        hasStumbleToken = StumbleUpload.token != nil
+        stumbleRepository = StumbleUpload.repository
+        stumbleUploadStatus = StumbleUpload.status
         candidateStyle = CandidateStyle.current
         palette = Palette.current
         customAccent = Palette.customAccent
@@ -485,6 +497,42 @@ private struct GeneralPage: View {
                 if model.recordsStumbles {
                     SettingsRow(title: "読みと候補も残す", detail: "どの語でつまづいたかが分かります。オフなら打った文字は残しません") {
                         Toggle("", isOn: $model.stumblesIncludeText).toggleStyle(PaperToggleStyle())
+                    }
+                    if model.hasStumbleToken {
+                        SettingsRow(
+                            title: "GitHub に送る",
+                            detail: "\(model.stumbleRepository) に 1 日 1 回。" + (model.stumbleUploadStatus ?? "まだ送っていません")
+                        ) {
+                            HStack(spacing: 8) {
+                                Button("token を消す") {
+                                    StumbleUpload.setToken("")
+                                    model.hasStumbleToken = false
+                                }
+                                .buttonStyle(PaperButtonStyle())
+                                Button("いま送る") {
+                                    StumbleUpload.send { model.stumbleUploadStatus = $0 }
+                                }
+                                .buttonStyle(PaperButtonStyle(prominent: true))
+                            }
+                        }
+                    } else {
+                        SettingsRow(title: "GitHub に送る", detail: "非公開のリポジトリの Contents を書ける token を貼ると、1 日 1 回送ります") {
+                            HStack(spacing: 8) {
+                                TextField("owner/repo", text: $model.stumbleRepository)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 150)
+                                SecureField("github_pat_…", text: $model.stumbleToken)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 130)
+                                Button("入れる") {
+                                    StumbleUpload.setToken(model.stumbleToken)
+                                    model.stumbleToken = ""
+                                    model.hasStumbleToken = StumbleUpload.token != nil
+                                }
+                                .buttonStyle(PaperButtonStyle(prominent: true))
+                                .disabled(model.stumbleToken.isEmpty)
+                            }
+                        }
                     }
                 }
                 SettingsRow(title: "まとめをコピー", detail: model.stumbleStatus ?? "種類ごとの数と新しい 40 件。スレッドに貼れます") {

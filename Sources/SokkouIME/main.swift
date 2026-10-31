@@ -87,6 +87,8 @@ _ = sharedEngine
 _ = sharedLexicon
 // リリースの版で動いていれば、新しいリリースを確かめて、打っていないときに入れ替える
 Updater.startAutoUpdate()
+// つまづきの記録をオンにして token を貼ってあれば、1 日 1 回非公開のリポジトリに送る
+StumbleUpload.start()
 // 入れ替えた直後なら、どの版になったかを知らせる
 Updater.reportUpdate()
 // 賢い変換のモデルを切り替えて起動し直したなら、設定の窓を開き直す
