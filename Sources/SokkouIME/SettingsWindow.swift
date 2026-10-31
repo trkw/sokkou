@@ -93,6 +93,23 @@ final class SettingsModel {
     var autoUpdates = Settings.autoUpdates {
         didSet { Settings.autoUpdates = autoUpdates }
     }
+    var recordsStumbles = Settings.recordsStumbles {
+        didSet { Settings.recordsStumbles = recordsStumbles }
+    }
+    var stumblesIncludeText = Settings.stumblesIncludeText {
+        didSet { Settings.stumblesIncludeText = stumblesIncludeText }
+    }
+    /// まとめをコピーした・記録を消したあとに、ボタンの横に出す言葉
+    var stumbleStatus: String?
+    /// つまづきの記録を送る token が Keychain にあるか
+    var hasStumbleToken = StumbleUpload.token != nil
+    /// 貼っている途中の token
+    var stumbleToken = ""
+    var stumbleRepository = StumbleUpload.repository {
+        didSet { StumbleUpload.repository = stumbleRepository }
+    }
+    /// 最後に送った結果
+    var stumbleUploadStatus = StumbleUpload.status
     var candidateStyle = CandidateStyle.current {
         didSet { CandidateStyle.current = candidateStyle }
     }
@@ -128,6 +145,12 @@ final class SettingsModel {
     func refresh() {
         learns = Settings.learns
         autoUpdates = Settings.autoUpdates
+        recordsStumbles = Settings.recordsStumbles
+        stumblesIncludeText = Settings.stumblesIncludeText
+        stumbleStatus = nil
+        hasStumbleToken = StumbleUpload.token != nil
+        stumbleRepository = StumbleUpload.repository
+        stumbleUploadStatus = StumbleUpload.status
         candidateStyle = CandidateStyle.current
         palette = Palette.current
         customAccent = Palette.customAccent
@@ -421,6 +444,14 @@ private struct GeneralPage: View {
     @Bindable var model: SettingsModel
 
     var body: some View {
+        // つまづきの記録をオンにして行が増え、窓に収まらなくなったときだけ流す
+        ViewThatFits(in: .vertical) {
+            content
+            ScrollView { content }
+        }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 20) {
             SettingsSection(title: "入力ソース") {
                 ForEach(Array(InputSourceRow.allCases.enumerated()), id: \.element) { index, row in
@@ -457,6 +488,66 @@ private struct GeneralPage: View {
                     Button("忘れる") { model.forget() }
                         .buttonStyle(PaperButtonStyle())
                         .disabled(model.forgotten)
+                }
+            }
+            SettingsSection(title: "つまづきの記録") {
+                SettingsRow(title: "つまづきを記録する", detail: "確定してすぐ消した、候補を選び直した、モードを取り違えたなどを、この Mac に残します", first: true) {
+                    Toggle("", isOn: $model.recordsStumbles).toggleStyle(PaperToggleStyle())
+                }
+                if model.recordsStumbles {
+                    SettingsRow(title: "読みと候補も残す", detail: "どの語でつまづいたかが分かります。オフなら打った文字は残しません") {
+                        Toggle("", isOn: $model.stumblesIncludeText).toggleStyle(PaperToggleStyle())
+                    }
+                    if model.hasStumbleToken {
+                        SettingsRow(
+                            title: "GitHub に送る",
+                            detail: "\(model.stumbleRepository) に 1 時間ごと。" + (model.stumbleUploadStatus ?? "まだ送っていません")
+                        ) {
+                            HStack(spacing: 8) {
+                                Button("token を消す") {
+                                    StumbleUpload.setToken("")
+                                    model.hasStumbleToken = false
+                                }
+                                .buttonStyle(PaperButtonStyle())
+                                Button("いま送る") {
+                                    StumbleUpload.send { model.stumbleUploadStatus = $0 }
+                                }
+                                .buttonStyle(PaperButtonStyle(prominent: true))
+                            }
+                        }
+                    } else {
+                        SettingsRow(title: "GitHub に送る", detail: "非公開のリポジトリの Contents を書ける token を貼ると、1 時間ごとに送ります") {
+                            HStack(spacing: 8) {
+                                TextField("owner/repo", text: $model.stumbleRepository)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 150)
+                                SecureField("github_pat_…", text: $model.stumbleToken)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 130)
+                                Button("入れる") {
+                                    StumbleUpload.setToken(model.stumbleToken)
+                                    model.stumbleToken = ""
+                                    model.hasStumbleToken = StumbleUpload.token != nil
+                                }
+                                .buttonStyle(PaperButtonStyle(prominent: true))
+                                .disabled(model.stumbleToken.isEmpty)
+                            }
+                        }
+                    }
+                }
+                SettingsRow(title: "まとめをコピー", detail: model.stumbleStatus ?? "種類ごとの数と新しい 40 件。スレッドに貼れます") {
+                    HStack(spacing: 8) {
+                        Button("消す") {
+                            StumbleLog.clear()
+                            model.stumbleStatus = "消しました"
+                        }
+                        .buttonStyle(PaperButtonStyle())
+                        Button("コピー") {
+                            StumbleLog.copySummary()
+                            model.stumbleStatus = "コピーしました"
+                        }
+                        .buttonStyle(PaperButtonStyle(prominent: true))
+                    }
                 }
             }
             if Updater.isAvailable {

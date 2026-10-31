@@ -28,6 +28,18 @@ enum Settings {
         set { defaults.set(newValue, forKey: "lastBuild") }
     }
 
+    /// 打っていてつまづいたところを記録するか。既定は記録しない
+    static var recordsStumbles: Bool {
+        get { defaults.bool(forKey: "recordsStumbles") }
+        set { defaults.set(newValue, forKey: "recordsStumbles") }
+    }
+
+    /// つまづきの記録に、読みと候補も残すか。既定は残さない
+    static var stumblesIncludeText: Bool {
+        get { defaults.bool(forKey: "stumblesIncludeText") }
+        set { defaults.set(newValue, forKey: "stumblesIncludeText") }
+    }
+
     /// アプリごとに最後に使ったモード。バンドル ID とモードの生の値
     static var appModes: [String: String] {
         get { defaults.dictionary(forKey: "appModes") as? [String: String] ?? [:] }
@@ -38,6 +50,8 @@ enum Settings {
 /// SKK の手触りの機能。設定の窓で 1 つずつ切り替える。既定はすべて使う
 enum SKKFeature: String, CaseIterable, Identifiable {
     case undoCommit
+    case eraseClause
+    case eraseConverted
     case katakanaWithQ
     case candidateKeys
     case commitAtPunctuation
@@ -49,6 +63,8 @@ enum SKKFeature: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .undoCommit: "確定を取り消す"
+        case .eraseClause: "確定した語をまとめて消す"
+        case .eraseConverted: "変換した字を 1 字ずつ消す"
         case .katakanaWithQ: "▽ の q でカタカナ"
         case .candidateKeys: "x で前の候補"
         case .commitAtPunctuation: "句読点で確定"
@@ -60,6 +76,8 @@ enum SKKFeature: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .undoCommit: "確定した直後の ⌃/ で、確定した語を選び直す"
+        case .eraseClause: "確定した直後の ⌫ で、変換した語を 1 文字ずつでなく語ごと消す"
+        case .eraseConverted: "打っている途中の ⌫ で、読みに戻さず変換した字を 1 字消して、残りを確定する"
         case .katakanaWithQ: "▽ で読みを打って q で、カタカナにして確定する"
         case .candidateKeys: "▼ の x で前の候補。窓では Space と x でページを送る"
         case .commitAtPunctuation: "打っている途中に 、。！？ を打ったら、そこまで確定する"
