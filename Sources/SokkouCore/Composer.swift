@@ -31,6 +31,8 @@ public final class Composer {
     public var showsAnnotations = false
     /// 確定した直後の ⌫・`C-h` で、変換した文節を 1 つずつまるごと消す
     public var erasesCommittedClauses = false
+    /// 打っている途中の ⌫ で、変換した字を 1 字消して、残りを確定する（設定 → 設）
+    public var erasesConvertedCharacters = false
 
     private let engine: any Engine
     private let learning: (any Learning)?
@@ -509,6 +511,7 @@ public final class Composer {
             finish()
             return true
         case .backspace, .control("h"):
+            if eraseConvertedCharacter(typing) { return true }
             if !typing.keys.isEmpty { typing.keys.removeLast() }
             typing.raw = false
             if typing.keys.isEmpty {
@@ -581,6 +584,20 @@ public final class Composer {
             break
         }
         phase = .typing(typing)
+        return true
+    }
+
+    /// 終わりが変換した字なら、打鍵を 1 つ消すと読みに戻って崩れるので、その字を消して残りを確定する。消したら true。
+    /// 終わりが読みのままのかなや、読み切れていない英字なら、ふだんどおり打鍵を 1 つ消す
+    private func eraseConvertedCharacter(_ typing: Typing) -> Bool {
+        guard erasesConvertedCharacters, mode == .hiragana, !typing.raw,
+              let last = engine.live(typing.keys, leading: leading).last,
+              last.kind == .japanese, last.text != last.reading, let character = last.text.last, !character.isASCII
+        else { return false }
+        // 確定の取り消し（C-/）で、消す前に戻せる
+        recallPhase = (phase: .typing(typing), start: committed.count)
+        committed += String(typingText(typing).dropLast())
+        finish()
         return true
     }
 

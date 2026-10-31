@@ -249,6 +249,7 @@ final class SokkouInputController: IMKInputController {
         composer.learns = Settings.learns
         composer.undoesCommit = SKKFeature.undoCommit.isOn
         composer.erasesCommittedClauses = SKKFeature.eraseClause.isOn
+        composer.erasesConvertedCharacters = SKKFeature.eraseConverted.isOn
         composer.convertsWithQ = SKKFeature.katakanaWithQ.isOn
         composer.usesSKKCandidateKeys = SKKFeature.candidateKeys.isOn
         composer.commitsAtPunctuation = SKKFeature.commitAtPunctuation.isOn

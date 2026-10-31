@@ -15,6 +15,7 @@ struct ComposerSKKFeelTests {
         composer.suggestsCompletion = true
         composer.showsAnnotations = true
         composer.erasesCommittedClauses = true
+        composer.erasesConvertedCharacters = true
         return composer
     }
 
@@ -189,6 +190,43 @@ struct ComposerSKKFeelTests {
         type(composer, [.control("/")])
         #expect(composer.takeReplaced() == "書く")
         #expect(composer.erasableCommit == nil)
+    }
+
+    // MARK: 変換した字を 1 字ずつ消す
+
+    @Test func backspaceWhileTypingErasesTheLastConvertedCharacter() {
+        let composer = composer()
+        type(composer, characters("kaku"))
+        #expect(composer.presentation.text == "書く")
+        #expect(type(composer, [.backspace]))
+        #expect(composer.takeCommitted() == "書")
+        #expect(!composer.isComposing)
+        // C-/ で消す前に戻せる
+        type(composer, [.control("/")])
+        #expect(composer.takeReplaced() == "書")
+        #expect(composer.presentation.text == "書く")
+    }
+
+    @Test func erasingTheOnlyConvertedCharacterLeavesNothing() {
+        let composer = composer()
+        type(composer, characters("kami") + [.control("h")])
+        #expect(composer.takeCommitted() == "")
+        #expect(!composer.isComposing)
+    }
+
+    @Test func unconvertedKanaStillDropsAKeystroke() {
+        let composer = composer()
+        type(composer, characters("kana") + [.backspace])
+        #expect(composer.takeCommitted() == "")
+        #expect(composer.isComposing)
+    }
+
+    @Test func erasingConvertedCharactersCanBeTurnedOff() {
+        let composer = composer()
+        composer.erasesConvertedCharacters = false
+        type(composer, characters("kaku") + [.backspace])
+        #expect(composer.takeCommitted() == "")
+        #expect(composer.isComposing)
     }
 
     // MARK: ▽ の q
