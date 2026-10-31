@@ -9,7 +9,13 @@ import SokkouConverter
         let table = try AzooKeyEngine.romajiTable()
         let segmenter = Segmenter(table: table, english: try AzooKeyEngine.englishModel(table: table), japanese: ConversionMethod.azooKey.make())
         var lines: [String] = []
-        for input in ["kippaku", "kitte"] {
+        let converter = ConversionMethod.azooKey.make()
+        for kana in ["きっぱく", "せっぱく", "きっぱくした", "せっぱつまる", "きっぱり"] {
+            lines.append("alt \(kana) \(String(describing: converter.convert(kana: kana, context: .start).map { ($0.text, $0.value) })) \(converter.alternatives(kana: kana, context: .start).prefix(12))")
+        }
+        let engine = try AzooKeyEngine()
+        lines.append("clauses kippaku \(engine.clauses("kippaku", leading: .start).clauses.map { $0.candidates.prefix(10) })")
+        for input in ["kippaku"] {
             for leading in [Segmenter.Leading.start, .afterJapanese] {
                 let chosen = segmenter.segment(input, leading: leading).map { "\($0.kind):\($0.source)=\($0.output)(\($0.score))" }
                 lines.append("\(input) \(leading) chosen \(chosen)")
