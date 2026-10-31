@@ -9,6 +9,8 @@ enum StumbleLog {
         var build: String
         /// 入力欄のアプリのバンドル ID
         var app: String?
+        /// 賢い変換で選んでいるモデル。nil なら azooKey の辞書だけ。遅かったときに、どの変換で遅いのかを見分ける
+        var model: String?
         var stumble: Stumble
     }
 
@@ -24,9 +26,10 @@ enum StumbleLog {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = .sortedKeys
+        let model = ConversionModel.selected?.id
         var lines = Data()
         for stumble in stumbles {
-            guard let line = try? encoder.encode(Record(at: Date(), build: Updater.build, app: app, stumble: stumble)) else { continue }
+            guard let line = try? encoder.encode(Record(at: Date(), build: Updater.build, app: app, model: model, stumble: stumble)) else { continue }
             lines.append(line)
             lines.append(0x0A)
         }

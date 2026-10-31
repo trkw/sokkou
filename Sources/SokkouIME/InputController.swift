@@ -166,14 +166,25 @@ final class SokkouInputController: IMKInputController {
         let stageBefore = composer.stage
         let shown = recording ? composer.presentation.text : ""
         let started = CFAbsoluteTimeGetCurrent()
-        let handled = composer.handle(key, leading: { leadingContext(of: client) })
+        // 遅かったとき、アプリとのやりとりと sokkou の変換のどちらに時間がかかったかを分けて残す
+        var appSeconds = 0.0
+        let handled = composer.handle(key, leading: {
+            let asked = CFAbsoluteTimeGetCurrent()
+            defer { appSeconds += CFAbsoluteTimeGetCurrent() - asked }
+            return leadingContext(of: client)
+        })
+        // 表示する未確定の文字列は flush の中で作るので、記録するときは先に作って変換の時間に入れる（作った変換は覚えてあり、flush で使い回す）
+        if recording { _ = composer.presentation }
+        let flushing = CFAbsoluteTimeGetCurrent()
         let committed = flush(client)
         if recording {
             let now = CFAbsoluteTimeGetCurrent()
+            appSeconds += now - flushing
             stumbles.includesText = Settings.stumblesIncludeText
             let found = stumbles.observe(Keystroke(
                 key: key, stageBefore: stageBefore, stageAfter: composer.stage, modeBefore: before, modeAfter: composer.mode,
-                handled: handled, committed: committed, shown: shown, milliseconds: (now - started) * 1000, time: now
+                handled: handled, committed: committed, shown: shown, milliseconds: (now - started) * 1000,
+                appMilliseconds: appSeconds * 1000, time: now
             ))
             StumbleLog.write(found, app: app)
         }
