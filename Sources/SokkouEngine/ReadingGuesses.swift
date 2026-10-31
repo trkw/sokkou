@@ -22,7 +22,9 @@ struct ReadingGuesses {
     /// 出す語の数。読み違いの語（きっぱく → 切迫）は、打ち間違いの語（あっぱく → 圧迫、いっぱく → 1泊）より低いことがあるので多めに出す
     static let maxCount = 5
 
-    /// reading に語が無ければ、評価値の高い順に近い読みの語。語があるか、近い読みにも語が無ければ空
+    /// reading に語が無ければ、近い読みの語。語があるか、近い読みにも語が無ければ空。
+    /// 元の読みの候補にある漢字を含む語（きっぱく の候補「切っ泊」の 切 を含む 切迫）を先に、それぞれ評価値の高い順に並べる。
+    /// 読み違いはその漢字を別の読みで読んだものなので、評価値だけで並べると、打ち間違いで近い語（圧迫・逼迫・潔白）より後ろになる
     func words(for reading: String) -> [String] {
         let chars = Array(reading)
         guard chars.count >= Self.minLength,
@@ -41,6 +43,18 @@ struct ReadingGuesses {
                 best[reading.text] = max(best[reading.text] ?? -.infinity, reading.value)
             }
         }
-        return best.sorted { $0.value > $1.value }.prefix(Self.maxCount).map(\.key)
+        let kanji = Set(converter.alternatives(kana: reading, context: .start).joined().filter(Self.isKanji))
+        func sharesKanji(_ word: String) -> Bool { word.contains { kanji.contains($0) } }
+        return best
+            .sorted { a, b in
+                let (sharedA, sharedB) = (sharesKanji(a.key), sharesKanji(b.key))
+                return sharedA == sharedB ? a.value > b.value : sharedA
+            }
+            .prefix(Self.maxCount)
+            .map(\.key)
+    }
+
+    private static func isKanji(_ character: Character) -> Bool {
+        character.unicodeScalars.allSatisfy { $0.properties.isIdeographic }
     }
 }

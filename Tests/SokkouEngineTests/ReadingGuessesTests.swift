@@ -10,7 +10,7 @@ import SokkouConverter
     /// 切迫 は せっぱく と読む。きっぱく と読み違えても候補に出る
     @Test func guessesSeppakuForKippaku() {
         let words = guesses.words(for: "きっぱく")
-        #expect(words.contains("切迫"), "\(words)")
+        #expect(words.prefix(2).contains("切迫"), "\(words)")
     }
 
     /// 語のある読みには何も足さない
