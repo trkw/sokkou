@@ -44,7 +44,11 @@ enum Shared {
     }
 
     /// 途中から英語にならず、最後まで日本語として読む
-    @Test(arguments: ["iikanzini", "iikanjini", "sushiwotabeta", "tsunamigakita", "fujisanwomita"])
+    @Test(arguments: [
+        "iikanzini", "iikanjini", "sushiwotabeta", "tsunamigakita", "fujisanwomita",
+        // 子音を重ねた促音。先頭の子音が英字の 1 文字に割れない
+        "kitte", "zettai", "sekkaku", "hakkiri", "kekkou", "tyotto", "seppaku",
+    ])
     func readsToTheEndAsJapanese(input: String) throws {
         let spans = try Shared.engine.get().live(input, leading: .start)
         #expect(spans.allSatisfy { $0.kind == .japanese }, "\(spans)")

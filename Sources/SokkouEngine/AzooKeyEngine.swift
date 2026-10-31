@@ -9,6 +9,7 @@ public final class AzooKeyEngine: Engine {
     private let segmenter: Segmenter
     private let loanwords: Loanwords
     private let dateWords: DateWords
+    private let guesses: ReadingGuesses
 
     /// method は既定で azooKey の辞書だけを使う。言語モデル（Zenzai や genmai）は、設定の「賢い変換」で選んだときだけ渡される
     public init(method: ConversionMethod = .azooKey) throws {
@@ -18,6 +19,7 @@ public final class AzooKeyEngine: Engine {
         segmenter = Segmenter(table: table, english: try Self.englishModel(table: table), japanese: converter)
         loanwords = try Loanwords.bundled()
         dateWords = DateWords()
+        guesses = ReadingGuesses(converter: converter)
     }
 
     /// 英語として扱う語の頻度の下限。これより少なく、ローマ字で読める短い綴り（nai ine uso iku など）は、
@@ -130,7 +132,12 @@ public final class AzooKeyEngine: Engine {
     public func words(reading: String, okurigana: String) -> [String] {
         let whole = reading + okurigana
         var words = converter.alternatives(kana: whole, context: .start)
-        if !okurigana.isEmpty {
+        if okurigana.isEmpty {
+            // 辞書に語の無い読みなら、変換エンジンの第 1 候補のすぐ次に近い読みの語を置く
+            for (offset, guess) in guesses.words(for: whole).enumerated() where !words.contains(guess) {
+                words.insert(guess, at: min(1 + offset, words.count))
+            }
+        } else {
             words = words.filter { $0.hasSuffix(okurigana) }
         }
         // 辞書に無い語も、ひらがなとカタカナでは確定できるようにする
@@ -147,7 +154,8 @@ public final class AzooKeyEngine: Engine {
 
     // MARK: 足す候補
 
-    /// 英語の文節に test → テスト のようなカタカナ読みを、きょう・いま の文節に日付と時刻を候補として足す
+    /// 英語の文節に test → テスト のようなカタカナ読みを、きょう・いま の文節に日付と時刻を候補として足す。
+    /// 辞書に語の無い読みの日本語の文節には、近い読みの語（きっぱく → 切迫）を第 1 候補のすぐ次に足す
     private func withExtraCandidates(_ clauses: [SokkouConverter.Clause]) -> ClauseList {
         var list = Self.list(clauses)
         for index in list.clauses.indices {
@@ -155,6 +163,7 @@ public final class AzooKeyEngine: Engine {
             case .english:
                 Self.offer(loanwords.katakana(of: list.clauses[index].reading), in: &list.clauses[index])
             case .japanese:
+                Self.offer(guesses.words(for: list.clauses[index].reading), in: &list.clauses[index])
                 Self.append(dateWords.candidates(for: list.clauses[index].reading), to: &list.clauses[index])
             default:
                 break
