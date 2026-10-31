@@ -93,6 +93,14 @@ final class SettingsModel {
     var autoUpdates = Settings.autoUpdates {
         didSet { Settings.autoUpdates = autoUpdates }
     }
+    var recordsStumbles = Settings.recordsStumbles {
+        didSet { Settings.recordsStumbles = recordsStumbles }
+    }
+    var stumblesIncludeText = Settings.stumblesIncludeText {
+        didSet { Settings.stumblesIncludeText = stumblesIncludeText }
+    }
+    /// まとめをコピーした・記録を消したあとに、ボタンの横に出す言葉
+    var stumbleStatus: String?
     var candidateStyle = CandidateStyle.current {
         didSet { CandidateStyle.current = candidateStyle }
     }
@@ -128,6 +136,9 @@ final class SettingsModel {
     func refresh() {
         learns = Settings.learns
         autoUpdates = Settings.autoUpdates
+        recordsStumbles = Settings.recordsStumbles
+        stumblesIncludeText = Settings.stumblesIncludeText
+        stumbleStatus = nil
         candidateStyle = CandidateStyle.current
         palette = Palette.current
         customAccent = Palette.customAccent
@@ -421,6 +432,14 @@ private struct GeneralPage: View {
     @Bindable var model: SettingsModel
 
     var body: some View {
+        // つまづきの記録をオンにして行が増え、窓に収まらなくなったときだけ流す
+        ViewThatFits(in: .vertical) {
+            content
+            ScrollView { content }
+        }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 20) {
             SettingsSection(title: "入力ソース") {
                 ForEach(Array(InputSourceRow.allCases.enumerated()), id: \.element) { index, row in
@@ -457,6 +476,30 @@ private struct GeneralPage: View {
                     Button("忘れる") { model.forget() }
                         .buttonStyle(PaperButtonStyle())
                         .disabled(model.forgotten)
+                }
+            }
+            SettingsSection(title: "つまづきの記録") {
+                SettingsRow(title: "つまづきを記録する", detail: "確定してすぐ消した、候補を選び直した、モードを取り違えたなどを、この Mac に残します", first: true) {
+                    Toggle("", isOn: $model.recordsStumbles).toggleStyle(PaperToggleStyle())
+                }
+                if model.recordsStumbles {
+                    SettingsRow(title: "読みと候補も残す", detail: "どの語でつまづいたかが分かります。オフなら打った文字は残しません") {
+                        Toggle("", isOn: $model.stumblesIncludeText).toggleStyle(PaperToggleStyle())
+                    }
+                }
+                SettingsRow(title: "まとめをコピー", detail: model.stumbleStatus ?? "種類ごとの数と新しい 40 件。スレッドに貼れます") {
+                    HStack(spacing: 8) {
+                        Button("消す") {
+                            StumbleLog.clear()
+                            model.stumbleStatus = "消しました"
+                        }
+                        .buttonStyle(PaperButtonStyle())
+                        Button("コピー") {
+                            StumbleLog.copySummary()
+                            model.stumbleStatus = "コピーしました"
+                        }
+                        .buttonStyle(PaperButtonStyle(prominent: true))
+                    }
                 }
             }
             if Updater.isAvailable {
