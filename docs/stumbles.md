@@ -20,3 +20,12 @@
 「読みと候補も残す」をオンにしたときだけ、打った文字と未確定・確定の文字列をそのまま残します。
 
 「つまづきのまとめをコピー」で、種類ごと・アプリごとの数と新しい 40 件を Markdown でクリップボードに入れます。
+
+## GitHub に送る
+
+記録をオンにしたあと、設定の「GitHub に送る」に非公開のリポジトリ（既定は `trkw/sokkou-stumbles`）と token を入れると、
+1 日 1 回、前に送ったあとの記録を `stumbles/<日時>-<Mac ごとの乱数>.jsonl` として送ります。「いま送る」ですぐにも送れます。
+
+- token は fine-grained personal access token で、そのリポジトリだけ・Contents の Read and write だけにする
+- token は Keychain（`sokkou.stumbles.github`）に入れ、アプリにもリポジトリにも書かない
+- 「読みと候補も残す」がオンなら、打った文字も送る。だから送り先は非公開のリポジトリにする
