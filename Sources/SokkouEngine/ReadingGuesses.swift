@@ -19,8 +19,8 @@ struct ReadingGuesses {
     static let maxValuePerKana = -7.0
     /// 替えた読みの評価値が、元の読みよりこれだけ高い語だけを出す
     static let minGain = 10.0
-    /// 出す語の数
-    static let maxCount = 3
+    /// 出す語の数。読み違いの語（きっぱく → 切迫）は、打ち間違いの語（あっぱく → 圧迫、いっぱく → 1泊）より低いことがあるので多めに出す
+    static let maxCount = 5
 
     /// reading に語が無ければ、評価値の高い順に近い読みの語。語があるか、近い読みにも語が無ければ空
     func words(for reading: String) -> [String] {
