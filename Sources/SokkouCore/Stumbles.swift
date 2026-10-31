@@ -151,7 +151,7 @@ public struct StumbleDetector {
         var found: [Stumble] = []
         func add(_ kind: Stumble.Kind, count: Int? = nil, note: String? = nil, text: String? = nil) {
             found.append(Stumble(
-                kind: kind, mode: stroke.modeBefore, count: count, note: note, keys: recent.map(label),
+                kind: kind, mode: stroke.modeBefore, count: count, note: note, keys: recent.map { label($0) },
                 text: includesText ? text : nil
             ))
         }
@@ -248,7 +248,7 @@ public struct StumbleDetector {
 
     /// 利用者が「いまつまづいた」を選んだ。直前のキーの並びを残す
     public func mark(mode: InputMode) -> Stumble {
-        Stumble(kind: .marked, mode: mode, keys: recent.map(label))
+        Stumble(kind: .marked, mode: mode, keys: recent.map { label($0) })
     }
 
     private func label(_ key: Key) -> String {
