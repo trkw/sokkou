@@ -166,14 +166,25 @@ final class SokkouInputController: IMKInputController {
         let stageBefore = composer.stage
         let shown = recording ? composer.presentation.text : ""
         let started = CFAbsoluteTimeGetCurrent()
-        let handled = composer.handle(key, leading: { leadingContext(of: client) })
-        let committed = flush(client)
+        // 遅かったとき、アプリとのやりとりと sokkou の変換のどちらに時間がかかったかを分けて残す
+        var appSeconds = 0.0
+        let handled = composer.handle(key, leading: {
+            let asked = CFAbsoluteTimeGetCurrent()
+            defer { appSeconds += CFAbsoluteTimeGetCurrent() - asked }
+            return leadingContext(of: client)
+        })
+        // 表示する未確定の文字列は flush の中で作るので、記録するときは先に作って変換の時間に入れ、flush にはそれを渡す
+        let prepared = recording ? composer.presentation : nil
+        let flushing = CFAbsoluteTimeGetCurrent()
+        let committed = flush(client, presentation: prepared)
         if recording {
             let now = CFAbsoluteTimeGetCurrent()
+            appSeconds += now - flushing
             stumbles.includesText = Settings.stumblesIncludeText
             let found = stumbles.observe(Keystroke(
                 key: key, stageBefore: stageBefore, stageAfter: composer.stage, modeBefore: before, modeAfter: composer.mode,
-                handled: handled, committed: committed, shown: shown, milliseconds: (now - started) * 1000, time: now
+                handled: handled, committed: committed, shown: shown, milliseconds: (now - started) * 1000,
+                appMilliseconds: appSeconds * 1000, time: now
             ))
             StumbleLog.write(found, app: app)
         }
@@ -323,9 +334,10 @@ final class SokkouInputController: IMKInputController {
 
     // MARK: 表示と確定
 
-    /// 確定した文字列をアプリに渡し、未確定の文字列と候補の窓を今の状態にする。渡した文字列を返す
+    /// 確定した文字列をアプリに渡し、未確定の文字列と候補の窓を今の状態にする。渡した文字列を返す。
+    /// prepared は、このキーのあとに作った表示。無ければここで作る
     @discardableResult
-    private func flush(_ client: IMKTextInput) -> String {
+    private func flush(_ client: IMKTextInput, presentation prepared: Presentation? = nil) -> String {
         let text = composer.takeCommitted()
         if !text.isEmpty {
             client.insertText(text, replacementRange: NSRange(location: NSNotFound, length: 0))
@@ -346,7 +358,7 @@ final class SokkouInputController: IMKInputController {
         }
         // 確定を取り消したら、入力欄の確定した文字列を未確定の文字列で置き換える
         let replaced = composer.takeReplaced().flatMap { Self.range(before: $0, in: client) }
-        let presentation = composer.presentation
+        let presentation = prepared ?? composer.presentation
         if !presentation.segments.isEmpty || showsMarkedText {
             let marked = markedText(presentation)
             // カーソルは常に末尾に置く。ターミナル（xterm.js）はカーソルの位置を未確定の文字列の終わりとして読む

@@ -129,4 +129,30 @@ struct StumbleDetectorTests {
         #expect(detector.observe(stroke(3, 20)).isEmpty)
         #expect(detector.observe(stroke(12, 150)).first?.count == 150)
     }
+
+    @Test func slowKeysKeepTheTimeSpentTalkingToTheApp() {
+        var detector = StumbleDetector()
+        let found = detector.observe(Keystroke(
+            key: .character("o"), stageBefore: .typing, stageAfter: .typing, modeBefore: .hiragana, modeAfter: .hiragana,
+            handled: true, milliseconds: 450, appMilliseconds: 420.7, time: 1
+        ))
+        #expect(found.map(\.kind) == [.slow])
+        #expect(found.first?.count == 450)
+        #expect(found.first?.appMilliseconds == 420)
+    }
+
+    @Test func onlySlowKeysCarryTheTimeSpentTalkingToTheApp() {
+        var detector = StumbleDetector()
+        func delete(_ time: Double) -> [Stumble] {
+            detector.observe(Keystroke(
+                key: .backspace, stageBefore: .typing, stageAfter: .typing, modeBefore: .hiragana, modeAfter: .hiragana,
+                handled: true, milliseconds: 5, appMilliseconds: 3, time: time
+            ))
+        }
+        _ = delete(1)
+        _ = delete(2)
+        let found = delete(3)
+        #expect(found.map(\.kind) == [.retyped])
+        #expect(found.first?.appMilliseconds == nil)
+    }
 }

@@ -28,12 +28,14 @@ public struct Keystroke: Sendable {
     public var shown: String
     /// キーの処理にかかった時間
     public var milliseconds: Double
+    /// そのうち、入力欄のアプリとのやりとり（カーソルの前を読む・確定や未確定の文字列を渡す）にかかった時間
+    public var appMilliseconds: Double
     /// 打った時刻（秒）。間隔だけを見るので、起点はどこでもよい
     public var time: Double
 
     public init(
         key: Key, stageBefore: Stage, stageAfter: Stage, modeBefore: InputMode, modeAfter: InputMode,
-        handled: Bool, committed: String = "", shown: String = "", milliseconds: Double = 0, time: Double
+        handled: Bool, committed: String = "", shown: String = "", milliseconds: Double = 0, appMilliseconds: Double = 0, time: Double
     ) {
         self.key = key
         self.stageBefore = stageBefore
@@ -44,6 +46,7 @@ public struct Keystroke: Sendable {
         self.committed = committed
         self.shown = shown
         self.milliseconds = milliseconds
+        self.appMilliseconds = appMilliseconds
         self.time = time
     }
 }
@@ -99,14 +102,20 @@ public struct Stumble: Sendable, Equatable, Codable {
     public var keys: [String]
     /// 未確定の文字列と確定した文字列。includesText のときだけ
     public var text: String?
+    /// 遅かったときの、かかったミリ秒のうち入力欄のアプリとのやりとりの分。残りが sokkou の変換
+    public var appMilliseconds: Int?
 
-    public init(kind: Kind, mode: InputMode, count: Int? = nil, note: String? = nil, keys: [String] = [], text: String? = nil) {
+    public init(
+        kind: Kind, mode: InputMode, count: Int? = nil, note: String? = nil, keys: [String] = [], text: String? = nil,
+        appMilliseconds: Int? = nil
+    ) {
         self.kind = kind
         self.mode = mode
         self.count = count
         self.note = note
         self.keys = keys
         self.text = text
+        self.appMilliseconds = appMilliseconds
     }
 }
 
@@ -149,10 +158,10 @@ public struct StumbleDetector {
         recent.append(stroke.key)
         if recent.count > Self.recentCount { recent.removeFirst(recent.count - Self.recentCount) }
         var found: [Stumble] = []
-        func add(_ kind: Stumble.Kind, count: Int? = nil, note: String? = nil, text: String? = nil) {
+        func add(_ kind: Stumble.Kind, count: Int? = nil, note: String? = nil, text: String? = nil, appMilliseconds: Int? = nil) {
             found.append(Stumble(
                 kind: kind, mode: stroke.modeBefore, count: count, note: note, keys: recent.map { label($0) },
-                text: includesText ? text : nil
+                text: includesText ? text : nil, appMilliseconds: appMilliseconds
             ))
         }
         let key = stroke.key
@@ -161,7 +170,7 @@ public struct StumbleDetector {
         if stroke.milliseconds >= Self.slowMilliseconds,
            lastSlow.map({ stroke.time - $0 >= Self.slowInterval }) ?? true {
             lastSlow = stroke.time
-            add(.slow, count: Int(stroke.milliseconds), note: stroke.stageBefore.rawValue)
+            add(.slow, count: Int(stroke.milliseconds), note: stroke.stageBefore.rawValue, appMilliseconds: Int(stroke.appMilliseconds))
         }
 
         // 消す
