@@ -156,6 +156,10 @@ final class SokkouInputController: IMKInputController {
             // 入力欄のカーソルの前が確定した文字列でない（カーソルが動いた、読めないアプリ）なら、取り消さずにアプリに渡す
             composer.forgetCommit()
         }
+        if key == .backspace || key == .control("h"), let text = composer.erasableCommit, Self.range(before: text, in: client) == nil {
+            // カーソルの前が確定した文字列でなければ、まとめて消さずにアプリに渡す
+            composer.forgetErasable()
+        }
         let before = composer.mode
         let wasComposing = composer.isComposing
         let recording = StumbleLog.isOn
@@ -244,6 +248,7 @@ final class SokkouInputController: IMKInputController {
     private static func apply(to composer: Composer) {
         composer.learns = Settings.learns
         composer.undoesCommit = SKKFeature.undoCommit.isOn
+        composer.erasesCommittedClauses = SKKFeature.eraseClause.isOn
         composer.convertsWithQ = SKKFeature.katakanaWithQ.isOn
         composer.usesSKKCandidateKeys = SKKFeature.candidateKeys.isOn
         composer.commitsAtPunctuation = SKKFeature.commitAtPunctuation.isOn
@@ -333,6 +338,10 @@ final class SokkouInputController: IMKInputController {
                 }
             }
             showsMarkedText = false
+        }
+        // ⌫ で確定した語を消すなら、カーソルの前のその語を消す
+        if let erased = composer.takeErased(), let range = Self.range(before: erased, in: client) {
+            client.insertText("", replacementRange: range)
         }
         // 確定を取り消したら、入力欄の確定した文字列を未確定の文字列で置き換える
         let replaced = composer.takeReplaced().flatMap { Self.range(before: $0, in: client) }

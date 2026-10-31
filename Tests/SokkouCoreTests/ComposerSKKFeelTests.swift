@@ -14,6 +14,7 @@ struct ComposerSKKFeelTests {
         composer.commitsAtPunctuation = true
         composer.suggestsCompletion = true
         composer.showsAnnotations = true
+        composer.erasesCommittedClauses = true
         return composer
     }
 
@@ -109,6 +110,85 @@ struct ComposerSKKFeelTests {
         type(composer, characters("kaku") + [.enter])
         composer.forgetCommit()
         #expect(!type(composer, [.control("/")]))
+    }
+
+    // MARK: 確定した語をまとめて消す
+
+    @Test func backspaceErasesCommittedClausesOneByOne() {
+        let composer = composer()
+        type(composer, characters("kaku no kami") + [.enter])
+        #expect(composer.takeCommitted() == "書く の 紙")
+        #expect(composer.erasableCommit == "書く の 紙")
+        #expect(type(composer, [.backspace]))
+        #expect(composer.takeErased() == "紙")
+        #expect(composer.takeErased() == nil)
+        #expect(composer.erasableCommit == "書く の ")
+        // 英語の区間（空白）は 1 文字ずつ、変換した文節はまるごと
+        var erased: [String] = []
+        for _ in 0..<4 {
+            #expect(type(composer, [.control("h")]))
+            erased.append(composer.takeErased() ?? "")
+        }
+        #expect(erased == [" ", "の", " ", "書く"])
+        // 消し終えたら、⌫ はアプリに渡す
+        #expect(!type(composer, [.backspace]))
+        #expect(composer.takeErased() == nil)
+    }
+
+    @Test func backspaceErasesTheChosenWordWhole() {
+        let composer = composer()
+        type(composer, characters(";kaku ") + [.space, .enter])
+        #expect(composer.takeCommitted() == "描く")
+        type(composer, [.backspace])
+        #expect(composer.takeErased() == "描く")
+        #expect(!type(composer, [.backspace]))
+    }
+
+    @Test func unconvertedReadingGoesOneAtATime() {
+        let composer = composer()
+        type(composer, characters(";kana") + [.enter])
+        #expect(composer.takeCommitted() == "かな")
+        type(composer, [.backspace])
+        #expect(composer.takeErased() == "な")
+        type(composer, [.backspace])
+        #expect(composer.takeErased() == "か")
+    }
+
+    @Test func punctuationAfterTheWordGoesOneAtATime() {
+        let composer = composer()
+        type(composer, characters("kaku."))
+        #expect(composer.takeCommitted() == "書く。")
+        type(composer, [.backspace])
+        #expect(composer.takeErased() == "。")
+        type(composer, [.backspace])
+        #expect(composer.takeErased() == "書く")
+    }
+
+    @Test func anotherKeyEndsErasing() {
+        let composer = composer()
+        type(composer, characters("kaku") + [.enter])
+        _ = composer.takeCommitted()
+        type(composer, [.left])
+        #expect(composer.erasableCommit == nil)
+        #expect(!type(composer, [.backspace]))
+    }
+
+    @Test func erasingIsOffWhenTurnedOff() {
+        let composer = composer()
+        composer.erasesCommittedClauses = false
+        type(composer, characters("kaku") + [.enter])
+        #expect(composer.takeCommitted() == "書く")
+        #expect(composer.erasableCommit == nil)
+        #expect(!type(composer, [.backspace]))
+    }
+
+    @Test func undoStillWorksAfterErasingIsReady() {
+        let composer = composer()
+        type(composer, characters("kaku") + [.enter])
+        _ = composer.takeCommitted()
+        type(composer, [.control("/")])
+        #expect(composer.takeReplaced() == "書く")
+        #expect(composer.erasableCommit == nil)
     }
 
     // MARK: ▽ の q

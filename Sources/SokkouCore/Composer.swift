@@ -29,6 +29,8 @@ public final class Composer {
     public var suggestsCompletion = false
     /// 候補の窓に SKK 辞書の注釈を出す
     public var showsAnnotations = false
+    /// 確定した直後の ⌫・`C-h` で、変換した文節を 1 つずつまるごと消す
+    public var erasesCommittedClauses = false
 
     private let engine: any Engine
     private let learning: (any Learning)?
@@ -44,6 +46,10 @@ public final class Composer {
     private var recallPhase: (phase: Phase, start: Int)?
     /// 確定の取り消しで未確定に戻した文字列。入力メソッドは入力欄のこの文字列を未確定の文字列で置き換える
     private var replaced: String?
+    /// 直前に確定した文字列を、⌫ で消す単位に分けたもの。⌫ のたびに後ろから減る
+    private var erasable: [Piece] = []
+    /// ⌫ で消すことにした、カーソルの直前の文字列。入力メソッドは入力欄からこの文字列を消す
+    private var erased: String?
 
     public init(engine: any Engine, learning: (any Learning)? = nil, lexicon: (any Lexicon)? = nil) {
         self.engine = engine
@@ -92,6 +98,23 @@ public final class Composer {
         return replaced
     }
 
+    /// ⌫ でまとめて消せる、直前に確定した文字列の残り。入力欄のカーソルの前がこれなら消せる
+    public var erasableCommit: String? {
+        guard erasesCommittedClauses, case .idle = phase, !erasable.isEmpty else { return nil }
+        return erasable.map(\.text).joined()
+    }
+
+    /// ⌫ でまとめて消せないことにする。入力欄の文字列が確定したものと合わないとき
+    public func forgetErasable() {
+        erasable = []
+    }
+
+    /// ⌫ で消すことにした文字列を受け取る。受け取った分は消える
+    public func takeErased() -> String? {
+        defer { erased = nil }
+        return erased
+    }
+
     /// 入力ソースの切り替えなど、外からモードを変える。未確定の文字列は確定する
     public func select(mode next: InputMode) {
         commitAll()
@@ -102,6 +125,7 @@ public final class Composer {
     public func commitAll() {
         // 入力欄を離れたなど。カーソルが動いたかもしれないので、確定の取り消しはできなくする
         recall = nil
+        erasable = []
         switch phase {
         case .idle:
             return
@@ -128,6 +152,7 @@ public final class Composer {
     /// 未確定の文字列を捨てる
     public func cancel() {
         recall = nil
+        erasable = []
         finish()
     }
 
@@ -138,16 +163,35 @@ public final class Composer {
             leading = recall.leading
             phase = reopened(recall.phase)
             replaced = recall.text
+            erasable = []
+            return true
+        }
+        if key == .backspace || key == .control("h"), erasesCommittedClauses, case .idle = phase, var last = erasable.popLast() {
+            // 変換した文節はまるごと、それ以外（英語・記号・変換しなかったかな）は 1 文字ずつ消す
+            recall = nil
+            if last.whole || last.text.count <= 1 {
+                erased = last.text
+            } else {
+                erased = String(last.text.removeLast())
+                erasable.append(last)
+            }
             return true
         }
         recall = nil
+        erasable = []
         recallPhase = nil
         let before = phase
         let start = committed.count
         let handled = handleKey(key, leading: current)
-        if undoesCommit, mode == .hiragana, case .idle = phase, committed.count > start,
+        if mode == .hiragana, case .idle = phase, committed.count > start,
            let back = recallPhase ?? Self.recallable(before).map({ (phase: $0, start: start) }) {
-            recall = Recall(text: String(committed.dropFirst(back.start)), phase: back.phase, leading: leading)
+            let text = String(committed.dropFirst(back.start))
+            if undoesCommit {
+                recall = Recall(text: text, phase: back.phase, leading: leading)
+            }
+            if erasesCommittedClauses {
+                erasable = pieces(of: text, from: back.phase)
+            }
         }
         recallPhase = nil
         return handled
@@ -299,6 +343,44 @@ public final class Composer {
         /// 確定する前の状態
         var phase: Phase
         var leading: Leading
+    }
+
+    /// ⌫ で消す単位。whole なら 1 度にまるごと消す
+    private struct Piece {
+        var text: String
+        var whole: Bool
+    }
+
+    /// 確定した文字列を、確定する前の状態の文節で ⌫ で消す単位に分ける。文節と確定した文字列が合わなければ空にして、⌫ はアプリに渡す
+    private func pieces(of text: String, from phase: Phase) -> [Piece] {
+        let expected: [Piece]
+        switch phase {
+        case .typing(let typing):
+            guard !typing.raw else { return [] }
+            let clauses = engine.clauses(typing.keys, leading: leading).clauses
+            // 確定したあとに文節を作ったので、変換エンジンの途中の状態を捨てる
+            engine.endComposition()
+            expected = clauses.map(Self.piece)
+        case .selecting(let selecting):
+            expected = Self.settled(selecting.list).clauses.map(Self.piece)
+        case .manual(let manual):
+            // 候補を選ばずに確定した読みは変換していないので、1 文字ずつ消す
+            let kana = manual.abbrev ? manual.stem : manualKana(manual)
+            let chosen = manual.choice.map { word(of: manual, $0) } ?? kana
+            expected = [Piece(text: chosen, whole: manual.choice != nil && chosen != kana)]
+        case .idle, .registering:
+            return []
+        }
+        let joined = expected.map(\.text).joined()
+        // ▼ のあとの 。 のように、続けて確定した記号があれば 1 文字ずつ消す
+        guard text.hasPrefix(joined), !joined.isEmpty else { return [] }
+        let rest = text.dropFirst(joined.count)
+        return expected.filter { !$0.text.isEmpty } + (rest.isEmpty ? [] : [Piece(text: String(rest), whole: false)])
+    }
+
+    /// 文節を ⌫ で消す単位にする。読みのままのかなは変換していないので、1 文字ずつ消す
+    private static func piece(_ clause: Clause) -> Piece {
+        Piece(text: clause.output, whole: clause.kind == .japanese && clause.output != clause.reading)
     }
 
     /// 確定の取り消しで戻せる、確定する前の状態。戻しても何も無いなら nil
