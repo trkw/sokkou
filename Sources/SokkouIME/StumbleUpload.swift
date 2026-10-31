@@ -114,7 +114,7 @@ enum StumbleUpload {
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
         sending = true
         let count = records.count
-        let sameTime = all.count { $0.at == last.at }
+        let sameTime = all.filter { $0.at == last.at }.count
         Task {
             let result: String
             do {
