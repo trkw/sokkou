@@ -360,12 +360,14 @@ public final class Composer {
             let clauses = engine.clauses(typing.keys, leading: leading).clauses
             // 確定したあとに文節を作ったので、変換エンジンの途中の状態を捨てる
             engine.endComposition()
-            expected = clauses.map { Piece(text: $0.output, whole: $0.kind == .japanese) }
+            expected = clauses.map(Self.piece)
         case .selecting(let selecting):
-            expected = Self.settled(selecting.list).clauses.map { Piece(text: $0.output, whole: $0.kind == .japanese) }
+            expected = Self.settled(selecting.list).clauses.map(Self.piece)
         case .manual(let manual):
-            let chosen = manual.choice.map { word(of: manual, $0) } ?? (manual.abbrev ? manual.stem : manualKana(manual))
-            expected = [Piece(text: chosen, whole: true)]
+            // 候補を選ばずに確定した読みは変換していないので、1 文字ずつ消す
+            let kana = manual.abbrev ? manual.stem : manualKana(manual)
+            let chosen = manual.choice.map { word(of: manual, $0) } ?? kana
+            expected = [Piece(text: chosen, whole: manual.choice != nil && chosen != kana)]
         case .idle, .registering:
             return []
         }
@@ -374,6 +376,11 @@ public final class Composer {
         guard text.hasPrefix(joined), !joined.isEmpty else { return [] }
         let rest = text.dropFirst(joined.count)
         return expected.filter { !$0.text.isEmpty } + (rest.isEmpty ? [] : [Piece(text: String(rest), whole: false)])
+    }
+
+    /// 文節を ⌫ で消す単位にする。読みのままのかなは変換していないので、1 文字ずつ消す
+    private static func piece(_ clause: Clause) -> Piece {
+        Piece(text: clause.output, whole: clause.kind == .japanese && clause.output != clause.reading)
     }
 
     /// 確定の取り消しで戻せる、確定する前の状態。戻しても何も無いなら nil

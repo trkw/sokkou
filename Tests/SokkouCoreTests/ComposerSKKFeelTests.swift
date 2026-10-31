@@ -144,6 +144,16 @@ struct ComposerSKKFeelTests {
         #expect(!type(composer, [.backspace]))
     }
 
+    @Test func unconvertedReadingGoesOneAtATime() {
+        let composer = composer()
+        type(composer, characters(";kana") + [.enter])
+        #expect(composer.takeCommitted() == "かな")
+        type(composer, [.backspace])
+        #expect(composer.takeErased() == "な")
+        type(composer, [.backspace])
+        #expect(composer.takeErased() == "か")
+    }
+
     @Test func punctuationAfterTheWordGoesOneAtATime() {
         let composer = composer()
         type(composer, characters("kaku."))
