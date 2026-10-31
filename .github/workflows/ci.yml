@@ -15,9 +15,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# 組み立てに 4 分ほどかかる大半は azooKey などの依存のコンパイルなので、.build をキャッシュに取っておく。
-# 書くのは main の push だけにし（PR からも main のキャッシュが読める）、PR ごとに何 GB も積まないようにする。
-# 依存は Package.swift で固定しているので、変わったときだけ作り直す。sokkou 自身のソースは checkout で時刻が新しくなり毎回組み直される
+# swift test の組み立ての大半は azooKey などの依存のコンパイルなので、test の .build をキャッシュに取っておく。
+# 書くのは main の push だけにし（PR からも main のキャッシュが読める）、PR ごとに積まないようにする。
+# 依存は Package.swift で固定しているので、変わったときだけ作り直す。
+# app（swiftbuild の release）は .build を戻しても依存を全部組み直し、速くならなかったのでキャッシュしない
 
 jobs:
   test:
@@ -80,12 +81,6 @@ jobs:
           persist-credentials: false
           show-progress: false
 
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: cache
-        with:
-          path: .build
-          key: spm-${{ runner.os }}-xcode26.6-release-${{ hashFiles('Package.swift', 'Package.resolved') }}
-
       # PR のビルドは pr-<番号> のプレリリースに置き、install.sh --pr <番号> と入力メニューから入れられるようにする
       - name: Build .app
         env:
@@ -95,12 +90,6 @@ jobs:
 
       - name: Check .app
         run: scripts/check-app.sh dist/sokkou.app
-
-      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: github.event_name == 'push' && steps.cache.outputs.cache-hit != 'true'
-        with:
-          path: .build
-          key: ${{ steps.cache.outputs.cache-primary-key }}
 
       # 確かめる app-checks と、署名と公証の sign ジョブに渡す。.app をそのまま渡す（zip にしないとフレームワークのリンクが崩れる）
       - name: Pack .app
