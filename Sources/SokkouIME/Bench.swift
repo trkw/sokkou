@@ -69,6 +69,12 @@ enum Bench {
             }
         }
 
+        // 辞書に語の無い読み（切迫 の読み違い）で、もしかしての候補まで出すのにかかる時間
+        engine.endComposition()
+        let guessStart = clock.now
+        _ = engine.words(reading: "きっぱく", okurigana: "")
+        let guessing = guessStart.duration(to: clock.now)
+
         let longest = byLength.filter { $0.length > 60 }.map(\.time)
         print("### 賢い変換: \(model.map { "\($0.title)（\($0.fileName)）" } ?? "使わない")")
         print("")
@@ -84,6 +90,7 @@ enum Bench {
             print("- \(ms(entry.time)) ms `\(entry.typed)`")
         }
         print("")
+        print("- 語の無い読みの候補（もしかしてまで。;kippaku の変換）: \(ms(guessing)) ms")
         print("- 辞書と語表\(model == nil ? "" : "とモデル")の読み込み: \(ms(load)) ms")
         print("- メモリの最大（読み込み後）: \(megabytes(afterLoad)) MB")
         print("- メモリの最大（打ち終わり）: \(megabytes(peakMemory())) MB")
