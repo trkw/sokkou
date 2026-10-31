@@ -15,7 +15,7 @@
 - cask は `scripts/make-cask.sh <版> <sha256>` が書く。tap の中のファイルは手で直さず、このスクリプトを直す
 - `auto_updates true` にしてあるので、`brew upgrade` は sokkou を入れ替えない（`brew upgrade --greedy` なら入れ替える）
 - 中身は `installer script:` で dmg の中の `sokkou.app/Contents/MacOS/sokkou --install` を動かす。`brew uninstall` は sokkou 自身の `--uninstall` で入力ソースから外し、入れた版と取っておいた前の版を消す。`--zap` で辞書と設定も消す
-- CI（ci.yml の app）は毎回、組み立てた dmg をこの cask で入れて消せるかを確かめる
+- CI（ci.yml の app-checks）は毎回、組み立てた dmg をこの cask で入れて消せるかを確かめる
 
 ### はじめに一度だけ（trkw）
 
