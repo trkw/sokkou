@@ -36,6 +36,12 @@ jobs:
       - id: version
         run: echo "version=0.1.${GITHUB_RUN_NUMBER}" >> "${GITHUB_OUTPUT}"
 
+      # ci.yml が main の push で書いた .build を読むだけにする（依存のコンパイルを省く）。無くても一から組み立てる
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-xcode26.6-release-${{ hashFiles('Package.swift', 'Package.resolved') }}
+
       - name: Build .app
         env:
           VERSION: ${{ steps.version.outputs.version }}

@@ -15,6 +15,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# 組み立てに 4 分ほどかかる大半は azooKey などの依存のコンパイルなので、.build をキャッシュに取っておく。
+# 書くのは main の push だけにし（PR からも main のキャッシュが読める）、PR ごとに何 GB も積まないようにする。
+# 依存は Package.swift で固定しているので、変わったときだけ作り直す。sokkou 自身のソースは checkout で時刻が新しくなり毎回組み直される
+
 jobs:
   test:
     runs-on: macos-26
@@ -25,8 +29,20 @@ jobs:
           persist-credentials: false
           show-progress: false
 
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: cache
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-xcode26.6-debug-${{ hashFiles('Package.swift', 'Package.resolved') }}
+
       - name: Test
         run: swift test
+
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: github.event_name == 'push' && steps.cache.outputs.cache-hit != 'true'
+        with:
+          path: .build
+          key: ${{ steps.cache.outputs.cache-primary-key }}
 
   # flake のパッケージと、nix-darwin・home-manager のモジュールを評価できるか（Linux で aarch64-darwin を評価だけする）
   nix:
@@ -64,6 +80,12 @@ jobs:
           persist-credentials: false
           show-progress: false
 
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: cache
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-xcode26.6-release-${{ hashFiles('Package.swift', 'Package.resolved') }}
+
       # PR のビルドは pr-<番号> のプレリリースに置き、install.sh --pr <番号> と入力メニューから入れられるようにする
       - name: Build .app
         env:
@@ -73,6 +95,42 @@ jobs:
 
       - name: Check .app
         run: scripts/check-app.sh dist/sokkou.app
+
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: github.event_name == 'push' && steps.cache.outputs.cache-hit != 'true'
+        with:
+          path: .build
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
+      # 確かめる app-checks と、署名と公証の sign ジョブに渡す。.app をそのまま渡す（zip にしないとフレームワークのリンクが崩れる）
+      - name: Pack .app
+        run: ditto -c -k --keepParent dist/sokkou.app dist/sokkou-app.zip
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sokkou-app
+          path: dist/sokkou-app.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  # 組み立てた .app を動かして入れて消してみる。署名と公証（sign）と並べて走らせ、待ち時間を縮める
+  app-checks:
+    needs: app
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sokkou-app
+          path: dist
+
+      - name: Unpack .app
+        run: ditto -x -k dist/sokkou-app.zip dist && rm dist/sokkou-app.zip
 
       # 打鍵ごとの時間とメモリ。MacBook Neo（8GB）でも軽いかの目安にする
       - name: Bench
@@ -150,19 +208,6 @@ jobs:
       - name: Install from .app
         run: dist/sokkou.app/Contents/MacOS/sokkou --install
 
-      # 署名と公証は鍵を持たせた sign ジョブでする。.app をそのまま渡す（zip にしないとフレームワークのリンクが崩れる）
-      - name: Pack .app
-        if: github.event_name == 'pull_request'
-        run: ditto -c -k --keepParent dist/sokkou.app dist/sokkou-app.zip
-
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: github.event_name == 'pull_request'
-        with:
-          name: sokkou-app
-          path: dist/sokkou-app.zip
-          if-no-files-found: error
-          retention-days: 1
-
       # 候補の窓とモードの札の見た目を画像に書き出す
       - name: Snapshot UI
         run: |
@@ -182,7 +227,7 @@ jobs:
   # 書き出した画像を ui-snapshots ブランチに置き、ブラウザや git から見られるようにする。
   # 外部のパッケージを組み立てるジョブとは分け、書き込みの権限はここにだけ持たせる
   snapshots:
-    needs: app
+    needs: app-checks
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -248,7 +293,7 @@ jobs:
 
   # PR の dmg を pr-<番号> のプレリリースに置く。push のたびに置き直し、PR を閉じたら pr-build-cleanup.yml が消す
   pr-build:
-    needs: sign
+    needs: [sign, app-checks]
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 10
