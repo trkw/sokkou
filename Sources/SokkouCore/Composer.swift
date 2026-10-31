@@ -58,6 +58,17 @@ public final class Composer {
         return true
     }
 
+    /// いまの状態の大まかな種類。つまづきを見分けるのに使う
+    public var stage: Stage {
+        switch phase {
+        case .idle: .idle
+        case .typing: .typing
+        case .selecting: .selecting
+        case .manual: .manual
+        case .registering: .registering
+        }
+    }
+
     /// 確定した文字列を受け取る。受け取った分は消える
     public func takeCommitted() -> String {
         defer { committed = "" }

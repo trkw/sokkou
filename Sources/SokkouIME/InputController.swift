@@ -51,6 +51,8 @@ final class SokkouInputController: IMKInputController {
     private var app: String?
     /// sokkou がこの入力欄で確定した文字列。カーソルの前を返さない入力欄で、打ち始めの形を決めるのに使う
     private var ownCommits = OwnCommits()
+    /// 打っていてつまづいたところを見分ける。設定で記録をオンにしたときだけ使う
+    private var stumbles = StumbleDetector()
 
     // MARK: InputMethodKit からの呼び出し
     // InputMethodKit の基底クラスは隔離の指定を持たないので、上書きする関数は nonisolated にし、中身を onMain でメインアクターとして動かす
@@ -135,6 +137,7 @@ final class SokkouInputController: IMKInputController {
             composer.commitAll()
             flush(client)
             ownCommits.forget()
+            stumbles.skipped()
             return false
         }
         guard let key = Self.key(for: event) else {
@@ -142,6 +145,7 @@ final class SokkouInputController: IMKInputController {
             composer.commitAll()
             flush(client)
             ownCommits.forget()
+            stumbles.skipped()
             return false
         }
         // 設定はほかの入力欄のメニューや設定の窓からも変わるので、打鍵ごとに読み直す
@@ -154,8 +158,21 @@ final class SokkouInputController: IMKInputController {
         }
         let before = composer.mode
         let wasComposing = composer.isComposing
+        let recording = StumbleLog.isOn
+        let stageBefore = composer.stage
+        let shown = recording ? composer.presentation.text : ""
+        let started = CFAbsoluteTimeGetCurrent()
         let handled = composer.handle(key, leading: { leadingContext(of: client) })
-        flush(client)
+        let committed = flush(client)
+        if recording {
+            let now = CFAbsoluteTimeGetCurrent()
+            stumbles.includesText = Settings.stumblesIncludeText
+            let found = stumbles.observe(Keystroke(
+                key: key, stageBefore: stageBefore, stageAfter: composer.stage, modeBefore: before, modeAfter: composer.mode,
+                handled: handled, committed: committed, shown: shown, milliseconds: (now - started) * 1000, time: now
+            ))
+            StumbleLog.write(found, app: app)
+        }
         if !handled { ownCommits.forget() }
         if case .control = key, handled, !wasComposing, !composer.isComposing, ModeMemory.isTerminal(app) {
             tellKeyWasUsed(client)
@@ -300,8 +317,9 @@ final class SokkouInputController: IMKInputController {
 
     // MARK: 表示と確定
 
-    /// 確定した文字列をアプリに渡し、未確定の文字列と候補の窓を今の状態にする
-    private func flush(_ client: IMKTextInput) {
+    /// 確定した文字列をアプリに渡し、未確定の文字列と候補の窓を今の状態にする。渡した文字列を返す
+    @discardableResult
+    private func flush(_ client: IMKTextInput) -> String {
         let text = composer.takeCommitted()
         if !text.isEmpty {
             client.insertText(text, replacementRange: NSRange(location: NSNotFound, length: 0))
@@ -334,6 +352,7 @@ final class SokkouInputController: IMKInputController {
         } else {
             candidatePanel.hide()
         }
+        return text
     }
 
     private func markedText(_ presentation: Presentation) -> NSAttributedString {
@@ -402,6 +421,14 @@ final class SokkouInputController: IMKInputController {
         menu.addItem(NSMenuItem(title: "SKK のユーザー辞書を取り込む…", action: #selector(importUserDictionary(_:)), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "辞書のフォルダを開く", action: #selector(openDictionaries(_:)), keyEquivalent: ""))
         menu.addItem(.separator())
+        let recording = NSMenuItem(title: "つまづきを記録する", action: #selector(toggleStumbles(_:)), keyEquivalent: "")
+        recording.state = Settings.recordsStumbles ? .on : .off
+        menu.addItem(recording)
+        if Settings.recordsStumbles {
+            menu.addItem(NSMenuItem(title: "いまつまづいた", action: #selector(markStumble(_:)), keyEquivalent: ""))
+            menu.addItem(NSMenuItem(title: "つまづきのまとめをコピー", action: #selector(copyStumbles(_:)), keyEquivalent: ""))
+        }
+        menu.addItem(.separator())
         // どのビルドが動いているかを、試すたびに確かめられるように出す
         let build = NSMenuItem(title: Updater.build, action: nil, keyEquivalent: "")
         build.isEnabled = false
@@ -459,6 +486,18 @@ final class SokkouInputController: IMKInputController {
 
     @objc nonisolated func openDictionaries(_ sender: Any?) {
         onMain { Dictionaries.openFolder() }
+    }
+
+    @objc nonisolated func toggleStumbles(_ sender: Any?) {
+        onMain { Settings.recordsStumbles.toggle() }
+    }
+
+    @objc nonisolated func markStumble(_ sender: Any?) {
+        onMain { StumbleLog.write([stumbles.mark(mode: composer.mode)], app: app) }
+    }
+
+    @objc nonisolated func copyStumbles(_ sender: Any?) {
+        onMain { StumbleLog.copySummary() }
     }
 
     @objc nonisolated func toggleLearning(_ sender: Any?) {

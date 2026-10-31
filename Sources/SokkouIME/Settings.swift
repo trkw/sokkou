@@ -28,6 +28,18 @@ enum Settings {
         set { defaults.set(newValue, forKey: "lastBuild") }
     }
 
+    /// 打っていてつまづいたところを記録するか。既定は記録しない
+    static var recordsStumbles: Bool {
+        get { defaults.bool(forKey: "recordsStumbles") }
+        set { defaults.set(newValue, forKey: "recordsStumbles") }
+    }
+
+    /// つまづきの記録に、読みと候補も残すか。既定は残さない
+    static var stumblesIncludeText: Bool {
+        get { defaults.bool(forKey: "stumblesIncludeText") }
+        set { defaults.set(newValue, forKey: "stumblesIncludeText") }
+    }
+
     /// アプリごとに最後に使ったモード。バンドル ID とモードの生の値
     static var appModes: [String: String] {
         get { defaults.dictionary(forKey: "appModes") as? [String: String] ?? [:] }
