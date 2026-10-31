@@ -137,6 +137,7 @@ final class SokkouInputController: IMKInputController {
             composer.commitAll()
             flush(client)
             ownCommits.forget()
+            stumbles.skipped()
             return false
         }
         guard let key = Self.key(for: event) else {
@@ -144,6 +145,7 @@ final class SokkouInputController: IMKInputController {
             composer.commitAll()
             flush(client)
             ownCommits.forget()
+            stumbles.skipped()
             return false
         }
         // 設定はほかの入力欄のメニューや設定の窓からも変わるので、打鍵ごとに読み直す

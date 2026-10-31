@@ -100,6 +100,24 @@ struct StumbleDetectorTests {
         #expect(driver.found.first?.keys == ["字", "字", "字", "字", "⏎", "⌫"])
     }
 
+    @Test func turningTextOffHidesKeysTypedBefore() {
+        let driver = Driver(includesText: true)
+        driver.type(driver.characters("kaku"))
+        driver.detector.includesText = false
+        driver.type([.enter, .backspace])
+        #expect(driver.found.first?.keys == ["字", "字", "字", "字", "⏎", "⌫"])
+        #expect(driver.detector.mark(mode: .hiragana).keys.first == "字")
+    }
+
+    @Test func keysSokkouDoesNotSeeStopWatchingTheCommit() {
+        let driver = Driver()
+        driver.type(driver.characters("kaku") + [.enter])
+        // ⌘← でカーソルを動かした
+        driver.detector.skipped()
+        driver.type([.backspace])
+        #expect(driver.found.isEmpty)
+    }
+
     @Test func slowKeysAreRecordedAtMostEveryTenSeconds() {
         var detector = StumbleDetector()
         func stroke(_ time: Double, _ milliseconds: Double) -> Keystroke {

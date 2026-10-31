@@ -126,7 +126,8 @@ public struct StumbleDetector {
     /// 残す直前のキーの数
     static let recentCount = 12
 
-    private var recent: [String] = []
+    /// 直前のキー。文字を隠すかは残すときの includesText で決める（途中で切り替えても、隠すべき文字を残さない）
+    private var recent: [Key] = []
     private var lastCommit: (time: Double, text: String)?
     private var deletedSinceCommit = false
     private var deletesInRow = 0
@@ -145,12 +146,12 @@ public struct StumbleDetector {
 
     /// キーを 1 つ見て、つまづいたところを返す
     public mutating func observe(_ stroke: Keystroke) -> [Stumble] {
-        recent.append(label(stroke.key))
+        recent.append(stroke.key)
         if recent.count > Self.recentCount { recent.removeFirst(recent.count - Self.recentCount) }
         var found: [Stumble] = []
         func add(_ kind: Stumble.Kind, count: Int? = nil, note: String? = nil, text: String? = nil) {
             found.append(Stumble(
-                kind: kind, mode: stroke.modeBefore, count: count, note: note, keys: recent,
+                kind: kind, mode: stroke.modeBefore, count: count, note: note, keys: recent.map(label),
                 text: includesText ? text : nil
             ))
         }
@@ -239,9 +240,15 @@ public struct StumbleDetector {
         return found
     }
 
+    /// sokkou が見ないキー（⌘・⌥ 付きなど）をアプリに渡した。カーソルが動いたかもしれないので、確定のあとを見張るのをやめる
+    public mutating func skipped() {
+        lastCommit = nil
+        deletesInRow = 0
+    }
+
     /// 利用者が「いまつまづいた」を選んだ。直前のキーの並びを残す
     public func mark(mode: InputMode) -> Stumble {
-        Stumble(kind: .marked, mode: mode, keys: recent)
+        Stumble(kind: .marked, mode: mode, keys: recent.map(label))
     }
 
     private func label(_ key: Key) -> String {
