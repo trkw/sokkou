@@ -5,7 +5,7 @@ import SokkouConverter
 
 // 一時的な診断。kippaku の区切りの候補と点を、失敗の文に入れて出す
 @Suite struct KippakuDiagnosticTests {
-    @Test func dump() throws {
+    @Test func dump() async throws {
         let table = try AzooKeyEngine.romajiTable()
         let segmenter = Segmenter(table: table, english: try AzooKeyEngine.englishModel(table: table), japanese: ConversionMethod.azooKey.make())
         var lines: [String] = []
@@ -18,6 +18,8 @@ import SokkouConverter
                 }
             }
         }
+        // 変換エンジンの出力に埋もれないよう、ほかのテストが終わってから出す
+        try await Task.sleep(for: .seconds(150))
         Issue.record("DIAGDUMP\n\(lines.joined(separator: "\n"))")
     }
 }
