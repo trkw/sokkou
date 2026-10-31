@@ -39,6 +39,8 @@ enum Bench {
 
         var typing: [Duration] = []
         var selecting: [Duration] = []
+        // 確定した直後の打ち始め。最初のかなは 1〜3 打鍵目に出るので、文ごとに最初の 3 打鍵でいちばん遅いものを取る
+        var afterCommit: [Duration] = []
         var byLength: [(length: Int, time: Duration)] = []
         var slowest: [(typed: String, time: Duration)] = []
         func measure(_ key: Key) -> Duration {
@@ -51,10 +53,13 @@ enum Bench {
         // 1 周目は辞書のページを読み込むので、2 周目からを測る
         for round in 0..<3 {
             for sentence in sentences {
+                var opening: Duration = .zero
                 for (index, character) in sentence.enumerated() {
                     let time = measure(character == " " ? .space : .character(character))
                     guard round > 0 else { continue }
                     typing.append(time)
+                    if index < 3 { opening = max(opening, time) }
+                    if index == 2 { afterCommit.append(opening) }
                     if round == 2 {
                         byLength.append((index + 1, time))
                         slowest.append((String(sentence.prefix(index + 1)), time))
@@ -83,6 +88,7 @@ enum Bench {
         print(row("打っている途中", typing))
         print(row("61 打鍵目から", longest))
         print(row("文節選択と確定", selecting))
+        print(row("確定直後の打ち始め", afterCommit))
         print("")
         print("遅かった打鍵（そこまでに打ったもの）")
         print("")
