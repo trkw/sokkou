@@ -20,6 +20,8 @@ enum Shared {
         ("shachachu", "しゃちゃちゅ"),
         ("zyazyuzyo", "じゃじゅじょ"),
         ("jyajyujyo", "じゃじゅじょ"),
+        ("zyejye", "じぇじぇ"),
+        ("purozyekuto", "ぷろじぇくと"),
         ("kanchi", "かんち"),
         ("icchi", "いっち"),
     ])
