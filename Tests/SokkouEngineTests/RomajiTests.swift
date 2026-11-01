@@ -21,7 +21,7 @@ enum Shared {
         ("zyazyuzyo", "じゃじゅじょ"),
         ("jyajyujyo", "じゃじゅじょ"),
         ("zyejye", "じぇじぇ"),
-        ("purozyekuto", "ぷろじぇくと"),
+        ("zyerii", "じぇりい"),
         ("kanchi", "かんち"),
         ("icchi", "いっち"),
     ])
