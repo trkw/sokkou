@@ -10,14 +10,25 @@ import SokkouCore
 
     @Test func today() {
         #expect(Self.words.candidates(for: "きょう") == [
-            "2026年10月25日", "2026年10月25日(日)", "10月25日(日)", "2026/10/25", "2026-10-25", "日曜日",
+            "2026年10月25日", "2026年10月25日(日)", "10月25日(日)", "2026/10/25", "2026-10-25", "日曜日", "20261025",
         ])
     }
 
     @Test func otherDays() {
         #expect(Self.words.candidates(for: "あした").first == "2026年10月26日")
-        #expect(Self.words.candidates(for: "きのう").last == "土曜日")
+        #expect(Self.words.candidates(for: "きのう")[5] == "土曜日")
         #expect(Self.words.candidates(for: "おととい").first == "2026年10月23日")
+    }
+
+    /// 月日を 0 埋めし、指定したタイムゾーンで年をまたぐ日付も作る
+    @Test func compactDatesAcrossYearBoundary() {
+        let date = Date(timeIntervalSince1970: 1_798_729_200)  // 2026-12-31 15:00 UTC / 2027-01-01 00:00 JST
+        let tokyo = DateWords(now: { date }, timeZone: Self.tokyo)
+        let utc = DateWords(now: { date }, timeZone: TimeZone(secondsFromGMT: 0)!)
+        #expect(tokyo.candidates(for: "きょう").last == "20270101")
+        #expect(tokyo.candidates(for: "きのう").last == "20261231")
+        #expect(tokyo.candidates(for: "あした").last == "20270102")
+        #expect(utc.candidates(for: "きょう").last == "20261231")
     }
 
     @Test func now() {
@@ -51,5 +62,6 @@ import SokkouCore
         let engine = try Shared.engine.get()
         let clause = try #require(engine.clauses("kyou", leading: .start).clauses.first)
         #expect(clause.candidates.contains { $0.hasSuffix("曜日") }, "\(clause)")
+        #expect(clause.candidates.contains { $0.count == 8 && $0.allSatisfy(\.isNumber) }, "\(clause)")
     }
 }
