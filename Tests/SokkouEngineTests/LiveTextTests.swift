@@ -12,6 +12,9 @@ import SokkouCore
         "ka",
         "kyo",
         "iikanzi",
+        "ki",
+        "sorede,ke",
+        "githubki",
     ])
     func readsTheSameAsSegmenter(input: String) throws {
         let engine = try Shared.engine.get()
