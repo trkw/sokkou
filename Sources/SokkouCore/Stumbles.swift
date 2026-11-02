@@ -126,6 +126,8 @@ public struct StumbleDetector {
 
     /// 確定のあと、消したら「確定してすぐ消した」とする秒数
     static let afterCommit = 3.0
+    /// 打っている途中の ⌫ で確定したすぐあとに消したときの note
+    static let afterErasingNote = "⌫ で確定したあと"
     /// 消してからモードを替えたら「違うモードで打った」とする秒数
     static let afterDelete = 5.0
     /// これより長くかかったら遅いとする
@@ -137,7 +139,7 @@ public struct StumbleDetector {
 
     /// 直前のキー。文字を隠すかは残すときの includesText で決める（途中で切り替えても、隠すべき文字を残さない）
     private var recent: [Key] = []
-    private var lastCommit: (time: Double, text: String)?
+    private var lastCommit: (time: Double, text: String, byDelete: Bool)?
     private var deletedSinceCommit = false
     private var deletesInRow = 0
     private var lastDelete: Double?
@@ -181,7 +183,8 @@ public struct StumbleDetector {
             if idleBefore {
                 if let commit = lastCommit, stroke.time - commit.time <= Self.afterCommit, !deletedSinceCommit {
                     deletedSinceCommit = true
-                    add(.deletedAfterCommit, count: commit.text.count, text: commit.text)
+                    // 打っている途中の ⌫ が変換した字を消して確定した（「変換した字を 1 字ずつ消す」）すぐあとなら、そうと分かるようにする
+                    add(.deletedAfterCommit, count: commit.text.count, note: commit.byDelete ? Self.afterErasingNote : nil, text: commit.text)
                 }
             } else if stroke.stageBefore == .typing || stroke.stageBefore == .manual {
                 deletesInRow += 1
@@ -242,7 +245,7 @@ public struct StumbleDetector {
 
         // 確定のあとを見張る。打ち始めたか、ほかのキーをアプリに渡したら（カーソルが動いたかも）見張るのをやめる
         if !stroke.committed.isEmpty {
-            lastCommit = (stroke.time, stroke.committed)
+            lastCommit = (stroke.time, stroke.committed, deletes && !idleBefore)
             deletedSinceCommit = false
         } else if !deletes, idleBefore {
             lastCommit = nil
