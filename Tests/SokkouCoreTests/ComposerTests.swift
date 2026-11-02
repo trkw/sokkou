@@ -320,4 +320,38 @@ struct ComposerTests {
         type(composer, characters("kami"))
         #expect(!composer.presentation.differsFromInput)
     }
+
+    /// 変換を待たずに仮の表示を返す変換エンジンでも、確定するのは変換が届いた後の文字列。仮の表示（読み切れない子音が残ったかな）は確定しない
+    @Test func commitsTheSettledConversionNotTheProvisionalDisplay() {
+        let lagging = LaggingEngine(base: engine)
+        let composer = Composer(engine: lagging)
+        type(composer, characters("kaku"))
+        #expect(composer.presentation.text == "かく")
+        type(composer, [.enter])
+        #expect(composer.takeCommitted() == "書く")
+    }
+}
+
+/// 打っている途中の表示に、変換せずに読みを返す変換エンジン。確定に使う区間は base の変換
+private final class LaggingEngine: Engine {
+    let base: FakeEngine
+
+    init(base: FakeEngine) {
+        self.base = base
+    }
+
+    func live(_ keys: String, leading: Leading) -> [Span] {
+        base.live(keys, leading: leading).map { Span(kind: $0.kind, text: $0.reading, reading: $0.reading) }
+    }
+
+    func settled(_ keys: String, leading: Leading) -> [Span] { base.live(keys, leading: leading) }
+    func clauses(_ keys: String, leading: Leading) -> ClauseList { base.clauses(keys, leading: leading) }
+    func resize(_ list: ClauseList, at index: Int, by delta: Int, leading: Leading) -> ClauseList { base.resize(list, at: index, by: delta, leading: leading) }
+    func commit(_ list: ClauseList, through index: Int) -> (text: String, rest: ClauseList, keys: String)? { base.commit(list, through: index) }
+    func whole(_ keys: String, form: CharacterForm, leading: Leading) -> ClauseList { base.whole(keys, form: form, leading: leading) }
+    func form(_ list: ClauseList, at index: Int, to form: CharacterForm) -> String? { base.form(list, at: index, to: form) }
+    func kana(_ romaji: String) -> (kana: String, rest: String) { base.kana(romaji) }
+    func convert(kana: String, to form: CharacterForm) -> String { base.convert(kana: kana, to: form) }
+    func words(reading: String, okurigana: String) -> [String] { base.words(reading: reading, okurigana: okurigana) }
+    func endComposition() { base.endComposition() }
 }

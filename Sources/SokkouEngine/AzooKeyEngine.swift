@@ -22,6 +22,9 @@ public final class AzooKeyEngine: Engine {
         guesses = ReadingGuesses(converter: converter)
     }
 
+    /// sokkou の綴りの表。変わらない値なので、変換と別のスレッドから読んでよい（変換が届く前の読みに使う）
+    public var spellingTable: RomajiTable { table }
+
     /// 英語として扱う語の頻度の下限。これより少なく、ローマ字で読める短い綴り（nai ine uso iku など）は、
     /// 語表ではローマ字書きの日本語が拾われたもので、英語の語として扱わない
     static let minShortReadableZipf = 3.0
