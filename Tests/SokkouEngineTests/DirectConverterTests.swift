@@ -85,6 +85,8 @@ private nonisolated final class FixedGenerator: DirectDisplayGenerating {
         let shown = try #require(converter.display(kana: "きょうはいいてんき", context: .start, left: ""))
         #expect(shown.text == "今日はええ天気")
         #expect(shown.clauses == [JapaneseClause(reading: "きょうはいいてんき", text: "今日はええ天気")])
+        // 読みと合わない表示として扱う（tugime の fe84dac）
+        #expect(!shown.matchesReading)
     }
 
 

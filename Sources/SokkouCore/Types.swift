@@ -95,11 +95,14 @@ public struct Span: Sendable, Equatable {
     public var text: String
     /// 日本語はかな、それ以外は打ったまま
     public var reading: String
+    /// 日本語の区間で、表示のかなが読みのかなと合わない（変換が打った読みを別の語に書き換えた）
+    public var differsFromReading: Bool
 
-    public init(kind: Kind, text: String, reading: String) {
+    public init(kind: Kind, text: String, reading: String, differsFromReading: Bool = false) {
         self.kind = kind
         self.text = text
         self.reading = reading
+        self.differsFromReading = differsFromReading
     }
 }
 

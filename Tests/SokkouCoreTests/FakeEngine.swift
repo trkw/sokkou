@@ -20,6 +20,8 @@ final class FakeEngine: Engine {
     static let english: Set<String> = ["dark", "mode", "github"]
 
     var resizeCalls = 0
+    /// 表示が読みと合わないものとして返す日本語の読み
+    var rewrittenReadings: Set<String> = []
     var endCompositionCalls = 0
 
     /// 日本語の後ろで日本語の記号にする句読点。英語の後ろでは打ったまま
@@ -35,7 +37,9 @@ final class FakeEngine: Engine {
                 spans.append(Span(kind: .english, text: token, reading: token))
             } else {
                 let reading = kana(token).kana + kana(token).rest
-                spans.append(Span(kind: .japanese, text: Self.dictionary[reading]?.first ?? reading, reading: reading))
+                spans.append(Span(
+                    kind: .japanese, text: Self.dictionary[reading]?.first ?? reading, reading: reading, differsFromReading: rewrittenReadings.contains(reading)
+                ))
             }
         }
         return spans

@@ -306,4 +306,18 @@ struct ComposerTests {
         type(composer, [.kana])
         #expect(composer.mode == .hiragana)
     }
+
+    /// 打っている途中の表示が打った読みと合わなければ知らせる。文節選択・かなに戻した表示・カタカナのモードでは知らせない
+    @Test func flagsATypingDisplayThatDiffersFromTheInput() {
+        engine.rewrittenReadings = ["かく"]
+        let composer = composer()
+        type(composer, characters("kaku"))
+        #expect(composer.presentation.differsFromInput)
+        type(composer, [.shiftSpace])
+        #expect(!composer.presentation.differsFromInput)
+        type(composer, [.enter])
+        _ = composer.takeCommitted()
+        type(composer, characters("kami"))
+        #expect(!composer.presentation.differsFromInput)
+    }
 }

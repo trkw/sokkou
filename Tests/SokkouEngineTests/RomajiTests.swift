@@ -179,4 +179,13 @@ enum Shared {
         let spans = engine.live(input, leading: .start)
         #expect(spans.map(\.kind) == kinds, "\(spans)")
     }
+
+    /// azooKey の辞書の変換は打った読みのかなに沿うので、打っている途中の表示を読みと合わないとしない
+    @Test(arguments: ["kyouhaiitenkidesune", "konosystemnoperformancewohakattemitaikedo,doudesyou?", "ko-hi-wonomu"])
+    func dictionaryDisplayFollowsTheReading(input: String) throws {
+        let engine = try Shared.engine.get()
+        engine.endComposition()
+        let spans = engine.live(input, leading: .start)
+        #expect(!spans.contains(where: \.differsFromReading), "\(spans)")
+    }
 }

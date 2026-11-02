@@ -652,6 +652,12 @@ public final class Composer {
         return [MarkedSegment(text: text, style: .japanese)]
     }
 
+    /// 打っている途中の表示が、打った読みと合わない変換を含むか。かなに戻した表示（C-g）と、カタカナ・半角カナのモードは変換しないので含まない
+    private func typingDiffersFromInput(_ typing: Typing) -> Bool {
+        guard !typing.keys.isEmpty, !typing.raw, modeForm == nil else { return false }
+        return engine.live(typing.keys, leading: leading).contains(where: \.differsFromReading)
+    }
+
     private func typingText(_ typing: Typing) -> String {
         typingSegments(typing).map(\.text).joined()
     }
@@ -1408,7 +1414,7 @@ public final class Composer {
             if typing.sticky {
                 segments.append(MarkedSegment(text: "▽", style: .manual))
             }
-            return Presentation(segments: segments)
+            return Presentation(segments: segments, differsFromInput: typingDiffersFromInput(typing))
         case .selecting(let selecting):
             let segments = selecting.list.clauses.enumerated().map { index, clause in
                 MarkedSegment(text: clause.output, style: index == selecting.focus ? .focused : .clause)

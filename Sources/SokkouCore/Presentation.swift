@@ -64,10 +64,13 @@ public struct CandidateWindow: Sendable, Equatable {
 public struct Presentation: Sendable, Equatable {
     public var segments: [MarkedSegment]
     public var window: CandidateWindow?
+    /// 打っている途中の表示が、打った読みと合わない変換を含む（Span.differsFromReading）。入力メソッドは未確定の文字列の下で知らせる
+    public var differsFromInput: Bool
 
-    public init(segments: [MarkedSegment], window: CandidateWindow? = nil) {
+    public init(segments: [MarkedSegment], window: CandidateWindow? = nil, differsFromInput: Bool = false) {
         self.segments = segments
         self.window = window
+        self.differsFromInput = differsFromInput
     }
 
     public static let empty = Presentation(segments: [])

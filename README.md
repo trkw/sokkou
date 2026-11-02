@@ -21,7 +21,7 @@ SKK の手触りで、打てばそのまま変換される、自分用の macOS 
 - 選んだ候補だけを控えめに覚える。入力メニューから切れる
 - SKK のように、候補の最後の「登録…」から単語を登録でき、`X` で候補を消せる。ユーザー辞書は SKK 形式で、`~/.skk-jisyo` や macSKK の辞書を取り込める
 - SKK 辞書（SKK-JISYO.L など）を追加の候補元にできる。ほかに abbrev（`/`）、数値変換、Tab での読みの補完
-- 軽さを優先し、既定は azooKey の辞書だけで変換する。設定の「辞書」の「賢い変換」で、言語モデルの Zenzai（zenz-v3.2-small、74MB）か genmai（genmai-310M、340MB）を選べる。選んだモデルはそのときに Hugging Face から取ってきて、`~/Library/Application Support/sokkou/Models` に置く
+- 軽さを優先し、既定は azooKey の辞書だけで変換する。設定の「辞書」の「賢い変換」で、言語モデルの Zenzai（zenz-v3.2-small、74MB）か genmai（genmai-310M、340MB）を選べる。選んだモデルはそのときに Hugging Face から取ってきて、`~/Library/Application Support/sokkou/Models` に置く。言語モデルは文として自然な書き方を選ぶので、打った読みと違う語を書くことがある（ひらけるんだ → 開くんだ）。打っている途中の表示のかなが打った読みのかなと合わないときは、未確定の文字列の下に「入力と違う変換」と出る。漢字になった部分の読みは照らさない
 
 キーの全体は [docs/keys.md](docs/keys.md)。
 
