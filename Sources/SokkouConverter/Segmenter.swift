@@ -4,7 +4,7 @@ public struct Segment: Sendable, Equatable {
     public enum Kind: Sendable, Equatable {
         case japanese
         case english
-        /// 日本語の記号にした句読点（Segmenter.punctuation）と記号の打鍵（Segmenter.symbols）
+        /// 入力を切った句読点（Segmenter.punctuation）と記号の打鍵（Segmenter.symbols）。組の開き括弧に合わせて半角にした閉じ括弧も含む
         case punctuation
     }
 
@@ -186,55 +186,61 @@ public final class Segmenter {
     ]
     static let maxSymbolLength = symbols.keys.map(\.count).max()!
 
-    /// 日本語の記号にした句読点・記号の打鍵 key の後ろの入力の評価のしかた。句読点の後は後ろを文の頭として、記号の打鍵の後は文の途中かもしれないものとして評価する
-    static func leading(after key: String) -> Leading {
-        symbols[key] == nil ? .start : .afterJapanese
+    /// 入力を切った句読点・記号の打鍵 key を mark にした区間の後ろの入力の評価のしかた。記号の打鍵の後は文の途中かもしれないもの、
+    /// 打ったままの形（組に合わせて半角にした閉じ括弧）の後は英語の後、日本語の記号にした句読点の後は文の頭として評価する
+    static func leading(after key: String, mark: String) -> Leading {
+        if symbols[key] != nil { return .afterJapanese }
+        return mark.allSatisfy(\.isASCII) ? .afterEnglish : .start
     }
 
-    /// 句読点は、直前が日本語なら日本語の記号にし、英語なら打ったまま英語の区間に含める。
+    /// 句読点は、直前が日本語なら日本語の記号にし、英語なら打ったまま英語の区間に含める。閉じ丸括弧は、組になる開き丸括弧と同じ形にする（punctuationMark）。
     /// 記号の打鍵は、前後によらず記号にする。入力の先頭の句読点は、入力欄の直前（leading）で決める。
-    /// 日本語の記号の位置で入力を切る。句読点の後は文の頭として、記号の打鍵の後は文の途中かもしれないものとして次の部分を評価する
+    /// 句読点と記号の打鍵を英語の区間に含めないときは、その位置で入力を切り、後ろは leading(after:mark:) で評価する
     public func segment(_ input: String, leading: Leading = .start) -> [Segment] {
-        segment(input, leading: leading, context: leading.japaneseContext)
+        segment(input, leading: leading, context: leading.japaneseContext, opened: [])
     }
 
     /// 区切りを決めた部分の採点で比べた区間の候補を返す。句読点の前で英語に続くと分かって採点し直す部分の候補は含めない。診断用
     public func candidates(_ input: String, leading: Leading = .start) -> [ScoredSpan] {
         var spans: [ScoredSpan] = []
-        _ = segment(input, leading: leading, context: leading.japaneseContext) { spans.append($0) }
+        _ = segment(input, leading: leading, context: leading.japaneseContext, opened: []) { spans.append($0) }
         return spans
     }
 
-    /// context は、最初の句読点か記号までの部分の最初の日本語区間を評価する形
-    func segment(_ input: String, leading: Leading, context: JapaneseContext) -> [Segment] {
-        segment(input, leading: leading, context: context, observe: nil)
+    /// context は、最初の句読点か記号までの部分の最初の日本語区間を評価する形。opened は入力より前の閉じていない開き丸括弧
+    func segment(_ input: String, leading: Leading, context: JapaneseContext, opened: [Character]) -> [Segment] {
+        segment(input, leading: leading, context: context, opened: opened, observe: nil)
     }
 
     /// observe には、区切りを決めた部分の区間の候補だけを渡す。句読点の前で英語に続くと分かって採点し直す部分の候補は渡さない
-    private func segment(_ input: String, leading: Leading, context: JapaneseContext, observe: ((ScoredSpan) -> Void)?) -> [Segment] {
+    private func segment(
+        _ input: String, leading: Leading, context: JapaneseContext, opened: [Character], observe: ((ScoredSpan) -> Void)?
+    ) -> [Segment] {
         let chars = Array(input)
         var segments: [Segment] = []
         var runStart = 0
         var runLeading = leading
         var runContext = context
+        var opened = opened
         var i = 0
         while i < chars.count {
             let symbol = Self.symbol(at: i, in: chars)
             let key = symbol?.key ?? String(chars[i])
-            let mark = symbol?.mark ?? Self.punctuation[chars[i]]
             let end = i + key.count
             defer { i = end }
-            guard let mark else { continue }
+            guard symbol != nil || Self.punctuation[chars[i]] != nil else { continue }
             var runSpans: [ScoredSpan] = []
             let collect: ((ScoredSpan) -> Void)? = observe.map { _ in { runSpans.append($0) } }
             let before = segmentRun(String(chars[runStart..<i]), leading: runContext, offset: runStart, observe: collect)
             let previousIsEnglish = before.last.map { $0.kind == .english } ?? runLeading.followsASCII
-            if symbol == nil, previousIsEnglish { continue }
+            // nil なら打ったまま直前の英語の区間に含める
+            let mark = symbol.map(\.mark) ?? Self.punctuationMark(chars[i], opened: &opened, previousIsEnglish: previousIsEnglish)
+            guard let mark else { continue }
             runSpans.forEach { observe?($0) }
             segments += before
             segments.append(Segment(kind: .punctuation, source: key, reading: mark, output: mark, score: 0, context: .start))
             runStart = end
-            runLeading = Self.leading(after: key)
+            runLeading = Self.leading(after: key, mark: mark)
             runContext = runLeading.japaneseContext
         }
         return segments + segmentRun(String(chars[runStart...]), leading: runContext, offset: runStart, observe: observe)
