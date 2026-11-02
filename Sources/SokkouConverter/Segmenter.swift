@@ -110,35 +110,66 @@ public final class Segmenter {
         return digits.isEmpty ? .afterWord : .afterNumber(digits)
     }
 
-    /// 打っている途中に見せる文字列。Enter で確定するのもこれ。日本語区間は長さによらず変換し（kidoku → 既読）、英語区間は打ったまま
+    /// 打っている途中に見せる文字列。Enter で確定するのもこれ。日本語区間は長さによらず変換し（kidoku → 既読）、英語区間は打ったまま。
+    /// 文の頭の 1 かなだけの末尾の区間は、変換せずにかなのまま見せる（showsAsKana）
     public func liveText(_ input: String, leading: Leading = .start) -> String {
         let segments = segment(input, leading: leading)
-        return zip(segments, displays(of: segments.map(ShownSpan.init))).map { segment, display in
+        return zip(segments, displays(of: segments.map(ShownSpan.init), startsAtHead: true)).map { segment, display in
             display?.text ?? segment.output
         }.joined()
     }
 
-    /// 表示する 1 区間。日本語区間は表示の変換で表記を決め、それ以外は決まった文字列を表示する
+    /// 表示する 1 区間。日本語区間は表示の変換で表記を決め、それ以外は決まった文字列を表示する。
+    /// 句読点と記号の打鍵（mark）は、後ろが文の頭か（startsSentence）を持つ。組に合わせて半角にした閉じ括弧の後ろは英語の後で、文の頭ではない
     enum ShownSpan {
         case japanese(kana: String, context: JapaneseContext)
         case fixed(String)
+        case mark(String, startsSentence: Bool)
 
         init(_ segment: Segment) {
-            self = segment.kind == .japanese ? .japanese(kana: segment.reading, context: segment.context) : .fixed(segment.output)
+            switch segment.kind {
+            case .japanese: self = .japanese(kana: segment.reading, context: segment.context)
+            case .punctuation: self = .mark(segment.output, startsSentence: Segmenter.leading(after: segment.source, mark: segment.output) != .afterEnglish)
+            case .english: self = .fixed(segment.output)
+            }
         }
+    }
+
+    /// spans の index の区間を、変換せずにかなのまま見せるか。末尾の区間が文の頭（入力の最初の区間か、日本語の記号にした句読点・記号の直後）の
+    /// 1 かなだけなら、続けて打つ語の先頭なので、かなのまま見せる（ki は 気 ではなく き）。候補では語を選べる。
+    /// 入力欄の数字に続く 1 かな（3 の後の ko → 個）は助数詞なので、入力の最初でも変換する。
+    /// startsAtHead は spans の最初が入力の最初の区間か（文節の伸縮で後ろだけを渡すときは偽）
+    static func showsAsKana(_ spans: [ShownSpan], at index: Int, startsAtHead: Bool) -> Bool {
+        guard spans.indices.contains(index), index == spans.count - 1, case .japanese(let kana, let context) = spans[index], kana.count == 1 else { return false }
+        if index == 0 {
+            if case .afterNumber = context { return false }
+            return startsAtHead
+        }
+        if case .mark(_, true) = spans[index - 1] { return true }
+        return false
+    }
+
+    /// 区切りの結果の末尾の区間を、変換せずにかなのまま見せるか（showsAsKana）。表示の変換を使わずに区切りの結果から表示を作るときに使う
+    public static func showsLastAsKana(_ segments: [Segment]) -> Bool {
+        showsAsKana(segments.map(ShownSpan.init), at: segments.count - 1, startsAtHead: true)
     }
 
     /// 区間を前から順に表示の変換にする。日本語区間は、left にそれより前の区間の表示をつないだものを左の文脈にする。
     /// 返す配列は spans と同じ順で、日本語区間の要素だけが表示の変換を持つ。
-    /// 日本語区間は採点の変換があるときだけ選ばれ、表示の変換は採点の変換があれば必ず返すので、日本語区間の表示の変換は必ずある
-    func displays(of spans: [ShownSpan], left: String = "") -> [JapaneseDisplay?] {
+    /// 日本語区間は採点の変換があるときだけ選ばれ、表示の変換は採点の変換があれば必ず返すので、日本語区間の表示の変換は必ずある。
+    /// かなのまま見せる区間（showsAsKana）は、かなをそのまま表示の変換にする
+    func displays(of spans: [ShownSpan], left: String = "", startsAtHead: Bool) -> [JapaneseDisplay?] {
         var shown = left
-        return spans.map { span in
+        return spans.enumerated().map { index, span in
             switch span {
-            case .fixed(let text):
+            case .fixed(let text), .mark(let text, _):
                 shown += text
                 return nil
             case .japanese(let kana, let context):
+                if Self.showsAsKana(spans, at: index, startsAtHead: startsAtHead) {
+                    shown += kana
+                    return JapaneseDisplay(text: kana, clauses: [JapaneseClause(reading: kana, text: kana)])
+                }
                 guard let display = japaneseConverter.display(kana: kana, context: context, left: shown) else {
                     preconditionFailure("日本語区間の表示の変換が無い: \(kana)")
                 }

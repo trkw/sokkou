@@ -70,9 +70,12 @@ public final class AzooKeyEngine: Engine {
     /// 区切りをもう一度作らせず、区切りの結果から表示を作る。区切りは打鍵列の長さの 2 乗で重くなるので、長く打つほど効く
     var readsDisplayFromSegments: Bool
 
-    /// Segmenter.liveText と同じ文字列を、区切りの結果から作る。Zenzai を使わないときだけ同じになる
+    /// Segmenter.liveText と同じ文字列を、区切りの結果から作る。Zenzai を使わないときだけ同じになる。
+    /// 文の頭の 1 かなだけの末尾の区間は、Segmenter.liveText と同じくかなのまま見せる
     static func liveText(of segments: [Segment]) -> String {
-        segments.map(\.output).joined()
+        var shown = segments.map(\.output)
+        if Segmenter.showsLastAsKana(segments) { shown[shown.count - 1] = segments[segments.count - 1].reading }
+        return shown.joined()
     }
 
     public func clauses(_ keys: String, leading: Leading) -> ClauseList {

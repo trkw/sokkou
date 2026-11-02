@@ -121,6 +121,28 @@ enum Shared {
         #expect(spans.map(\.text).joined() != "きどく", "\(spans)")
     }
 
+    /// 文の頭で末尾に打った 1 かなは、続けて打つ語の先頭なので変換せずにかなのまま見せる。候補では語を選べる（tugime の ff5b5c2・d39b2b1・bf6077b）
+    @Test func showsALoneKanaAtTheSentenceHeadAsKana() throws {
+        let engine = try Shared.engine.get()
+        func text(_ input: String, leading: Leading = .start) -> String {
+            engine.endComposition()
+            return engine.live(input, leading: leading).map(\.text).joined()
+        }
+        #expect(text("ki") == "き")
+        #expect(text("sorede,ke").hasSuffix("、け"))
+        // 入力欄の前が文の途中でも、入力の先頭なら位置で決める
+        #expect(text("ki", leading: .afterJapanese) == "き")
+        // 英語の後は文の頭ではない
+        #expect(!text("githubki").hasSuffix("き"))
+        // 入力欄の数字に続く 1 かなは助数詞として変換する
+        #expect(text("ko", leading: .afterNumber("3")) != "こ")
+        engine.endComposition()
+        let clause = try #require(engine.clauses("ki", leading: .start).clauses.first)
+        #expect(clause.candidates.first == "き")
+        // かなと打鍵のほかに、1 かなの語がある
+        #expect(clause.candidates.contains { !["き", "キ", "ki"].contains($0) })
+    }
+
     /// 日本語の途中に英字のかけらを残さない（思わなかったnode にしない）
     @Test func noEnglishFragmentInsideJapanese() throws {
         let spans = try Shared.engine.get().live("omowanakattanode", leading: .start)
