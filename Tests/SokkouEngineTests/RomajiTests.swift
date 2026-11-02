@@ -144,4 +144,17 @@ enum Shared {
         let spans = try Shared.engine.get().live("ninn", leading: .afterNumber("3"))
         #expect(spans.map(\.text).joined() == "人", "\(spans)")
     }
+
+    /// 数字に続く英字も、区間の頭の英字と同じく、日本語にする綴りなら英語区間に入れない（3i → 3位、tugime の ea8368e）。
+    /// 読めない英字は数字と英語のまま
+    @Test(arguments: [
+        ("3i", [Span.Kind.english, .japanese]), ("100enn", [.english, .japanese]), ("2do", [.english, .japanese]),
+        ("3d", [.english]), ("k8s", [.english]), ("4k", [.english]), ("1on1", [.english]),
+    ])
+    func readsSpellingsAfterDigitsLikeSpellingsAtTheStart(input: String, kinds: [Span.Kind]) throws {
+        let engine = try Shared.engine.get()
+        engine.endComposition()
+        let spans = engine.live(input, leading: .start)
+        #expect(spans.map(\.kind) == kinds, "\(spans)")
+    }
 }
