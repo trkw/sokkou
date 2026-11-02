@@ -4,7 +4,7 @@ public struct Segment: Sendable, Equatable {
     public enum Kind: Sendable, Equatable {
         case japanese
         case english
-        /// 日本語の記号にした句読点（, . ? ! ~）と記号の打鍵（zh [ / など）
+        /// 日本語の記号にした句読点（Segmenter.punctuation）と記号の打鍵（Segmenter.symbols）
         case punctuation
     }
 
@@ -175,8 +175,8 @@ public final class Segmenter {
         return readAny ? words.joined(separator: " ") : nil
     }
 
-    /// 前の語の後ろに付く記号と、日本語の文で使う形
-    static let punctuation: [Character: String] = [",": "、", ".": "。", "?": "？", "!": "！", "~": "〜"]
+    /// 句読点。直前の区間が日本語なら日本語の文で使う形にし、英語なら打ったままにする記号と、その形
+    static let punctuation: [Character: String] = [",": "、", ".": "。", "?": "？", "!": "！", "~": "〜", "(": "（", ")": "）", ":": "：", "=": "＝"]
 
     /// 前後の区間によらず決まった記号にする打鍵。日本語モードでは打ったまま出さない
     static let symbols: [String: String] = [
@@ -186,14 +186,14 @@ public final class Segmenter {
     ]
     static let maxSymbolLength = symbols.keys.map(\.count).max()!
 
-    /// 日本語の記号にした句読点・記号の打鍵 key の後ろの入力の評価のしかた。句読点の後は文頭、記号の打鍵の後は文の途中かもしれないものとする
+    /// 日本語の記号にした句読点・記号の打鍵 key の後ろの入力の評価のしかた。句読点の後は後ろを文の頭として、記号の打鍵の後は文の途中かもしれないものとして評価する
     static func leading(after key: String) -> Leading {
         symbols[key] == nil ? .start : .afterJapanese
     }
 
-    /// 句読点は前の語の後ろに付くので、直前が日本語なら日本語の記号にし、英語なら打ったまま英語の区間に含める。
+    /// 句読点は、直前が日本語なら日本語の記号にし、英語なら打ったまま英語の区間に含める。
     /// 記号の打鍵は、前後によらず記号にする。入力の先頭の句読点は、入力欄の直前（leading）で決める。
-    /// 日本語の記号の位置で入力を切る。句読点の後は文頭として、記号の打鍵の後は文の途中かもしれないものとして次の部分を評価する
+    /// 日本語の記号の位置で入力を切る。句読点の後は文の頭として、記号の打鍵の後は文の途中かもしれないものとして次の部分を評価する
     public func segment(_ input: String, leading: Leading = .start) -> [Segment] {
         segment(input, leading: leading, context: leading.japaneseContext)
     }
@@ -317,7 +317,7 @@ public final class Segmenter {
                 }
             }
             let japaneseReach = japaneseEnds.reduce(into: japaneseEnds) { $0.formUnion(chained[$1]) }
-            // 句読点は前の語の後ろに付くので、英語区間を句読点から始めない。入力の先頭は、入力欄の前の英語に付いている
+            // 句読点は直前の区間に従い、英語の後なら英語区間に入るので、英語区間を句読点から始めない。入力の先頭は、入力欄の前の英語に続いている
             if start > 0, Self.punctuation[chars[start]] != nil { continue }
             for end in (start + 1)...n {
                 let source = String(chars[start..<end])
