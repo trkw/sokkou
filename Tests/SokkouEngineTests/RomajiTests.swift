@@ -186,6 +186,7 @@ enum Shared {
         let engine = try Shared.engine.get()
         engine.endComposition()
         let spans = engine.live(input, leading: .start)
-        #expect(!spans.contains(where: \.differsFromReading), "\(spans)")
+        let differs = spans.filter(\.differsFromReading)
+        #expect(differs.isEmpty, "\(spans)")
     }
 }
