@@ -17,7 +17,7 @@ let package = Package(
         // 1.0 まではマイナー版でも破壊的変更があるため revision で固定する
         .package(
             url: "https://github.com/azooKey/AzooKeyKanaKanjiConverter",
-            revision: "04ce2ec3afe2bd6f92fcae1dc15a2357d332c27a",
+            revision: "25a6346bf76931c1cf2214015b808875ea82f4bf",
             traits: ["Zenzai"]
         ),
     ],
