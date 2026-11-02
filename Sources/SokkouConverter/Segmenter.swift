@@ -278,7 +278,7 @@ public final class Segmenter {
     }
 
     /// i から始まる記号の打鍵のうち最も長いもの
-    private static func symbol(at i: Int, in chars: [Character]) -> (key: String, mark: String)? {
+    static func symbol(at i: Int, in chars: [Character]) -> (key: String, mark: String)? {
         for length in stride(from: min(maxSymbolLength, chars.count - i), through: 1, by: -1) {
             let key = String(chars[i..<(i + length)])
             if let mark = symbols[key] { return (key, mark) }

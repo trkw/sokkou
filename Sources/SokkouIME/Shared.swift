@@ -15,6 +15,9 @@ let sharedEngine: AzooKeyEngine = {
     }
 }()
 
+/// 入力欄の Composer は、変換エンジンをこれを通して使う。変換は直列のキューで動かし、打っている途中の表示は変換を待たない
+let conversion = ConversionQueue(base: sharedEngine)
+
 /// 覚えた候補は ~/Library/Application Support/sokkou/learning.json に置く
 let sharedLearning: FileLearning = {
     let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]

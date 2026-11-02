@@ -1,8 +1,11 @@
 /// 日英の判定とかな漢字変換。sokkou はこれを通してだけ変換エンジンを使う。
 /// 入力メソッドは azooKey の変換エンジンをつないだもの（SokkouEngine）を、テストは小さな辞書の偽物を渡す
 public protocol Engine: AnyObject {
-    /// 打っている途中に見せる区間の並び。text をつなぐと、そのまま Enter で確定する文字列になる
+    /// 打っている途中に見せる区間の並び。変換を待たずに返す変換エンジンでは、変換が届く前の仮の区間のこともある
     func live(_ keys: String, leading: Leading) -> [Span]
+    /// 確定に使う、打っている途中の区間の並び。text をつなぐと、そのまま Enter で確定する文字列になる。
+    /// 変換を待たずに live を返す変換エンジンでは、変換が届くのを待って返す
+    func settled(_ keys: String, leading: Leading) -> [Span]
     /// 文節に区切り、文節ごとに候補を付ける
     func clauses(_ keys: String, leading: Leading) -> ClauseList
     /// index の文節を伸ばす（delta が正）・縮める（負）。できなければ元のまま返す
@@ -21,6 +24,13 @@ public protocol Engine: AnyObject {
     func words(reading: String, okurigana: String) -> [String]
     /// 未確定の文字列を確定・取り消ししたときに呼ぶ
     func endComposition()
+}
+
+extension Engine {
+    /// 変換を待たずに返すことのない変換エンジンでは、live がそのまま確定に使える
+    public func settled(_ keys: String, leading: Leading) -> [Span] {
+        live(keys, leading: leading)
+    }
 }
 
 /// 選んだ候補を覚えて、次に同じ読みが来たときに上へ出す

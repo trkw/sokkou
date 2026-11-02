@@ -591,7 +591,7 @@ public final class Composer {
     /// 終わりが読みのままのかなや、読み切れていない英字なら、ふだんどおり打鍵を 1 つ消す
     private func eraseConvertedCharacter(_ typing: Typing) -> Bool {
         guard erasesConvertedCharacters, mode == .hiragana, !typing.raw,
-              let last = engine.live(typing.keys, leading: leading).last,
+              let last = engine.settled(typing.keys, leading: leading).last,
               last.kind == .japanese, last.text != last.reading, let character = last.text.last, !character.isASCII
         else { return false }
         // 確定の取り消し（C-/）で、消す前に戻せる
@@ -605,7 +605,7 @@ public final class Composer {
     @discardableResult
     private func commitIfSentenceMark(_ character: Character, _ typing: Typing) -> Bool {
         guard commitsAtPunctuation, mode == .hiragana, Self.sentenceMarks.contains(character),
-              engine.live(typing.keys, leading: leading).last?.kind == .punctuation
+              engine.settled(typing.keys, leading: leading).last?.kind == .punctuation
         else { return false }
         recallPhase = (phase: .typing(typing), start: committed.count)
         committed += typingText(typing)
@@ -638,10 +638,11 @@ public final class Composer {
         "L": .fullwidthRoman,
     ]
 
-    private func typingSegments(_ typing: Typing) -> [MarkedSegment] {
+    /// 打っている途中の表示。settled なら確定に使う区間（変換が届くのを待つ）で作る
+    private func typingSegments(_ typing: Typing, settled: Bool = false) -> [MarkedSegment] {
         guard !typing.keys.isEmpty else { return [] }
         guard let form = modeForm else {
-            let spans = engine.live(typing.keys, leading: leading)
+            let spans = settled ? engine.settled(typing.keys, leading: leading) : engine.live(typing.keys, leading: leading)
             if typing.raw {
                 let text = spans.map { $0.kind == .japanese ? $0.reading : $0.text }.joined()
                 return [MarkedSegment(text: text, style: .raw)]
@@ -658,8 +659,9 @@ public final class Composer {
         return engine.live(typing.keys, leading: leading).contains(where: \.differsFromReading)
     }
 
+    /// 確定する文字列。変換が届く前の仮の表示ではなく、変換が届くのを待って作る
     private func typingText(_ typing: Typing) -> String {
-        typingSegments(typing).map(\.text).joined()
+        typingSegments(typing, settled: true).map(\.text).joined()
     }
 
     /// カタカナ・半角カタカナモードで、打った読みを出す文字種。ひらがなモードなら nil

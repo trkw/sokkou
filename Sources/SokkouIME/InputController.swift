@@ -41,7 +41,7 @@ private enum KeyCode {
 final class SokkouInputController: IMKInputController {
     /// キー操作の状態は入力欄ごとに持つ。変換エンジンと覚えた候補はプロセスで共有する
     private lazy var composer: Composer = {
-        let composer = Composer(engine: sharedEngine, learning: sharedLearning, lexicon: sharedLexicon)
+        let composer = Composer(engine: conversion, learning: sharedLearning, lexicon: sharedLexicon)
         Self.apply(to: composer)
         return composer
     }()
@@ -151,6 +151,8 @@ final class SokkouInputController: IMKInputController {
         }
         // 設定はほかの入力欄のメニューや設定の窓からも変わるので、打鍵ごとに読み直す
         Self.apply(to: composer)
+        // 打っている途中の変換は待たずに積むので、届いたらこの入力欄の表示を作り直す
+        conversion.onConvert = { [weak self] in self?.didConvert() }
         if app == nil { app = client.bundleIdentifier() }
         composer.passesControlQInRoman = ModeMemory.isTerminal(app)
         if key == .control("/"), let text = composer.undoableCommit, Self.range(before: text, in: client) == nil {
@@ -334,6 +336,12 @@ final class SokkouInputController: IMKInputController {
     private static let maxLeadingLength = 16
 
     // MARK: 表示と確定
+
+    /// 打っている途中の変換が届いた。届いた変換で表示を作り直す
+    private func didConvert() {
+        guard let client = client() else { return }
+        flush(client)
+    }
 
     /// 確定した文字列をアプリに渡し、未確定の文字列と候補の窓を今の状態にする。渡した文字列を返す。
     /// prepared は、このキーのあとに作った表示。無ければここで作る
