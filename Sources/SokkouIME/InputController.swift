@@ -109,6 +109,7 @@ final class SokkouInputController: IMKInputController {
             }
             ownCommits = OwnCommits()
             candidatePanel.hide()
+            rewriteWarning.hide()
             modeBadge.hide()
         }
         super.deactivateServer(sender)
@@ -373,6 +374,12 @@ final class SokkouInputController: IMKInputController {
             candidatePanel.show(window, near: caretRect(client, at: focusedOffset(presentation)))
         } else {
             candidatePanel.hide()
+        }
+        // 打っている途中の表示が打った読みと合わなければ、未確定の文字列の先頭の行の下で知らせる
+        if presentation.differsFromInput {
+            rewriteWarning.show(below: caretRect(client))
+        } else {
+            rewriteWarning.hide()
         }
         return text
     }

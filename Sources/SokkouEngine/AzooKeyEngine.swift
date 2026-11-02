@@ -225,14 +225,15 @@ public final class AzooKeyEngine: Engine {
     // MARK: 型の付け替え
 
     /// 打っている途中の表示を区間ごとに分ける。英語と句読点の区間は打ったまま表示されるので、
-    /// その文字列が現れるところまでを、前に続く日本語区間の表示とする。分けられなければ全体を 1 つの日本語区間にする
+    /// その文字列が現れるところまでを、前に続く日本語区間の表示とする。分けられなければ全体を 1 つの日本語区間にする。
+    /// 日本語の区間は、表示のかなが読みのかなと合うかも照らす（`japaneseSpan`）
     static func spans(of segments: [Segment], in text: String) -> [Span] {
         var spans: [Span] = []
         var rest = Substring(text)
         var japaneseReading = ""
         func closeJapanese(before end: Substring.Index) {
             guard !japaneseReading.isEmpty else { return }
-            spans.append(Span(kind: .japanese, text: String(rest[..<end]), reading: japaneseReading))
+            spans.append(japaneseSpan(text: String(rest[..<end]), reading: japaneseReading))
             rest = rest[end...]
             japaneseReading = ""
         }
@@ -256,7 +257,13 @@ public final class AzooKeyEngine: Engine {
     }
 
     private static func fallback(_ segments: [Segment], _ text: String) -> [Span] {
-        [Span(kind: .japanese, text: text, reading: segments.map(\.reading).joined())]
+        [japaneseSpan(text: text, reading: segments.map(\.reading).joined())]
+    }
+
+    /// 日本語の区間。表示のかなが読みのかなと同じ順に並ばなければ、読みと合わない区間とする
+    private static func japaneseSpan(text: String, reading: String) -> Span {
+        let matches = JapaneseDisplay(text: text, clauses: [JapaneseClause(reading: reading, text: text)]).matchesReading
+        return Span(kind: .japanese, text: text, reading: reading, differsFromReading: !matches)
     }
 
     private static func list(_ clauses: [SokkouConverter.Clause]) -> ClauseList {
