@@ -83,6 +83,18 @@ enum Shared {
         #expect(text.hasSuffix(suffix), "\(text)")
     }
 
+    /// 促音の形の数詞（ひゃっ・じゅっ）を含む読みも日本語区間として採り、途中に英字を残さない（tugime の 6b27a05 と同じ入力）。
+    /// azooKey は辞書に 百歩 が無く、百（ひゃっ）・十（じゅっ）を DicdataStore.shouldBeRemoved で枝刈りするので、
+    /// ひゃっぽ の変換が「非ゃっぽ」になって評価値が下がり、h を英字に残す（hやっぽ譲る）。
+    /// 語ごとに辞書を足す直しはしないので、azooKey で直るまで既知の問題とする。直れば withKnownIssue が落ちて知らせる
+    @Test(arguments: [("hyappoyuzuru", "百歩譲る"), ("sorehagojuppohyappo", "それは五十歩百歩")])
+    func readsGeminatedNumeralsAsJapanese(input: String, expected: String) throws {
+        let text = try Shared.engine.get().live(input, leading: .start).map(\.text).joined()
+        withKnownIssue("azooKey の辞書に 百歩 が無く、ひゃっ・じゅっ を枝刈りする") {
+            #expect(text == expected)
+        }
+    }
+
     /// ローマ字で読める短い綴りが英語の語表にあっても、日本語の途中で英語にしない
     @Test(arguments: ["madahitotuninattenaine", "sounanda", "usodesyo", "ikuyo", "orehaikanai"])
     func shortRomajiWordsStayJapanese(input: String) throws {
