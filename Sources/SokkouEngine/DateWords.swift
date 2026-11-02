@@ -31,7 +31,7 @@ public struct DateWords: Sendable {
         return []
     }
 
-    /// 2026年10月25日 / 2026年10月25日(日) / 10月25日(日) / 2026/10/25 / 2026-10-25 / 日曜日
+    /// 2026年10月25日 / 2026年10月25日(日) / 10月25日(日) / 2026/10/25 / 2026-10-25 / 日曜日 / 20261025
     private func dates(_ date: Date) -> [String] {
         let d = calendar.dateComponents([.year, .month, .day, .weekday], from: date)
         let (year, month, day) = (d.year!, d.month!, d.day!)
@@ -43,6 +43,7 @@ public struct DateWords: Sendable {
             "\(year)/\(pad(month))/\(pad(day))",
             "\(year)-\(pad(month))-\(pad(day))",
             "\(weekday)曜日",
+            "\(year)\(pad(month))\(pad(day))",
         ]
     }
 
