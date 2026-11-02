@@ -51,6 +51,22 @@ struct StumbleDetectorTests {
         #expect(driver.found.first?.count == 2)
     }
 
+    @Test func deletingAfterBackspaceCommittedSaysSo() {
+        // 「変換した字を 1 字ずつ消す」で ⌫ が残りを確定し、続けて ⌫ を押した
+        let driver = Driver(includesText: true)
+        driver.composer.erasesConvertedCharacters = true
+        driver.type(driver.characters("kaku") + [.backspace, .backspace])
+        #expect(driver.kinds == [.deletedAfterCommit])
+        #expect(driver.found.first?.text == "書")
+        #expect(driver.found.first?.note == StumbleDetector.afterErasingNote)
+    }
+
+    @Test func deletingAfterEnterHasNoNote() {
+        let driver = Driver()
+        driver.type(driver.characters("kaku") + [.enter, .backspace])
+        #expect(driver.found.first?.note == nil)
+    }
+
     @Test func deletingLaterIsNot() {
         let driver = Driver()
         driver.type(driver.characters("kaku") + [.enter])
