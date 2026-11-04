@@ -113,8 +113,12 @@ public final class Segmenter {
     /// 打っている途中に見せる文字列。Enter で確定するのもこれ。日本語区間は長さによらず変換し（kidoku → 既読）、英語区間は打ったまま。
     /// 文の頭の 1 かなだけの末尾の区間は、変換せずにかなのまま見せる（showsAsKana）
     public func liveText(_ input: String, leading: Leading = .start) -> String {
-        let segments = segment(input, leading: leading)
-        return zip(segments, displays(of: segments.map(ShownSpan.init), startsAtHead: true)).map { segment, display in
+        liveText(of: segment(input, leading: leading))
+    }
+
+    /// segment で区切った segments から、liveText と同じ文字列を作る。区切りを済ませていれば、もう一度区切らない（tugime の liveDisplay）
+    public func liveText(of segments: [Segment]) -> String {
+        zip(segments, displays(of: segments.map(ShownSpan.init), startsAtHead: true)).map { segment, display in
             display?.text ?? segment.output
         }.joined()
     }
