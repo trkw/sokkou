@@ -360,6 +360,9 @@ final class SokkouInputController: IMKInputController {
                 }
             }
             showsMarkedText = false
+            // 確定すると未確定の文字列の位置が変わるので、出ている窓は次に出すときに置き直す
+            candidatePanel.hide()
+            rewriteWarning.hide()
         }
         // ⌫ で確定した語を消すなら、カーソルの前のその語を消す
         if let erased = composer.takeErased(), let range = Self.range(before: erased, in: client) {
@@ -367,6 +370,10 @@ final class SokkouInputController: IMKInputController {
         }
         // 確定を取り消したら、入力欄の確定した文字列を未確定の文字列で置き換える
         let replaced = composer.takeReplaced().flatMap { Self.range(before: $0, in: client) }
+        if replaced != nil {
+            candidatePanel.hide()
+            rewriteWarning.hide()
+        }
         let presentation = prepared ?? composer.presentation
         if !presentation.segments.isEmpty || showsMarkedText {
             let marked = markedText(presentation)
@@ -379,13 +386,14 @@ final class SokkouInputController: IMKInputController {
             showsMarkedText = marked.length > 0
         }
         if let window = presentation.window {
-            candidatePanel.show(window, near: caretRect(client, at: focusedOffset(presentation)))
+            let offset = focusedOffset(presentation)
+            candidatePanel.show(window, at: offset, near: { caretRect(client, at: offset) })
         } else {
             candidatePanel.hide()
         }
         // 打っている途中の表示が打った読みと合わなければ、未確定の文字列の先頭の行の下で知らせる
         if presentation.differsFromInput {
-            rewriteWarning.show(below: caretRect(client))
+            rewriteWarning.show(below: { caretRect(client) })
         } else {
             rewriteWarning.hide()
         }

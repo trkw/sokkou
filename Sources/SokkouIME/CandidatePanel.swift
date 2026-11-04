@@ -7,6 +7,8 @@ final class CandidatePanel {
     private let panel = FloatingPanel()
     private let model = CandidateModel()
     private let host: NSHostingView<CandidateView>
+    /// 窓を置いた文節の位置（未確定の文字列の何文字目か）と、そのとき入力欄が返した行の矩形
+    private var placed: (offset: Int, line: NSRect)?
 
     init() {
         host = NSHostingView(rootView: CandidateView(model: model))
@@ -14,19 +16,25 @@ final class CandidatePanel {
         panel.setGlassContent(host, cornerRadius: Theme.windowRadius)
     }
 
-    func show(_ window: CandidateWindow, near line: NSRect) {
+    /// 未確定の文字列の offset 文字目から始まる文節の下に出す。line はその行の矩形を入力欄に尋ねる。
+    /// 尋ねるのは窓を出すときと文節が変わったときだけにし、候補を進めるあいだは置いた行のまま描き直す（tugime の aa803bd）
+    func show(_ window: CandidateWindow, at offset: Int, near line: () -> NSRect) {
         // 設定の窓で形を変えたら、次に出すときから効かせる
         let style = CandidateStyle.current
         model.style = style
         model.colors = Palette.key
         model.window = window
         host.layoutSubtreeIfNeeded()
+        let line = placed.flatMap { panel.isVisible && $0.offset == offset ? $0.line : nil } ?? line()
+        placed = (offset, line)
         // 候補の文字の左端を、選んでいる文節の左端にそろえる
         panel.place(size: host.fittingSize, below: line, leading: style.textInset)
         panel.appear()
     }
 
     func hide() {
+        placed = nil
+        guard panel.isVisible else { return }
         panel.orderOut(nil)
     }
 }

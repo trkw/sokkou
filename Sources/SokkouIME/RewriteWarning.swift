@@ -15,8 +15,11 @@ final class RewriteWarning {
         panel.setGlassContent(host, cornerRadius: Self.radius)
     }
 
-    /// 行の矩形 line の下に出す。アプリが位置を返さない（無限大や高さ 0）ときは出さない
-    func show(below line: NSRect) {
+    /// 行の矩形 line の下に出す。アプリが位置を返さない（無限大や高さ 0）ときは出さない。
+    /// 文言は変わらないので、出ているあいだは入力欄に行の位置を尋ねず、置き直さない
+    func show(below line: () -> NSRect) {
+        guard !panel.isVisible else { return }
+        let line = line()
         guard line.minX.isFinite, line.minY.isFinite, line.height > 0 else {
             hide()
             return
@@ -27,6 +30,7 @@ final class RewriteWarning {
     }
 
     func hide() {
+        guard panel.isVisible else { return }
         panel.orderOut(nil)
     }
 }

@@ -588,10 +588,11 @@ public final class Composer {
     }
 
     /// 終わりが変換した字なら、打鍵を 1 つ消すと読みに戻って崩れるので、その字を消して残りを確定する。消したら true。
-    /// 終わりが読みのままのかなや、読み切れていない英字なら、ふだんどおり打鍵を 1 つ消す
+    /// 終わりが読みのままのかなや、読み切れていない英字なら、ふだんどおり打鍵を 1 つ消す。
+    /// 変換がまだ届いていなければ、見えている終わりは読みのかななので、変換を待たずにふだんどおり打鍵を 1 つ消す
     private func eraseConvertedCharacter(_ typing: Typing) -> Bool {
         guard erasesConvertedCharacters, mode == .hiragana, !typing.raw,
-              let last = engine.settled(typing.keys, leading: leading).last,
+              let last = engine.arrived(typing.keys, leading: leading)?.last,
               last.kind == .japanese, last.text != last.reading, let character = last.text.last, !character.isASCII
         else { return false }
         // 確定の取り消し（C-/）で、消す前に戻せる
@@ -638,11 +639,11 @@ public final class Composer {
         "L": .fullwidthRoman,
     ]
 
-    /// 打っている途中の表示。settled なら確定に使う区間（変換が届くのを待つ）で作る
-    private func typingSegments(_ typing: Typing, settled: Bool = false) -> [MarkedSegment] {
+    /// 打っている途中の表示。settled なら確定に使う区間（変換が届くのを待つ）で作る。live は作ってある打っている途中の区間
+    private func typingSegments(_ typing: Typing, settled: Bool = false, live: [Span]? = nil) -> [MarkedSegment] {
         guard !typing.keys.isEmpty else { return [] }
         guard let form = modeForm else {
-            let spans = settled ? engine.settled(typing.keys, leading: leading) : engine.live(typing.keys, leading: leading)
+            let spans = live ?? (settled ? engine.settled(typing.keys, leading: leading) : engine.live(typing.keys, leading: leading))
             if typing.raw {
                 let text = spans.map { $0.kind == .japanese ? $0.reading : $0.text }.joined()
                 return [MarkedSegment(text: text, style: .raw)]
@@ -651,12 +652,6 @@ public final class Composer {
         }
         let text = engine.whole(typing.keys, form: form, leading: leading).clauses.map(\.output).joined()
         return [MarkedSegment(text: text, style: .japanese)]
-    }
-
-    /// 打っている途中の表示が、打った読みと合わない変換を含むか。かなに戻した表示（C-g）と、カタカナ・半角カナのモードは変換しないので含まない
-    private func typingDiffersFromInput(_ typing: Typing) -> Bool {
-        guard !typing.keys.isEmpty, !typing.raw, modeForm == nil else { return false }
-        return engine.live(typing.keys, leading: leading).contains(where: \.differsFromReading)
     }
 
     /// 確定する文字列。変換が届く前の仮の表示ではなく、変換が届くのを待って作る
@@ -1412,11 +1407,14 @@ public final class Composer {
         case .idle:
             return .empty
         case .typing(let typing):
-            var segments = typingSegments(typing)
+            // 表示と警告は同じ区間から作る。仮の区間を作るのは 1 度だけにする（tugime の liveDisplay）
+            // 警告は、打った読みと合わない変換を含むとき。かなに戻した表示（C-g）と、カタカナ・半角カナのモードは変換しないので出さない
+            let live = typing.keys.isEmpty || modeForm != nil ? [] : engine.live(typing.keys, leading: leading)
+            var segments = typingSegments(typing, live: live)
             if typing.sticky {
                 segments.append(MarkedSegment(text: "▽", style: .manual))
             }
-            return Presentation(segments: segments, differsFromInput: typingDiffersFromInput(typing))
+            return Presentation(segments: segments, differsFromInput: !typing.raw && live.contains(where: \.differsFromReading))
         case .selecting(let selecting):
             let segments = selecting.list.clauses.enumerated().map { index, clause in
                 MarkedSegment(text: clause.output, style: index == selecting.focus ? .focused : .clause)
