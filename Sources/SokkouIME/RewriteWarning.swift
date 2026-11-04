@@ -9,6 +9,8 @@ final class RewriteWarning {
 
     private let panel = FloatingPanel()
     private let host = NSHostingView(rootView: WarningView())
+    /// 出ている窓を置いた行の矩形
+    private var placed: NSRect?
 
     init() {
         host.sizingOptions = [.intrinsicContentSize]
@@ -16,16 +18,16 @@ final class RewriteWarning {
     }
 
     /// 行の矩形 line の下に出す。アプリが位置を返さない（無限大や高さ 0）ときは出さない。
-    /// 文言は変わらないので、出ているあいだは入力欄に行の位置を尋ねず、置き直さない
-    func show(below line: () -> NSRect) {
-        guard !panel.isVisible else { return }
-        let line = line()
+    /// 文言は変わらないので、出ているあいだに行が動いていなければ（スクロールや折り返しで動くことがある）置き直さない
+    func show(below line: NSRect) {
+        if panel.isVisible, placed == line { return }
         guard line.minX.isFinite, line.minY.isFinite, line.height > 0 else {
             hide()
             return
         }
         host.layoutSubtreeIfNeeded()
         panel.place(size: host.fittingSize, below: line)
+        placed = line
         panel.appear()
     }
 
