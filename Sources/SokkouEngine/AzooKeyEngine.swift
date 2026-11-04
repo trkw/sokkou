@@ -61,7 +61,7 @@ public final class AzooKeyEngine: Engine {
         // 表示と確定で同じ打鍵列を続けて読むので、最後の 1 つを覚えておく
         if let last = lastLive, last.keys == keys, last.leading == leading { return last.spans }
         let segments = segmenter.segment(keys, leading: leading.forConverter)
-        let text = readsDisplayFromSegments ? Self.liveText(of: segments) : segmenter.liveText(keys, leading: leading.forConverter)
+        let text = readsDisplayFromSegments ? Self.liveText(of: segments) : segmenter.liveText(of: segments)
         let spans = Self.spans(of: segments, in: text)
         lastLive = (keys, leading, spans)
         return spans
@@ -69,8 +69,8 @@ public final class AzooKeyEngine: Engine {
 
     private var lastLive: (keys: String, leading: Leading, spans: [Span])?
 
-    /// Zenzai を使わないときは、表示の変換は区切りの採点の変換と同じになる。そのときは Segmenter の liveText に
-    /// 区切りをもう一度作らせず、区切りの結果から表示を作る。区切りは打鍵列の長さの 2 乗で重くなるので、長く打つほど効く
+    /// Zenzai を使わないときは、表示の変換は区切りの採点の変換と同じになる。そのときは表示の変換をかけず、区切りの結果の出力から表示を作る。
+    /// どちらでも区切りは 1 打鍵に 1 度だけ作る。区切りは打鍵列の長さの 2 乗で重くなるので、長く打つほど効く
     var readsDisplayFromSegments: Bool
 
     /// Segmenter.liveText と同じ文字列を、区切りの結果から作る。Zenzai を使わないときだけ同じになる。
