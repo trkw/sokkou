@@ -115,6 +115,8 @@ final class FloatingPanel: NSPanel {
         }
         origin.x = min(max(origin.x, visible.minX), visible.maxX - size.width)
         origin.y = min(max(origin.y, visible.minY), visible.maxY - size.height)
+        // 同じ所に同じ大きさで置くなら、置き直しも影の作り直しもしない
+        guard frame != NSRect(origin: origin, size: size) else { return }
         setFrame(NSRect(origin: origin, size: size), display: true)
         invalidateShadow()
     }

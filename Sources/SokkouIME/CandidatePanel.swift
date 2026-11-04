@@ -27,6 +27,7 @@ final class CandidatePanel {
     }
 
     func hide() {
+        guard panel.isVisible else { return }
         panel.orderOut(nil)
     }
 }

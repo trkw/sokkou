@@ -9,24 +9,30 @@ final class RewriteWarning {
 
     private let panel = FloatingPanel()
     private let host = NSHostingView(rootView: WarningView())
+    /// 出ている窓を置いた行の矩形
+    private var placed: NSRect?
 
     init() {
         host.sizingOptions = [.intrinsicContentSize]
         panel.setGlassContent(host, cornerRadius: Self.radius)
     }
 
-    /// 行の矩形 line の下に出す。アプリが位置を返さない（無限大や高さ 0）ときは出さない
+    /// 行の矩形 line の下に出す。アプリが位置を返さない（無限大や高さ 0）ときは出さない。
+    /// 文言は変わらないので、出ているあいだに行が動いていなければ（スクロールや折り返しで動くことがある）置き直さない
     func show(below line: NSRect) {
+        if panel.isVisible, placed == line { return }
         guard line.minX.isFinite, line.minY.isFinite, line.height > 0 else {
             hide()
             return
         }
         host.layoutSubtreeIfNeeded()
         panel.place(size: host.fittingSize, below: line)
+        placed = line
         panel.appear()
     }
 
     func hide() {
+        guard panel.isVisible else { return }
         panel.orderOut(nil)
     }
 }

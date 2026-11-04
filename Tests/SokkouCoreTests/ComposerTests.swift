@@ -330,6 +330,18 @@ struct ComposerTests {
         type(composer, [.enter])
         #expect(composer.takeCommitted() == "書く")
     }
+
+    /// 変換が届く前の ⌫ は、見えている読みのかなの打鍵を 1 つ消す。変換が届くのを待って、まだ見えていない変換した字を消して確定することはしない
+    @Test func erasesAKeyWithoutWaitingForTheConversion() {
+        let lagging = LaggingEngine(base: engine)
+        let composer = Composer(engine: lagging)
+        composer.erasesConvertedCharacters = true
+        type(composer, characters("kaku") + [.backspace])
+        #expect(composer.takeCommitted() == "")
+        #expect(lagging.settledCount == 0)
+        type(composer, characters("u") + [.enter])
+        #expect(composer.takeCommitted() == "書く")
+    }
 }
 
 /// 打っている途中の表示に、変換せずに読みを返す変換エンジン。確定に使う区間は base の変換
@@ -344,7 +356,16 @@ private final class LaggingEngine: Engine {
         base.live(keys, leading: leading).map { Span(kind: $0.kind, text: $0.reading, reading: $0.reading) }
     }
 
-    func settled(_ keys: String, leading: Leading) -> [Span] { base.live(keys, leading: leading) }
+    /// settled を呼んだ（変換が届くのを待った）回数
+    private(set) var settledCount = 0
+
+    func settled(_ keys: String, leading: Leading) -> [Span] {
+        settledCount += 1
+        return base.live(keys, leading: leading)
+    }
+
+    /// 変換はまだ届いていない
+    func arrived(_ keys: String, leading: Leading) -> [Span]? { nil }
     func clauses(_ keys: String, leading: Leading) -> ClauseList { base.clauses(keys, leading: leading) }
     func resize(_ list: ClauseList, at index: Int, by delta: Int, leading: Leading) -> ClauseList { base.resize(list, at: index, by: delta, leading: leading) }
     func commit(_ list: ClauseList, through index: Int) -> (text: String, rest: ClauseList, keys: String)? { base.commit(list, through: index) }

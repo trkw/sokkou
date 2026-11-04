@@ -46,6 +46,10 @@ nonisolated final class ConversionQueue: Engine, @unchecked Sendable {
         return queue.sync { base.live(keys, leading: leading) }
     }
 
+    func arrived(_ keys: String, leading: Leading) -> [Span]? {
+        converted.last(where: { $0.keys == keys && $0.leading == leading })?.spans
+    }
+
     /// 最後に求められた打鍵列の変換を、積んでいなければ積む
     private func request() {
         guard !converting, let (keys, leading) = latest else { return }

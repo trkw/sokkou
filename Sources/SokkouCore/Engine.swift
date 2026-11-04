@@ -6,6 +6,8 @@ public protocol Engine: AnyObject {
     /// 確定に使う、打っている途中の区間の並び。text をつなぐと、そのまま Enter で確定する文字列になる。
     /// 変換を待たずに live を返す変換エンジンでは、変換が届くのを待って返す
     func settled(_ keys: String, leading: Leading) -> [Span]
+    /// keys の変換が届いていれば、その区間の並び。待たずに返し、届いていなければ nil。変換を積むこともしない
+    func arrived(_ keys: String, leading: Leading) -> [Span]?
     /// 文節に区切り、文節ごとに候補を付ける
     func clauses(_ keys: String, leading: Leading) -> ClauseList
     /// index の文節を伸ばす（delta が正）・縮める（負）。できなければ元のまま返す
@@ -29,6 +31,11 @@ public protocol Engine: AnyObject {
 extension Engine {
     /// 変換を待たずに返すことのない変換エンジンでは、live がそのまま確定に使える
     public func settled(_ keys: String, leading: Leading) -> [Span] {
+        live(keys, leading: leading)
+    }
+
+    /// 変換を待たずに返すことのない変換エンジンでは、いつでも変換が届いている
+    public func arrived(_ keys: String, leading: Leading) -> [Span]? {
         live(keys, leading: leading)
     }
 }
