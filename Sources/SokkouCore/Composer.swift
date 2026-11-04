@@ -507,7 +507,8 @@ public final class Composer {
             typing.keys.append(" ")
             typing.raw = false
         case .enter, .control("m"), .control("j"):
-            committed += typingText(typing)
+            // 見えているとおりに確定する。変換が届く前でも待たない（tugime の 38a3097）
+            committed += typingText(typing, settled: false)
             finish()
             return true
         case .backspace, .control("h"):
@@ -654,9 +655,9 @@ public final class Composer {
         return [MarkedSegment(text: text, style: .japanese)]
     }
 
-    /// 確定する文字列。変換が届く前の仮の表示ではなく、変換が届くのを待って作る
-    private func typingText(_ typing: Typing) -> String {
-        typingSegments(typing, settled: true).map(\.text).joined()
+    /// 確定する文字列。settled なら変換が届く前の仮の表示ではなく、変換が届くのを待って作る。settled でなければ見えている表示のまま
+    private func typingText(_ typing: Typing, settled: Bool = true) -> String {
+        typingSegments(typing, settled: settled).map(\.text).joined()
     }
 
     /// カタカナ・半角カタカナモードで、打った読みを出す文字種。ひらがなモードなら nil
