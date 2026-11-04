@@ -321,13 +321,17 @@ struct ComposerTests {
         #expect(!composer.presentation.differsFromInput)
     }
 
-    /// 変換を待たずに仮の表示を返す変換エンジンでも、確定するのは変換が届いた後の文字列。仮の表示（読み切れない子音が残ったかな）は確定しない
-    @Test func commitsTheSettledConversionNotTheProvisionalDisplay() {
+    /// Enter は見えているとおりに確定し、変換が届くのを待たない。そのほかの確定（割り当ての無いキー）は変換が届いた後の文字列にする
+    @Test func entersTheShownTextAndOtherCommitsTheSettledConversion() {
         let lagging = LaggingEngine(base: engine)
         let composer = Composer(engine: lagging)
         type(composer, characters("kaku"))
         #expect(composer.presentation.text == "かく")
         type(composer, [.enter])
+        #expect(composer.takeCommitted() == "かく")
+        #expect(lagging.settledCount == 0)
+        type(composer, characters("kaku"))
+        #expect(!composer.handle(.control("z"), leading: { .start }))
         #expect(composer.takeCommitted() == "書く")
     }
 
@@ -340,7 +344,7 @@ struct ComposerTests {
         #expect(composer.takeCommitted() == "")
         #expect(lagging.settledCount == 0)
         type(composer, characters("u") + [.enter])
-        #expect(composer.takeCommitted() == "書く")
+        #expect(composer.takeCommitted() == "かく")
     }
 }
 
