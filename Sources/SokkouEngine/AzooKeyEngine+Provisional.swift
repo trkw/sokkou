@@ -11,7 +11,8 @@ extension AzooKeyEngine {
     public static func provisional(_ keys: String, leading: Leading, converted: [(keys: String, spans: [Span])], table: RomajiTable) -> [Span] {
         if let same = converted.last(where: { $0.keys == keys }) { return same.spans }
         for base in converted.reversed() where keys.hasPrefix(base.keys) {
-            guard let split = splitPending(base.spans, typed: base.keys) else { continue }
+            guard var split = splitPending(base.spans, typed: base.keys) else { continue }
+            split = rereadingWord(split, after: keys.dropFirst(base.keys.count - split.pending), table: table)
             let rest = keys.dropFirst(base.keys.count - split.pending)
             return joined(split.kept, read(rest, afterJapanese: afterJapanese(split.kept, leading: leading), table: table))
         }
@@ -40,6 +41,22 @@ extension AzooKeyEngine {
         last.reading.removeLast(consonants.count)
         if !last.text.isEmpty { kept.append(last) }
         return (kept, consonants.count)
+    }
+
+    /// 打ちかけを外した後に英語区間の末尾に残る語の切れ端（kat の ka）も、後の打鍵 rest とつないでかなだけで読めるなら、打ちかけに入れて読み直す（katta は かった）。
+    /// 打ちかけの子音があったから英語と見た語なので、残したままだと ka った のように英字とかなが混ざる。かなだけで読めないとき（wor の後の ld）や、
+    /// 打ちかけが無いときは今までどおり英語のまま残す
+    static func rereadingWord(_ split: (kept: [Span], pending: Int), after rest: Substring, table: RomajiTable) -> (kept: [Span], pending: Int) {
+        guard split.pending > 0, !rest.isEmpty, var last = split.kept.last, last.kind == .english else { return split }
+        let word = String(last.text.reversed().prefix { $0.isASCII && $0.isLetter }.reversed())
+        guard !word.isEmpty, last.reading.hasSuffix(word) else { return split }
+        let joined = word + rest
+        guard Segmenter.provisionalSegments(of: joined, afterJapanese: false, table: table).allSatisfy({ $0.kind == .japanese }) else { return split }
+        var kept = Array(split.kept.dropLast())
+        last.text.removeLast(word.count)
+        last.reading.removeLast(word.count)
+        if !last.text.isEmpty { kept.append(last) }
+        return (kept, split.pending + word.count)
     }
 
     /// 変換が届く前の打鍵の読みを、打っている途中の区間にする

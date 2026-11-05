@@ -60,6 +60,14 @@ import SokkouCore
         ("githubni", [("github", "github")], .start, "githubに"),
         ("gi", [("g", "g")], .start, "ぎ"),
         ("teno", [("te", "て"), ("ten", "て|n")], .start, "ての"),
+        // 打ちかけの子音で英語と見た語の切れ端も、後の打鍵とかなだけで読めるならまとめて読む。英字とかなを混ぜない
+        ("katta", [("ka", "か"), ("kat", "kat")], .start, "かった"),
+        ("mitemo", [("mit", "mit")], .start, "みても"),
+        ("hosii", [("hos", "hos")], .start, "ほしい"),
+        ("kanoyouni", [("kan", "kan")], .start, "かのように"),
+        // かなだけで読めなければ英語のまま
+        ("world", [("wor", "wor")], .start, "world"),
+        ("hello world", [("hello wor", "hello wor")], .start, "hello world"),
         // Backspace で前の打鍵列に戻ったときも、届いている変換を使う
         ("make", [("make", "make"), ("makes", "makes")], .start, "make"),
         // 届いていなければ打鍵列全体を読む。先頭の句読点は入力欄の直前で決める
