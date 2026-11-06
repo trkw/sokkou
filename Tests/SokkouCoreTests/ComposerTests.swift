@@ -146,6 +146,34 @@ struct ComposerTests {
         #expect(composer.presentation.text == "核")
     }
 
+    @Test func wordLearnedWithoutAParticleIsOfferedWithOne() {
+        let learning = MemoryLearning()
+        let composer = composer(learning: learning)
+        type(composer, characters("kaku") + [.control("n"), .control("n"), .control("n"), .enter])
+        #expect(composer.takeCommitted() == "核")
+        type(composer, characters("kakuno") + [.control("n"), .control("n")])
+        #expect(composer.presentation.text == "核の")
+    }
+
+    @Test func wordLearnedWithAParticleIsOfferedWithoutOne() {
+        let learning = MemoryLearning()
+        let composer = composer(learning: learning)
+        type(composer, characters("kakuno") + [.control("n"), .control("n"), .control("n"), .control("n"), .enter])
+        #expect(composer.takeCommitted() == "核の")
+        #expect(learning.preferred(for: "かく") == "核")
+        type(composer, characters("kaku") + [.control("n"), .control("n")])
+        #expect(composer.presentation.text == "核")
+    }
+
+    @Test func learnedStemDropsOnlyTrailingKanaAfterAWord() {
+        let stem = Composer.stem(reading: "かいぎを", word: "会議を")
+        #expect(stem?.reading == "かいぎ")
+        #expect(stem?.word == "会議")
+        // 送りがなの途中や短すぎる読みは覚えない
+        #expect(Composer.stem(reading: "かく", word: "書く") == nil)
+        #expect(Composer.stem(reading: "かく", word: "核") == nil)
+    }
+
     @Test func privateModeDoesNotLearn() {
         let learning = MemoryLearning()
         let composer = composer(learning: learning)

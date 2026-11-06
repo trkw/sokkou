@@ -703,7 +703,7 @@ public final class Composer {
         words += words.prefix(3).flatMap(Numeric.variants)
         words = Self.unique(words)
         if clause.kind == .japanese {
-            if learns, let learning, let word = learning.preferred(for: clause.reading),
+            if learns, let word = preferredWord(for: clause.reading),
                let found = words.firstIndex(of: word), found > 1 {
                 // 覚えた候補は、今の候補のすぐ次に置く。表示は変えず、C-n 1 回で選べるようにする
                 words.remove(at: found)
@@ -960,7 +960,48 @@ public final class Composer {
             let clause = selecting.list.clauses[index]
             guard clause.kind == .japanese, clause.selected != 0, clause.output != Self.registerItem else { continue }
             learning.record(reading: clause.reading, word: clause.output)
+            // 助詞などが付いた文節でも付かない文節でも同じ語を選べるよう、後ろのかなを除いた形も覚える
+            if let stem = Self.stem(reading: clause.reading, word: clause.output) {
+                learning.record(reading: stem.reading, word: stem.word)
+            }
         }
+    }
+
+    /// 覚えた候補。読みそのままで覚えていなければ、後ろのかな（助詞など）を除いた読みで覚えた語にかなを付け直す
+    private func preferredWord(for reading: String) -> String? {
+        guard let learning else { return nil }
+        if let word = learning.preferred(for: reading) { return word }
+        let characters = Array(reading)
+        for length in 1...Self.learnedSuffixLimit where characters.count - length >= Self.learnedStemMinimum {
+            let suffix = String(characters.suffix(length))
+            guard suffix.allSatisfy(Self.isHiragana) else { break }
+            if let word = learning.preferred(for: String(characters.dropLast(length))) {
+                return word + suffix
+            }
+        }
+        return nil
+    }
+
+    /// 後ろに付くかなとして見る長さの上限と、残す読みの短さの下限。「書く」の「か」のような短い読みは覚えない
+    private static let learnedSuffixLimit = 3
+    private static let learnedStemMinimum = 2
+
+    /// 読みと語で同じ後ろのかなを除いた形。語の残りがかなで終わる（送りがなの途中）ときや読みが短いときは nil
+    static func stem(reading: String, word: String) -> (reading: String, word: String)? {
+        var reading = Array(reading)
+        var word = Array(word)
+        var removed = 0
+        while let last = reading.last, last == word.last, isHiragana(last), removed < learnedSuffixLimit {
+            reading.removeLast()
+            word.removeLast()
+            removed += 1
+        }
+        guard removed > 0, reading.count >= learnedStemMinimum, let end = word.last, !isHiragana(end) else { return nil }
+        return (String(reading), String(word))
+    }
+
+    private static func isHiragana(_ character: Character) -> Bool {
+        character.unicodeScalars.allSatisfy { (0x3041...0x309F).contains($0.value) }
     }
 
     // MARK: ▽ ▼
