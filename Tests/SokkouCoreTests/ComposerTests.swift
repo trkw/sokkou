@@ -165,13 +165,15 @@ struct ComposerTests {
         #expect(composer.presentation.text == "核")
     }
 
-    @Test func learnedStemDropsOnlyTrailingKanaAfterAWord() {
+    @Test func learnedStemDropsOnlyAParticleAfterAWord() {
         let stem = Composer.stem(reading: "かいぎを", word: "会議を")
         #expect(stem?.reading == "かいぎ")
         #expect(stem?.word == "会議")
         // 送りがなの途中や短すぎる読みは覚えない
         #expect(Composer.stem(reading: "かく", word: "書く") == nil)
         #expect(Composer.stem(reading: "かく", word: "核") == nil)
+        // 送りがなは除かない（「はな」の学習を「話」で上書きしない）
+        #expect(Composer.stem(reading: "はなした", word: "話した") == nil)
     }
 
     @Test func privateModeDoesNotLearn() {

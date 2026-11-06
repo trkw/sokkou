@@ -960,44 +960,39 @@ public final class Composer {
             let clause = selecting.list.clauses[index]
             guard clause.kind == .japanese, clause.selected != 0, clause.output != Self.registerItem else { continue }
             learning.record(reading: clause.reading, word: clause.output)
-            // 助詞などが付いた文節でも付かない文節でも同じ語を選べるよう、後ろのかなを除いた形も覚える
+            // 助詞が付いた文節でも付かない文節でも同じ語を選べるよう、助詞を除いた形も覚える
             if let stem = Self.stem(reading: clause.reading, word: clause.output) {
                 learning.record(reading: stem.reading, word: stem.word)
             }
         }
     }
 
-    /// 覚えた候補。読みそのままで覚えていなければ、後ろのかな（助詞など）を除いた読みで覚えた語にかなを付け直す
+    /// 覚えた候補。読みそのままで覚えていなければ、後ろの助詞を除いた読みで覚えた語に助詞を付け直す
     private func preferredWord(for reading: String) -> String? {
         guard let learning else { return nil }
         if let word = learning.preferred(for: reading) { return word }
-        let characters = Array(reading)
-        for length in 1...Self.learnedSuffixLimit where characters.count - length >= Self.learnedStemMinimum {
-            let suffix = String(characters.suffix(length))
-            guard suffix.allSatisfy(Self.isHiragana) else { break }
-            if let word = learning.preferred(for: String(characters.dropLast(length))) {
-                return word + suffix
-            }
+        for particle in Self.learnedParticles where reading.hasSuffix(particle) {
+            let stem = String(reading.dropLast(particle.count))
+            guard stem.count >= Self.learnedStemMinimum else { continue }
+            if let word = learning.preferred(for: stem) { return word + particle }
         }
         return nil
     }
 
-    /// 後ろに付くかなとして見る長さの上限と、残す読みの短さの下限。「書く」の「か」のような短い読みは覚えない
-    private static let learnedSuffixLimit = 3
+    /// 文節の後ろに付く助詞として見るもの。送りがな（「話した」の「した」など）を除いて別の読みの学習を上書きしないよう、助詞だけに絞る
+    private static let learnedParticles = ["から", "まで", "より", "を", "に", "が", "の", "は", "で", "と", "も", "へ", "や"]
+    /// 残す読みの短さの下限
     private static let learnedStemMinimum = 2
 
-    /// 読みと語で同じ後ろのかなを除いた形。語の残りがかなで終わる（送りがなの途中）ときや読みが短いときは nil
+    /// 読みと語で同じ後ろの助詞を除いた形。語の残りがかなで終わるときや読みが短いときは nil
     static func stem(reading: String, word: String) -> (reading: String, word: String)? {
-        var reading = Array(reading)
-        var word = Array(word)
-        var removed = 0
-        while let last = reading.last, last == word.last, isHiragana(last), removed < learnedSuffixLimit {
-            reading.removeLast()
-            word.removeLast()
-            removed += 1
+        for particle in learnedParticles where reading.hasSuffix(particle) && word.hasSuffix(particle) {
+            let stemReading = String(reading.dropLast(particle.count))
+            let stemWord = String(word.dropLast(particle.count))
+            guard stemReading.count >= learnedStemMinimum, let end = stemWord.last, !isHiragana(end) else { return nil }
+            return (stemReading, stemWord)
         }
-        guard removed > 0, reading.count >= learnedStemMinimum, let end = word.last, !isHiragana(end) else { return nil }
-        return (String(reading), String(word))
+        return nil
     }
 
     private static func isHiragana(_ character: Character) -> Bool {
