@@ -15,6 +15,7 @@ final class FakeEngine: Engine {
     static let dictionary: [String: [String]] = [
         "かく": ["書く", "描く", "核", "角", "格", "閣", "欠く", "画", "拡"],
         "の": ["の"],
+        "かくの": ["書くの", "描くの", "角の", "核の"],
         "かみ": ["紙", "神", "髪"],
     ]
     static let english: Set<String> = ["dark", "mode", "github"]
